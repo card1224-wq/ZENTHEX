@@ -1,3 +1,4 @@
+import uuid
 from fastapi import APIRouter, File, UploadFile, Form, BackgroundTasks, Depends, Header, HTTPException
 import time
 import shutil
@@ -50,7 +51,8 @@ async def upload_floorplan(
     db.commit()
 
     print(f"[Studio Engine - AI Prompter] Receiving floorplan: {file.filename}")
-    file_path = f"uploads/{int(time.time())}_{file.filename}"
+    safe_name = f"{int(time.time())}_{uuid.uuid4().hex}{file_ext}"
+    file_path = os.path.join("uploads", safe_name)
     
     # 3. 실제 저장 및 크기 사후 검증
     with open(file_path, "wb") as buffer:

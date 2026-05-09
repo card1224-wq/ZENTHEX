@@ -85,7 +85,7 @@
 
         async function toggleKillSwitch() {
             // Retrieve fake login token or bypass for Demo
-            const token = localStorage.getItem('access_token');
+            const token = localStorage.getItem('zx_token');
             if(!token) {
                  alert("⚠️ CEO 권한 로그인이 필요합니다. (데모 모드에서는 index에서 로그인 후 접근하세요)");
                  return;

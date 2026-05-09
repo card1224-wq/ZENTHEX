@@ -174,9 +174,11 @@
             logBox.scrollTop = logBox.scrollHeight;
         };
 
-        const fetchStatus = async () => {
+       let fetchStatus = async () => {
             try {
-                const res = await fetch("/api/finance/status");
+                const res = await fetch("/api/finance/status", {
+                headers: { "Authorization": `Bearer ${localStorage.getItem("zx_token") || ""}` }
+                });
                 const data = await res.json();
                 
                 isRunning = data.isRunning;
@@ -226,7 +228,10 @@
                 // START
                 await fetch("/api/finance/start", {
                     method: "POST",
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem("zx_token") || ""}`
+                    },
                     body: JSON.stringify({
                         accessKey: accessKeyEl.value,
                         secretKey: secretKeyEl.value,
@@ -282,7 +287,9 @@
         fetchStatus = async () => {
              await originalFetchStatus();
              try{ 
-                 const res = await fetch("/api/finance/status");
+                 const res = await fetch("/api/finance/status", {
+                 headers: { "Authorization": `Bearer ${localStorage.getItem("zx_token") || ""}` }
+                 });
                  const data = await res.json();
                  updateStaticUI(data);
              } catch(e) {}
