@@ -1,3 +1,6 @@
+from fastapi import APIRouter
+from pydantic import BaseModel
+
 import pyupbit
 import asyncio
 from trading.engine import bot_state, TradingState, scalping_loop, log_trade
