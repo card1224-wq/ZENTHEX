@@ -10,3 +10,6 @@ opencv-python
 numpy
 cryptography
 slowapi
+python-multipart
+aiofiles
+trimesh
