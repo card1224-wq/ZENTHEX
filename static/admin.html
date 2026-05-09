@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zenthex Admin - CEO Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Outfit:wght@800;900&display=swap" rel="stylesheet">
+    <style>
+        body { background-color: #111; color: #eee; font-family: 'Inter', sans-serif; }
+        .glass-panel { background: rgba(30, 30, 30, 0.8); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .alert-red { box-shadow: 0 0 30px rgba(255, 0, 0, 0.5); border-color: #ff3333; }
+        .pulse { animation: pulse 2s infinite; }
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,0,0, 0.7); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(255,0,0, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,0,0, 0); }
+        }
+    </style>
+</head>
+<body class="p-6 h-screen flex flex-col">
+    
+    <a href="index.html" class="inline-flex items-center gap-2 text-gray-400 hover:text-white text-sm mb-6 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></svg>
+        포트폴리오 메인으로 돌아가기
+    </a>
+
+    <header class="flex justify-between items-center mb-8 glass-panel p-6 rounded-2xl">
+        <div>
+            <h1 class="font-['Outfit'] text-3xl font-black tracking-widest text-[#ff3333] mb-2 uppercase">Zenthex Black Ops</h1>
+            <p class="text-sm text-gray-400 font-bold">CEO / MASTER ADMIN DASHBOARD</p>
+        </div>
+        <div id="system-status" class="px-4 py-2 rounded font-bold bg-green-500/20 text-green-400 border border-green-500">
+            SYSTEM ONLINE
+        </div>
+    </header>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 flex-grow">
+        
+        <!-- Stats -->
+        <div class="col-span-1 md:col-span-2 grid grid-cols-2 gap-6 h-48">
+            <div class="glass-panel p-6 rounded-2xl flex flex-col justify-center items-center text-center">
+                <span class="text-gray-500 text-sm font-bold uppercase tracking-widest mb-2">Total Registered Users</span>
+                <span id="stat-users" class="text-5xl font-black text-white">0</span>
+            </div>
+            
+            <div class="glass-panel p-6 rounded-2xl flex flex-col justify-center items-center text-center">
+                <span class="text-gray-500 text-sm font-bold uppercase tracking-widest mb-2">Active Trading Engines</span>
+                <span id="stat-bots" class="text-5xl font-black text-[#00ffcc] drop-shadow-[0_0_10px_rgba(0,255,204,0.5)]">0</span>
+            </div>
+        </div>
+
+        <!-- Kill Switch Card -->
+        <div class="col-span-1 glass-panel p-8 rounded-2xl flex flex-col justify-center items-center border-[3px] border-red-500/30 transition-all duration-300" id="killswitch-card">
+            <h2 class="text-red-500 font-black text-2xl uppercase tracking-widest mb-6">GLOBAL KILL SWITCH</h2>
+            <p class="text-center text-xs text-gray-400 font-bold mb-8 leading-relaxed">
+                WARNING: Activating this switch will forcefully halt ALL actively running trading bots across the SaaS platform.
+                Positions will be maintained (no forced sell-off), but no new trades will be executed.
+            </p>
+            
+            <button id="btn-kill" class="w-48 h-48 rounded-full bg-gradient-to-b from-red-600 to-red-900 shadow-[inset_0_-10px_20px_rgba(0,0,0,0.5),_0_10px_30px_rgba(255,0,0,0.4)] text-white font-black text-2xl border-4 border-red-900 active:scale-95 transition-transform" onclick="toggleKillSwitch()">
+                ACTIVATE
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        let isKillSwitchActive = false;
+
+        async function fetchStatus() {
+            try {
+                const res = await fetch('/api/admin/status');
+                const data = await res.json();
+                
+                document.getElementById('stat-users').innerText = data.total_users;
+                document.getElementById('stat-bots').innerText = data.active_finance_bots;
+                
+                isKillSwitchActive = data.global_kill_switch;
+                updateUIState();
+            } catch(e) {
+                console.error("Admin fetch error", e);
+            }
+        }
+
+        async function toggleKillSwitch() {
+            // Retrieve fake login token or bypass for Demo
+            const token = localStorage.getItem('access_token');
+            if(!token) {
+                 alert("⚠️ CEO 권한 로그인이 필요합니다. (데모 모드에서는 index에서 로그인 후 접근하세요)");
+                 return;
+            }
+
+            const newState = !isKillSwitchActive;
+            if(newState) {
+                const confirmKill = confirm("🚨 경고: 전세계 모든 젠텍스 트레이딩 봇의 가동을 강제로 중단하시겠습니까?");
+                if(!confirmKill) return;
+            }
+
+            try {
+                const res = await fetch('/api/admin/killswitch', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ enabled: newState })
+                });
+                
+                if(res.ok) {
+                    isKillSwitchActive = newState;
+                    updateUIState();
+                    fetchStatus();
+                } else {
+                    const data = await res.json();
+                    alert(data.detail || "권한이 없습니다.");
+                }
+            } catch(e) {}
+        }
+
+        function updateUIState() {
+            const btn = document.getElementById('btn-kill');
+            const card = document.getElementById('killswitch-card');
+            const status = document.getElementById('system-status');
+
+            if(isKillSwitchActive) {
+                btn.classList.add('pulse');
+                btn.innerText = "FORCE\nHALTED";
+                btn.classList.replace('from-red-600', 'from-[#000]');
+                btn.classList.replace('to-red-900', 'to-red-900');
+                
+                card.classList.add('alert-red');
+                
+                status.innerText = "SYSTEM HALTED (KILLED)";
+                status.className = "px-4 py-2 rounded font-bold bg-red-500/20 text-red-500 border border-red-500 animate-pulse uppercase tracking-widest";
+            } else {
+                btn.classList.remove('pulse');
+                btn.innerText = "ACTIVATE";
+                btn.classList.replace('from-[#000]', 'from-red-600');
+                
+                card.classList.remove('alert-red');
+
+                status.innerText = "SYSTEM ONLINE";
+                status.className = "px-4 py-2 rounded font-bold bg-green-500/20 text-green-400 border border-green-500 tracking-widest";
+            }
+        }
+
+        setInterval(fetchStatus, 3000);
+        fetchStatus();
+    </script>
+</body>
+</html>
