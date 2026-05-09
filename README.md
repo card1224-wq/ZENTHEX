@@ -1,0 +1,6 @@
+Runtime: Python
+Build Command:
+pip install -r requirements.txt
+
+Start Command:
+uvicorn main:app --host 0.0.0.0 --port $PORT
