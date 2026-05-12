@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile, Form, Request
+﻿from fastapi import FastAPI, File, UploadFile, Form, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -9,6 +9,7 @@ import uvicorn
 import os
 import shutil
 from database.session import engine, Base
+from database.migrations import ensure_sqlite_schema
 from auth.router import router as auth_router
 from studio.router import router as studio_router
 from trading.router import router as trading_router
@@ -27,6 +28,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Create DB tables
 Base.metadata.create_all(bind=engine)
+ensure_sqlite_schema()
 
 # Include Routers
 app.include_router(auth_router)
@@ -68,6 +70,12 @@ async def serve_studio():
         return f.read()
 
 
+
+@app.get("/account.html", response_class=HTMLResponse)
+async def serve_account():
+    with open("static/account.html", "r", encoding="utf-8") as f:
+        return f.read()
+
 # FINANCE ENGINE is now modularized in trading/router.py
 
 
@@ -75,3 +83,6 @@ async def serve_studio():
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8080)
+
+
+

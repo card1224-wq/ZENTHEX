@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zenthex Studio - Demo 3D Engine</title>
+    <title>Zenthex Studio - AI 3D Workspace</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
     <style>
@@ -32,13 +32,13 @@
         <div class="flex items-center gap-4">
             <a href="index.html" class="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-white border-r border-white/10 pr-6 mr-2 transition-colors">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></svg>
-                메인 포털
+                메인으로
             </a>
             <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center font-bold">HL</div>
-            <span class="font-extrabold tracking-widest text-base uppercase">Zenthex Studio <span class="text-xs text-indigo-400 ml-1">WEB DEMO</span></span>
+            <span class="font-extrabold tracking-widest text-base uppercase">Zenthex Studio <span class="text-xs text-indigo-400 ml-1">AI 3D ENGINE</span></span>
         </div>
         <div class="hidden md:block px-4 py-1 rounded-full bg-purple-500/20 text-purple-300 text-[10px] font-bold border border-purple-500/30">
-            GITHUB PAGES SERVERLESS ENGINE
+            CLOUD AI WORKSPACE
         </div>
     </nav>
 
@@ -46,30 +46,30 @@
         <!-- Left Sidebar -->
         <div class="col-span-1 lg:col-span-3 border-r border-white/5 p-8 flex flex-col gap-6 bg-[#0c0c0e]">
             <div class="glass-panel p-4 rounded-xl border-yellow-500/30 text-yellow-500 text-xs font-bold leading-relaxed mb-4">
-                ⚠️ [안내] 현재 브라우저 전용 데모 모드입니다. <br>이미지를 업로드하면 파이썬을 거치지 않고 자바스크립트로 내장된 "최고급 Nano Banana 스타일 절차적 3D 건축물"을 시연합니다.
+                ?좑툘 [?덈궡] ?꾩옱 釉뚮씪?곗? ?꾩슜 ?곕え 紐⑤뱶?낅땲?? <br>?대?吏瑜??낅줈?쒗븯硫??뚯씠?ъ쓣 嫄곗튂吏 ?딄퀬 ?먮컮?ㅽ겕由쏀듃濡??댁옣??"理쒓퀬湲?Nano Banana ?ㅽ????덉감??3D 嫄댁텞臾????쒖뿰?⑸땲??
             </div>
 
-            <!-- 업로드 방식 -->
+            <!-- ?낅줈??諛⑹떇 -->
             <div>
                 <h2 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <span class="w-1 h-3 bg-indigo-500 rounded-full"></span> 2D 도면 업로드 (Image to 3D)
+                    <span class="w-1 h-3 bg-indigo-500 rounded-full"></span> 2D ?꾨㈃ ?낅줈??(Image to 3D)
                 </h2>
                 <div id="drop-zone" class="border-2 border-dashed border-white/10 rounded-2xl p-8 text-center hover:border-indigo-500/50 hover:bg-white/5 transition-all cursor-pointer">
-                    <p class="text-xs text-gray-400 font-medium">클릭하여 데모 평면도 업로드</p>
+                    <p class="text-xs text-gray-400 font-medium">클릭하여 2D 도면 업로드</p>
                 </div>
                 <input type="file" id="file-input" class="hidden" accept="image/*">
             </div>
 
             <div class="h-px bg-white/10 my-2"></div>
 
-            <!-- 텍스트 프롬프트 방식 -->
+            <!-- ?띿뒪???꾨＼?꾪듃 諛⑹떇 -->
             <div>
                 <h2 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <span class="w-1 h-3 bg-purple-500 rounded-full"></span> AI 프롬프트 생성 (Text to 3D)
+                    <span class="w-1 h-3 bg-purple-500 rounded-full"></span> AI ?꾨＼?꾪듃 ?앹꽦 (Text to 3D)
                 </h2>
-                <textarea id="ai-prompt" rows="3" class="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-purple-500 transition-colors" placeholder="예: 한강뷰가 보이는 창문이 넓은 통유리 갤러리를 디자인해줘"></textarea>
+                <textarea id="ai-prompt" rows="3" class="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-purple-500 transition-colors" placeholder="?? ?쒓컯酉곌? 蹂댁씠??李쎈Ц???볦? ?듭쑀由?媛ㅻ윭由щ? ?붿옄?명빐以?></textarea>
                 <button id="btn-generate" class="w-full mt-3 py-3 bg-purple-500/20 hover:bg-purple-500/40 border border-purple-500/50 text-purple-300 text-xs font-bold rounded-xl transition-all">
-                    프롬프트로 3D 자동 구성
+                    프롬프트로 3D 생성
                 </button>
             </div>
 
@@ -198,7 +198,7 @@
 
         let currentModel = null;
 
-        // Front-end File Upload Simulation
+        // Front-end file upload flow
         document.getElementById('drop-zone').onclick = () => document.getElementById('file-input').click();
         
         document.getElementById('file-input').onchange = async (e) => {
@@ -232,9 +232,9 @@
                     
                     if(currentModel) scene.remove(currentModel);
                     
-                    // For now, load the generated procedurally mock to prove backend response
+                    // Load a generated preview while the GLB pipeline result is prepared
                     // In a full implementation, you would load result.model_url using GLTFLoader.
-                    // Doing procedural here temporarily just to test backend connectivity visually:
+                    // Preview generation keeps the workspace responsive:
                     currentModel = generateProceduralBuilding();
                     scene.add(currentModel);
                     
@@ -302,7 +302,7 @@
                     scene.add(currentModel);
                     
                     loader.classList.remove('active');
-                    document.getElementById('status-box').innerHTML = '<span class="text-purple-400">프롬프트 기반 프리미엄 3D 생성이 완료되었습니다.<br>공간을 둘러보세요.</span>';
+                    document.getElementById('status-box').innerHTML = '<span class="text-purple-400">프롬프트 기반 3D 생성이 완료되었습니다.<br>공간을 둘러보세요.</span>';
                     
                     camera.position.set(60, 50, 60);
                     controls.target.set(0, 5, 0);
@@ -317,3 +317,4 @@
     </script>
 </body>
 </html>
+

@@ -1,188 +1,48 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zenthex Group | 젠텍스 홀딩스</title>
-    <style>
-        /* Import premium fonts */
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
-
-        body, html {
-            margin: 0; padding: 0; width: 100%; height: 100%;
-            font-family: 'Outfit', sans-serif; background-color: #050505; color: #fff;
-            overflow: hidden;
-        }
-
-        .container {
-            display: flex; width: 100vw; height: 100vh; position: relative;
-        }
-
-        /* Nav Bar inside Portal */
-        .corporate-nav {
-            position: absolute; top: 0; width: 100%; padding: 30px 50px;
-            display: flex; justify-content: space-between; align-items: center;
-            z-index: 100; box-sizing: border-box; pointer-events: none;
-        }
-        .logo { font-size: 24px; font-weight: 800; letter-spacing: 4px; pointer-events: auto; }
-        .nav-links a {
-            color: rgba(255,255,255,0.6); text-decoration: none; margin-left: 30px;
-            font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;
-            transition: color 0.3s; pointer-events: auto;
-        }
-        .nav-links a:hover { color: #fff; }
-
-        /* Split Screen Modules */
-        .split {
-            flex: 1; position: relative; overflow: hidden; transition: all 0.7s cubic-bezier(0.16, 1, 0.3, 1);
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer;
-        }
-
-        .split::before { /* Animated scanline overlay */
-            content: ''; position: absolute; inset: 0; z-index: 2;
-            background: linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.1) 51%);
-            background-size: 100% 4px; pointer-events: none; opacity: 0.3;
-        }
-
-        .bg-overlay {
-            position: absolute; inset: 0; background-size: cover; background-position: center;
-            filter: grayscale(80%) brightness(0.4);
-            transition: all 1s cubic-bezier(0.16, 1, 0.3, 1); transform: scale(1.05);
-            z-index: 0;
-        }
-
-        /* Background Graphics (Procedural CSS Gradients instead of broken images) */
-        .left-side .bg-overlay {
-            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
-        }
-        
-        .right-side .bg-overlay {
-            background: linear-gradient(135deg, #022c22 0%, #064e3b 100%);
-        }
-
-        .content {
-            position: relative; z-index: 10; text-align: center; padding: 40px;
-            opacity: 0.8; transition: all 0.5s ease;
-        }
-
-        .badge {
-            display: inline-block; padding: 6px 12px; border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 50px; font-size: 10px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase;
-            margin-bottom: 20px; backdrop-filter: blur(10px);
-        }
-
-        h1 {
-            font-family: 'Playfair Display', serif; font-size: 4rem; margin: 0 0 20px 0;
-            line-height: 1.1; font-weight: 400; font-style: italic;
-        }
-
-        h1 span {
-            font-family: 'Outfit', sans-serif; font-weight: 800; font-style: normal;
-        }
-
-        p {
-            font-size: 1.1rem; line-height: 1.6; color: #a1a1aa; max-width: 400px;
-            margin: 0 auto 30px auto; font-weight: 300;
-        }
-
-        .features {
-            display: flex; gap: 15px; justify-content: center; margin-bottom: 40px;
-            opacity: 0; transform: translateY(20px); transition: all 0.5s ease;
-        }
-
-        .features span {
-            font-size: 11px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.2);
-            color: #d4d4d8; font-weight: 600; letter-spacing: 1px;
-        }
-
-        .btn {
-            display: inline-block; padding: 15px 40px; border-radius: 30px; text-decoration: none;
-            font-weight: 600; font-size: 13px; letter-spacing: 2px; text-transform: uppercase;
-            transition: all 0.3s; position: relative; overflow: hidden;
-            opacity: 0; transform: translateY(20px); pointer-events: none;
-        }
-
-        .btn-studio { background-color: #fff; color: #000; }
-        .btn-studio:hover { background-color: #f4f4f5; box-shadow: 0 10px 30px rgba(255,255,255,0.2); }
-        
-        .btn-finance { background-color: #00ffcc; color: #000; }
-        .btn-finance:hover { box-shadow: 0 10px 30px rgba(0,255,204,0.3); }
-
-        /* Hover Interactions */
-        .split:hover { flex: 1.5; }
-        .split:hover .bg-overlay { filter: grayscale(0%) brightness(0.7); transform: scale(1); }
-        .split:hover .content { opacity: 1; transform: translateY(-10px); }
-        .split:hover .features { opacity: 1; transform: translateY(0); transition-delay: 0.1s; }
-        .split:hover .btn { opacity: 1; transform: translateY(0); transition-delay: 0.2s; pointer-events: auto; }
-
-        /* Mobile Adjustment */
-        @media (max-width: 768px) {
-            .container { flex-direction: column; }
-            h1 { font-size: 2.5rem; }
-            .split { flex: 1 !important; }
-            .btn, .features { opacity: 1; transform: translateY(0); pointer-events: auto; }
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zenthex SaaS Platform</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
+    :root { --bg:#050507; --line:rgba(255,255,255,.12); --muted:#a1a1aa; --mint:#00ffcc; }
+    * { box-sizing:border-box; } body { margin:0; min-height:100vh; background:var(--bg); color:white; font-family:Inter, system-ui, sans-serif; }
+    .nav { height:72px; padding:0 32px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--line); background:rgba(5,5,7,.92); position:sticky; top:0; z-index:20; }
+    .logo { font-weight:900; letter-spacing:4px; } .nav-actions { display:flex; gap:10px; align-items:center; }
+    .nav a, .ghost { color:white; text-decoration:none; border:1px solid var(--line); background:rgba(255,255,255,.04); padding:10px 14px; border-radius:8px; font-size:13px; font-weight:800; cursor:pointer; }
+    .owner-pill { display:none; color:#ffcf7a !important; border-color:rgba(245,158,11,.45) !important; }
+    .wrap { min-height:calc(100vh - 72px); display:grid; grid-template-columns:1fr 1fr; }
+    .panel { position:relative; padding:56px; display:flex; flex-direction:column; justify-content:center; overflow:hidden; border-right:1px solid var(--line); }
+    .panel:last-child { border-right:0; }
+    .panel:before { content:""; position:absolute; inset:0; opacity:.4; background:radial-gradient(circle at 30% 20%, rgba(139,92,246,.42), transparent 34%), linear-gradient(135deg, rgba(15,23,42,.95), rgba(12,12,18,.9)); }
+    .trading:before { background:radial-gradient(circle at 70% 22%, rgba(0,255,204,.34), transparent 34%), linear-gradient(135deg, rgba(3,38,34,.95), rgba(9,12,18,.9)); }
+    .content { position:relative; max-width:560px; } .badge { display:inline-flex; border:1px solid var(--line); color:#d4d4d8; padding:7px 10px; border-radius:999px; font-size:11px; font-weight:900; letter-spacing:1.5px; text-transform:uppercase; }
+    h1 { font-size:56px; line-height:1; margin:20px 0 18px; } p { color:#d4d4d8; line-height:1.75; font-size:17px; margin:0 0 24px; }
+    .chips { display:flex; flex-wrap:wrap; gap:9px; margin-bottom:30px; } .chips span { color:#e5e7eb; border:1px solid var(--line); padding:8px 10px; border-radius:7px; font-size:12px; font-weight:800; background:rgba(255,255,255,.045); }
+    .actions { display:flex; gap:12px; flex-wrap:wrap; } .cta { display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:0 18px; border-radius:8px; text-decoration:none; font-size:14px; font-weight:900; cursor:pointer; border:0; }
+    .cta.main { background:white; color:#050507; } .trading .cta.main { background:var(--mint); color:#03100d; } .cta.sub { border:1px solid var(--line); color:white; background:rgba(255,255,255,.04); }
+    .modal { display:none; position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.72); align-items:center; justify-content:center; padding:24px; } .modal.open { display:flex; }
+    .modal-card { width:min(760px,100%); background:#101014; border:1px solid var(--line); border-radius:10px; padding:28px; box-shadow:0 30px 80px rgba(0,0,0,.45); }
+    .modal-head { display:flex; justify-content:space-between; gap:16px; align-items:start; margin-bottom:16px; } .modal h2 { margin:0; font-size:28px; } .close { width:36px; height:36px; border:1px solid var(--line); background:#17171d; color:white; border-radius:8px; cursor:pointer; font-weight:900; }
+    .modal ul { margin:0 0 20px; padding-left:20px; color:#d4d4d8; line-height:1.8; }
+    @media (max-width:860px) { .wrap { grid-template-columns:1fr; } .panel { min-height:calc((100vh - 72px)/2); padding:32px; border-right:0; border-bottom:1px solid var(--line); } h1 { font-size:38px; } .nav { padding:0 18px; } }
+  </style>
 </head>
 <body>
-    <div class="corporate-nav">
-        <div class="logo">ZENTHEX</div>
-        <div class="nav-links">
-            <a href="#">회사 소개</a>
-            <a href="#">고객지원</a>
-            <a href="login.html" id="nav-auth-btn" style="color: #00ffcc; border: 1px solid #00ffcc; padding: 5px 15px; border-radius: 20px;">로그인</a>
-        </div>
-    </div>
-
-    <div class="container">
-        <!-- Left Side: Zenthex Studio -->
-        <div class="split left-side">
-            <div class="bg-overlay"></div>
-            <div class="content">
-                <div class="badge">건축 & 3D 데모 솔루션</div>
-                <h1>젠텍스 <span>스튜디오</span></h1>
-                <p>AI 기반 공간 설계의 혁명. 단 한 장의 평면도만으로 세밀하게 렌더링 된 압도적인 3D 가상 공간을 브라우저에서 관람하세요.</p>
-                <div class="features">
-                    <span>브라우저 3D 렌더링</span>
-                    <span>나노 바나나 감성</span>
-                </div>
-                <!-- 깃허브 배포용 상대경로 연결 -->
-                <a href="studio.html" class="btn btn-studio">스튜디오 갤러리 입장</a>
-            </div>
-        </div>
-
-        <!-- Right Side: Zenthex Finance -->
-        <div class="split right-side">
-            <div class="bg-overlay"></div>
-            <div class="content">
-                <div class="badge">모의 퀀트 트레이딩</div>
-                <h1>젠텍스 <span>파이낸스</span></h1>
-                <p>알고리즘 기반 초단타 트레이딩 시스템. 실제 거래소를 연동한 가상 자산 모의투자 백테스팅 관제소를 체험해보세요.</p>
-                <div class="features">
-                    <span>실시간 업비트 시세 연동</span>
-                    <span>JS 자동매매 시뮬레이션</span>
-                </div>
-                <!-- 깃허브 배포용 상대경로 연결 -->
-                <a href="finance.html" class="btn btn-finance">모의 터미널 가동</a>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // Check login state
-        const token = localStorage.getItem('zx_token');
-        if(token) {
-            const authBtn = document.getElementById('nav-auth-btn');
-            authBtn.innerText = "로그아웃";
-            authBtn.href = "#";
-            authBtn.style.color = "#ff4d4d";
-            authBtn.style.borderColor = "#ff4d4d";
-            authBtn.onclick = () => {
-                localStorage.removeItem('zx_token');
-                window.location.reload();
-            };
-        }
-    </script>
+  <nav class="nav"><div class="logo">ZENTHEX</div><div class="nav-actions"><a id="owner-link" class="owner-pill" href="admin.html">CEO Dashboard</a><a id="account-link" style="display:none" href="account.html">마이페이지</a><a href="login.html" id="nav-auth-btn">로그인</a></div></nav>
+  <main class="wrap">
+    <section class="panel studio"><div class="content"><span class="badge">AI 3D Studio</span><h1>Zenthex Studio</h1><p>프롬프트와 2D 도면을 3D 공간으로 변환하는 AI 스튜디오입니다. 체험 후 결과 저장, GLB 다운로드, 작업 히스토리는 로그인과 구독 단계에서 열립니다.</p><div class="chips"><span>프롬프트 → 3D</span><span>2D 도면 → GLB</span><span>Three.js 미리보기</span></div><div class="actions"><a class="cta main" href="studio.html?trial=1">무료로 체험하기</a><button class="cta sub" onclick="openModal('studio-modal')">스튜디오가 무엇인가요?</button></div></div></section>
+    <section class="panel trading"><div class="content"><span class="badge">Signal Guard Trading</span><h1>Zenthex Trading</h1><p>업비트 전체 KRW 마켓을 감시해 상승 후보를 찾고, 전략 검증을 거친 뒤 목표 수익률 도달 시 자동 종료하는 트레이딩 도구입니다.</p><div class="chips"><span>전체 코인 스캔</span><span>전략 검증 우선</span><span>목표 도달 자동 종료</span></div><div class="actions"><a class="cta main" href="finance.html?trial=1">전략 체험하기</a><button class="cta sub" onclick="openModal('trading-modal')">트레이딩이 무엇인가요?</button></div></div></section>
+  </main>
+  <div class="modal" id="studio-modal"><div class="modal-card"><div class="modal-head"><h2>스튜디오가 무엇인가요?</h2><button class="close" onclick="closeModal('studio-modal')">X</button></div><p>Zenthex Studio는 말과 도면을 3D 결과물로 바꾸는 SaaS 도구입니다.</p><ul><li>프롬프트를 최적화해 3D 생성 요청을 만듭니다.</li><li>2D 도면은 벽과 윤곽을 분석해 GLB로 변환합니다.</li><li>무거운 작업은 서버 워커에서 처리하고 화면에는 진행률과 결과를 보여줍니다.</li></ul><a class="cta main" href="studio.html?trial=1">무료로 체험하기</a></div></div>
+  <div class="modal" id="trading-modal"><div class="modal-card"><div class="modal-head"><h2>트레이딩이 무엇인가요?</h2><button class="close" onclick="closeModal('trading-modal')">X</button></div><p>Zenthex Trading은 투자 자문이 아니라 사용자 설정 기반 자동매매 보조 도구입니다.</p><ul><li>업비트 전체 코인의 가격 변화를 감시해 상승 후보를 고릅니다.</li><li>실거래 전 전략 조건을 먼저 확인합니다.</li><li>목표 수익률, 손절, 일일 손실 제한, 긴급 정지를 리스크 매니저가 확인합니다.</li></ul><a class="cta main" href="finance.html?trial=1">전략 체험하기</a></div></div>
+  <script>
+    function openModal(id){ document.getElementById(id).classList.add('open'); } function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+    const token = localStorage.getItem('zx_token'); const user = JSON.parse(localStorage.getItem('zx_user') || 'null'); const authBtn = document.getElementById('nav-auth-btn'); const ownerLink = document.getElementById('owner-link'); const accountLink = document.getElementById('account-link');
+    if(token){ accountLink.style.display='inline-flex'; authBtn.innerText='로그아웃'; authBtn.href='#'; authBtn.onclick=()=>{ localStorage.removeItem('zx_token'); localStorage.removeItem('zx_user'); location.reload(); }; if(user && ['owner','admin'].includes(user.role)) ownerLink.style.display='inline-flex'; }
+  </script>
 </body>
 </html>
+
+
