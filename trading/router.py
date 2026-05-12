@@ -13,6 +13,10 @@ class StartConfig(BaseModel):
     investmentMode: str = "fixed"
     investmentAmount: float = 50000.0
     investmentRatio: float = 0.5
+    tickerMode: str = "auto"
+    selectedTicker: str = "KRW-BTC"
+    tradingMode: str = "practice"
+    realAccepted: bool = False
 
 class ManualTrade(BaseModel):
     type: str
@@ -27,13 +31,38 @@ async def start_bot(config: StartConfig):
     bot_state.investment_mode = config.investmentMode
     bot_state.investment_amount = config.investmentAmount
     bot_state.investment_ratio = config.investmentRatio
+    bot_state.ticker_mode = config.tickerMode if config.tickerMode in ["auto", "manual"] else "auto"
+    bot_state.selected_ticker = config.selectedTicker if config.selectedTicker.startswith("KRW-") else "KRW-BTC"
+    bot_state.trading_mode = config.tradingMode if config.tradingMode in ["practice", "real"] else "practice"
     bot_state.consecutive_loss_count = 0
     bot_state.held_btc = 0
     bot_state.avg_buy_price = 0
+    bot_state.upbit = None
     bot_state.is_real_key = False
-    log_trade("[Notice] MVP는 전체 코인 스캐너 + Paper Trading 모드로 시작합니다. 실거래는 별도 검증 후 활성화하세요.")
+
+    if bot_state.trading_mode == "real":
+        if not config.realAccepted:
+            return {"status": "error", "message": "실거래 위험 확인 체크가 필요합니다."}
+        if not config.accessKey or not config.secretKey:
+            return {"status": "error", "message": "업비트 Access Key와 Secret Key가 필요합니다."}
+        try:
+            bot_state.upbit = pyupbit.Upbit(config.accessKey, config.secretKey)
+            real_krw = bot_state.upbit.get_balance("KRW")
+            if real_krw is None:
+                return {"status": "error", "message": "API 키 확인에 실패했습니다. 조회/주문 권한과 허용 IP를 확인하세요."}
+            bot_state.balance = float(real_krw or 0)
+            bot_state.is_real_key = True
+            log_trade("[Real Mode] 업비트 실거래 모드가 활성화되었습니다. 출금 권한 없는 API 키만 사용하세요.")
+        except Exception as e:
+            bot_state.trading_mode = "practice"
+            bot_state.is_real_key = False
+            return {"status": "error", "message": f"API 키 인증 실패: {e}"}
+    else:
+        bot_state.balance = max(bot_state.balance, 1000000.0)
+        log_trade("[Practice Mode] 전략 체험 모드로 시작합니다.")
+
     asyncio.create_task(scalping_loop())
-    return {"status": "success", "message": "Signal Guard Paper Trading Started"}
+    return {"status": "success", "message": "Signal Guard Started", "tradingMode": bot_state.trading_mode}
 
 @router.post("/manual_trade")
 async def manual_trade(trade: ManualTrade):
@@ -67,7 +96,10 @@ async def status():
         "isRunning": bot_state.state not in [TradingState.STOPPED, TradingState.ERROR],
         "state": bot_state.state,
         "isRealKey": bot_state.is_real_key,
+        "tradingMode": bot_state.trading_mode,
         "activeTicker": bot_state.active_ticker,
+        "tickerMode": bot_state.ticker_mode,
+        "selectedTicker": bot_state.selected_ticker,
         "signalCandidates": bot_state.signal_candidates,
         "currentBtcPrice": current_price,
         "currentPrice": current_price,

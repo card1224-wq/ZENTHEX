@@ -45,14 +45,12 @@
     <main class="flex-grow grid grid-cols-12 overflow-hidden h-[calc(100vh-5rem)]">
         <!-- Left Sidebar -->
         <div class="col-span-1 lg:col-span-3 border-r border-white/5 p-8 flex flex-col gap-6 bg-[#0c0c0e]">
-            <div class="glass-panel p-4 rounded-xl border-yellow-500/30 text-yellow-500 text-xs font-bold leading-relaxed mb-4">
-                ?좑툘 [?덈궡] ?꾩옱 釉뚮씪?곗? ?꾩슜 ?곕え 紐⑤뱶?낅땲?? <br>?대?吏瑜??낅줈?쒗븯硫??뚯씠?ъ쓣 嫄곗튂吏 ?딄퀬 ?먮컮?ㅽ겕由쏀듃濡??댁옣??"理쒓퀬湲?Nano Banana ?ㅽ????덉감??3D 嫄댁텞臾????쒖뿰?⑸땲??
-            </div>
+            <div class="glass-panel p-4 rounded-xl border-indigo-500/30 text-indigo-200 text-xs font-bold leading-relaxed mb-4">Zenthex Studio는 프롬프트와 2D 도면을 3D 공간으로 변환하는 AI 제작 워크스페이스입니다. 원하는 공간을 문장으로 입력하거나 도면 이미지를 업로드하세요.</div>
 
-            <!-- ?낅줈??諛⑹떇 -->
+            <!-- Upload flow -->
             <div>
                 <h2 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <span class="w-1 h-3 bg-indigo-500 rounded-full"></span> 2D ?꾨㈃ ?낅줈??(Image to 3D)
+                    <span class="w-1 h-3 bg-indigo-500 rounded-full"></span> 2D 도면 업로드 (Image to 3D)
                 </h2>
                 <div id="drop-zone" class="border-2 border-dashed border-white/10 rounded-2xl p-8 text-center hover:border-indigo-500/50 hover:bg-white/5 transition-all cursor-pointer">
                     <p class="text-xs text-gray-400 font-medium">클릭하여 2D 도면 업로드</p>
@@ -62,12 +60,12 @@
 
             <div class="h-px bg-white/10 my-2"></div>
 
-            <!-- ?띿뒪???꾨＼?꾪듃 諛⑹떇 -->
+            <!-- Prompt flow -->
             <div>
                 <h2 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <span class="w-1 h-3 bg-purple-500 rounded-full"></span> AI ?꾨＼?꾪듃 ?앹꽦 (Text to 3D)
+                    <span class="w-1 h-3 bg-purple-500 rounded-full"></span> AI 프롬프트 생성 (Text to 3D)
                 </h2>
-                <textarea id="ai-prompt" rows="3" class="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-purple-500 transition-colors" placeholder="?? ?쒓컯酉곌? 蹂댁씠??李쎈Ц???볦? ?듭쑀由?媛ㅻ윭由щ? ?붿옄?명빐以?></textarea>
+                <textarea id="ai-prompt" rows="4" class="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-purple-500 transition-colors resize-none" placeholder="예: 통유리 창이 넓고 루프탑 정원이 있는 2층 모던 카페를 만들어줘"></textarea>
                 <button id="btn-generate" class="w-full mt-3 py-3 bg-purple-500/20 hover:bg-purple-500/40 border border-purple-500/50 text-purple-300 text-xs font-bold rounded-xl transition-all">
                     프롬프트로 3D 생성
                 </button>
@@ -80,17 +78,17 @@
         <div class="col-span-1 lg:col-span-9 relative bg-[#050507]">
             <div id="viewer-container" class="w-full h-full">
                 <div id="placeholder" class="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                    <p class="text-xs uppercase tracking-[0.4em] text-gray-600 font-bold">Awaiting Input...</p>
+                    <p class="text-xs uppercase tracking-[0.4em] text-gray-600 font-bold">프롬프트 또는 도면을 입력하세요</p>
                 </div>
                 <div id="loading" class="loading-overlay">
                     <div class="spinner mb-4"></div>
-                    <div class="text-xs text-indigo-400 font-bold uppercase tracking-widest animate-pulse" id="loading-text">Rendering Space...</div>
+                    <div class="text-xs text-indigo-400 font-bold uppercase tracking-widest animate-pulse" id="loading-text">공간을 생성하는 중...</div>
                 </div>
             </div>
         </div>
     </main>
 
-    <!-- Three.js from CDN for Github Pages -->
+    <!-- Three.js renderer -->
     <script type="importmap">
         {
             "imports": {
@@ -145,7 +143,7 @@
         grid.position.y = -0.05;
         scene.add(grid);
 
-        // Core Procedural Generation Function (Nano Banana Style)
+        // Core Procedural Generation Function (Zenthex Preview Style)
         const generateProceduralBuilding = () => {
             const group = new THREE.Group();
             
@@ -206,13 +204,13 @@
             const file = e.target.files[0];
             
             document.getElementById('status-box').classList.remove('hidden');
-            document.getElementById('status-box').innerHTML = `Uploading & Analyzing...<br/>${file.name}`;
+            document.getElementById('status-box').innerHTML = `업로드 및 분석 중...<br/>${file.name}`;
             document.getElementById('placeholder').classList.add('hidden');
             
             const loader = document.getElementById('loading');
             const loadText = document.getElementById('loading-text');
             loader.classList.add('active');
-            loadText.innerText = 'Transmitting to Zenthex AI Engine...';
+            loadText.innerText = 'Zenthex AI 엔진으로 전송 중...';
 
             const formData = new FormData();
             formData.append("file", file);
@@ -228,7 +226,7 @@
                 const result = await response.json();
                 
                 if (result.status === "success") {
-                    loadText.innerText = 'Loading 3D Model...';
+                    loadText.innerText = '3D 모델을 불러오는 중...';
                     
                     if(currentModel) scene.remove(currentModel);
                     
@@ -273,13 +271,13 @@
             if(!promptStr) return alert("프롬프트를 입력해주세요.");
             
             document.getElementById('status-box').classList.remove('hidden');
-            document.getElementById('status-box').innerHTML = `Generating Space from AI Prompt...`;
+            document.getElementById('status-box').innerHTML = `프롬프트로 공간을 생성하는 중...`;
             document.getElementById('placeholder').classList.add('hidden');
             
             const loader = document.getElementById('loading');
             const loadText = document.getElementById('loading-text');
             loader.classList.add('active');
-            loadText.innerText = 'Transmitting Prompt to Zenthex AI Engine...';
+            loadText.innerText = '프롬프트를 Zenthex AI 엔진으로 전송 중...';
 
             const formData = new FormData();
             formData.append("prompt", promptStr);
@@ -294,7 +292,7 @@
                 const result = await response.json();
                 
                 if (result.status === "success") {
-                    loadText.innerText = 'Loading Procedural 3D Matrix...';
+                    loadText.innerText = '3D 공간을 구성하는 중...';
                     
                     if(currentModel) scene.remove(currentModel);
                     
@@ -317,4 +315,7 @@
     </script>
 </body>
 </html>
+
+
+
 
