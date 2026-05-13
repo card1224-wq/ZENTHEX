@@ -1,7 +1,11 @@
-﻿from fastapi import APIRouter
+﻿from fastapi import APIRouter, Depends, Header
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 import asyncio
 import pyupbit
+
+from auth.router import get_current_user
+from database.session import get_db
 from trading.engine import bot_state, TradingState, scalping_loop, log_trade
 
 router = APIRouter(prefix="/api/finance", tags=["finance"])
@@ -22,8 +26,11 @@ class ManualTrade(BaseModel):
     type: str
     amount: float
 
+def user_can_real_trade(user) -> bool:
+    return user.role in ["owner", "admin"] or user.plan in ["trading_pro", "ultimate"]
+
 @router.post("/start")
-async def start_bot(config: StartConfig):
+async def start_bot(config: StartConfig, Authorization: str = Header(None), db: Session = Depends(get_db)):
     if bot_state.state not in [TradingState.STOPPED, TradingState.ERROR]:
         return {"status": "error", "message": "Bot is already running"}
 
@@ -41,6 +48,11 @@ async def start_bot(config: StartConfig):
     bot_state.is_real_key = False
 
     if bot_state.trading_mode == "real":
+        if not Authorization:
+            return {"status": "error", "message": "실거래는 로그인 후 Trading Pro 또는 Ultimate 구독이 필요합니다."}
+        user = get_current_user(Authorization.replace("Bearer ", ""), db)
+        if not user_can_real_trade(user):
+            return {"status": "error", "message": "실거래는 Trading Pro 또는 Ultimate 구독 후 사용할 수 있습니다."}
         if not config.realAccepted:
             return {"status": "error", "message": "실거래 위험 확인 체크가 필요합니다."}
         if not config.accessKey or not config.secretKey:

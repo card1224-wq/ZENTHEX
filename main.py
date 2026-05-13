@@ -45,6 +45,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Serve frontend pages
 @app.get("/", response_class=HTMLResponse)
+@app.get("/index.html", response_class=HTMLResponse)
 async def serve_index():
     with open("static/index.html", "r", encoding="utf-8") as f:
         return f.read()
@@ -83,6 +84,7 @@ async def serve_account():
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8080)
+
 
 
 

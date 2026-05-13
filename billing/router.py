@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from database.session import get_db
 from database.models import BillingHistory
 from auth.router import get_current_user
+import os
 import time
 import uuid
 
@@ -73,6 +74,8 @@ def mock_checkout(req: SubscribeRequest, Authorization: str = Header(None), db: 
 @router.post("/webhook/success")
 def mock_payment_success(req: SubscribeRequest, Authorization: str = Header(None), db: Session = Depends(get_db)):
     user = auth_user(Authorization, db)
+    if user.role != "owner" and os.getenv("ZENTHEX_ENABLE_MOCK_PAYMENT", "false").lower() != "true":
+        raise HTTPException(status_code=403, detail="결제 승인 처리는 실제 결제사 연동 후 사용할 수 있습니다.")
     plan_data = PLANS.get(req.plan_id)
     if not plan_data:
         raise HTTPException(status_code=400, detail="Invalid plan code")
