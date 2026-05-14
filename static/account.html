@@ -29,13 +29,13 @@
       <div class="p-6 rounded-xl bg-white/[.03] border border-white/10">
         <h2 class="font-black text-xl mb-4">이메일 인증</h2>
         <div class="flex gap-2 mb-3"><input id="verify-code" class="flex-1 bg-black border border-white/10 rounded-lg p-3" placeholder="인증 코드 입력"/><button onclick="verifyEmail()" class="px-4 rounded-lg bg-[#00ffcc] text-black font-black">인증</button></div>
-        <button onclick="resendCode()" class="w-full py-3 rounded-lg bg-white/10 border border-white/10 font-bold">인증 코드 다시 받기</button>
+        <button id="email-code-btn" onclick="resendCode()" class="w-full py-3 rounded-lg bg-white/10 border border-white/10 font-bold">이메일 인증 코드 보내기</button>
         <p id="verify-msg" class="text-sm text-gray-400 mt-3"></p>
       </div>
       <div class="p-6 rounded-xl bg-white/[.03] border border-white/10">
         <h2 class="font-black text-xl mb-4">구독 정보</h2>
-        <p class="text-sm text-gray-400 leading-6">일반 사용자는 결제 완료 후 결제내역과 영수증이 이 화면에 표시됩니다. 실제 결제 승인은 결제사 연동 단계에서 자동 처리됩니다.</p>
-        <button onclick="startCheckout('ultimate')" class="mt-4 w-full py-3 rounded-lg bg-white text-black font-black">Ultimate 구독 신청</button>
+        <p id="subscription-note" class="text-sm text-gray-400 leading-6">일반 사용자는 결제 완료 후 결제내역과 영수증이 이 화면에 표시됩니다. 실제 결제 승인은 결제사 연동 단계에서 자동 처리됩니다.</p>
+        <div id="plan-cards" class="mt-4 grid grid-cols-1 gap-3"></div>
       </div>
     </section>
 
@@ -59,8 +59,34 @@ if(!token){ alert('로그인이 필요합니다.'); location.href='login.html'; 
 function headers(){ return {'Content-Type':'application/json','Authorization':`Bearer ${token}`}; }
 function logout(){ localStorage.removeItem('zx_token'); localStorage.removeItem('zx_user'); location.href='index.html'; }
 async function loadMe(){ const res=await fetch('/api/auth/me',{headers:headers()}); const data=await res.json(); if(!res.ok){logout(); return;} currentUser=data; localStorage.setItem('zx_user',JSON.stringify(data)); renderUser(); }
-function renderUser(){ document.getElementById('user-email').innerText=currentUser.email; document.getElementById('user-plan').innerText=currentUser.plan; document.getElementById('user-verified').innerText=currentUser.email_verified?'인증 완료':'인증 필요'; document.getElementById('user-verified').className=currentUser.email_verified?'text-xl mt-2 block text-[#00ffcc]':'text-xl mt-2 block text-amber-300'; }
-async function resendCode(){ const res=await fetch('/api/auth/email/resend',{method:'POST',headers:headers()}); const data=await res.json(); document.getElementById('verify-msg').innerText=data.detail||data.message; }
+function isOwner(){ return currentUser && currentUser.role === 'owner'; }
+const planCatalog=[
+  {id:'studio_pro',name:'Studio Pro',price:'월 49,000원',desc:'프롬프트/2D 도면 3D 생성, GLB 다운로드, 작업 히스토리'},
+  {id:'trading_pro',name:'Trading Pro',price:'월 99,000원',desc:'Trading 실거래 권한, Signal Guard, 목표 수익률 자동 종료'},
+  {id:'ultimate',name:'Zenthex Ultimate',price:'월 149,000원',desc:'Studio + Trading 통합 권한, 우선 처리, 모바일 알림'}
+];
+function renderPlans(){
+  const box=document.getElementById('plan-cards');
+  if(isOwner()){
+    box.innerHTML='<div class="p-4 rounded-lg bg-[#00ffcc]/10 border border-[#00ffcc]/30 text-[#00ffcc] font-black">대표 계정은 결제 없이 Ultimate 전체 권한이 적용됩니다.</div>';
+    return;
+  }
+  box.innerHTML=planCatalog.map(plan=>`<div class="p-4 rounded-lg bg-black/30 border border-white/10"><div class="flex justify-between gap-3 items-start"><div><strong class="text-white">${plan.name}</strong><p class="text-xs text-gray-400 mt-1 leading-5">${plan.desc}</p></div><span class="text-[#00ffcc] font-black whitespace-nowrap">${plan.price}</span></div><button onclick="startCheckout('${plan.id}')" class="mt-3 w-full py-3 rounded-lg bg-white text-black font-black">${plan.name} 구독 신청</button></div>`).join('');
+}
+function renderUser(){
+  document.getElementById('user-email').innerText=currentUser.email;
+  document.getElementById('user-plan').innerText=isOwner()?'Owner Ultimate':currentUser.plan;
+  document.getElementById('user-verified').innerText=currentUser.email_verified?'인증 완료':'인증 필요';
+  document.getElementById('user-verified').className=currentUser.email_verified?'text-xl mt-2 block text-[#00ffcc]':'text-xl mt-2 block text-amber-300';
+  document.getElementById('email-code-btn').style.display=currentUser.email_verified?'none':'block';
+  if(isOwner()){
+    document.getElementById('subscription-note').innerText='대표 계정은 구독 결제 없이 Zenthex Ultimate 권한을 사용합니다.';
+  }else{
+    document.getElementById('subscription-note').innerText='구독 전 금액과 권한을 확인하세요. Studio 다운로드는 Studio Pro 또는 Ultimate, Trading 실거래는 Trading Pro 또는 Ultimate 구독 후 열립니다.';
+  }
+  renderPlans();
+}
+async function resendCode(){ const res=await fetch('/api/auth/email/resend',{method:'POST',headers:headers()}); const data=await res.json(); document.getElementById('verify-msg').innerText=data.dev_code?`${data.message} 테스트 인증코드: ${data.dev_code}`:(data.detail||data.message); if(res.ok) loadMe(); }
 async function verifyEmail(){ const code=document.getElementById('verify-code').value.trim(); const res=await fetch('/api/auth/email/verify',{method:'POST',headers:headers(),body:JSON.stringify({code})}); const data=await res.json(); document.getElementById('verify-msg').innerText=data.detail||data.message; if(res.ok) loadMe(); }
 async function startCheckout(planId){ const res=await fetch('/api/billing/subscribe',{method:'POST',headers:headers(),body:JSON.stringify({plan_id:planId})}); const data=await res.json(); if(data.status==='owner_unlocked'){ alert('대표 계정 Ultimate 권한이 적용되었습니다.'); loadMe(); return; } if(data.checkout_url){ alert('결제창 연동 주소가 준비되었습니다. 실제 결제사 연결 후 이 주소로 이동합니다.'); return; } alert(data.detail||data.status||'구독 신청이 접수되었습니다.'); }
 async function loadBilling(){ const res=await fetch('/api/billing/history',{headers:headers()}); const data=await res.json(); const box=document.getElementById('billing-list'); box.innerHTML=''; if(!data.history||!data.history.length){ box.innerHTML='<div class="text-gray-500">결제내역이 없습니다.</div>'; return; } data.history.forEach(item=>{ const row=document.createElement('div'); row.className='p-4 rounded-lg bg-black/30 border border-white/10 flex justify-between gap-4 items-center flex-wrap'; row.innerHTML=`<div><div class="font-black text-white">${item.plan_name}</div><div class="text-gray-400">${item.created_at||''} / ${item.amount_krw.toLocaleString()}원 / ${item.status}</div></div><button class="px-4 py-2 rounded-lg bg-white text-black font-black" onclick="openReceipt(${item.id})">영수증 보기</button>`; box.appendChild(row); }); }

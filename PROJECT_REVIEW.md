@@ -8,6 +8,7 @@ This checklist is the master review gate before uploading or publishing Zenthex.
 - No public page contains "demo" copy for the production-facing flow.
 - Login and signup pages do not expose owner email or owner account guidance.
 - `ZENTHEX_OWNER_EMAILS` is set on the server environment.
+- Owner account has Ultimate access without payment, but email verification still requires a code.
 - Signup includes name, email, password confirmation, birth date, phone number, and password hint question/answer.
 - Phone verification is completed before normal user signup. Local/test builds use the fixed verification code `122492` when no SMS provider is configured.
 - Email verification, ID lookup, password hint, and password reset routes exist.

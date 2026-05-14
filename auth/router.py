@@ -24,12 +24,13 @@ from email.message import EmailMessage
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 SESSION_TOKENS = {}
-DEFAULT_OWNER_EMAILS = set()
+DEFAULT_OWNER_EMAILS = {"7foliath@naver.com"}
 DEV_EMAIL_OUTBOX = []
 PHONE_VERIFICATION_CODES = {}
 PHONE_VERIFIED_NUMBERS = set()
 DEV_PHONE_OUTBOX = []
 TEST_PHONE_CODE = "122492"
+TEST_EMAIL_CODE = "122492"
 
 def get_owner_emails():
     configured = os.getenv("ZENTHEX_OWNER_EMAILS", "")
@@ -52,6 +53,9 @@ def is_local_request(request: Request) -> bool:
 
 def normalize_hint_answer(answer: str) -> str:
     return " ".join((answer or "").strip().lower().split())
+
+def smtp_configured() -> bool:
+    return all(os.getenv(key) for key in ["ZENTHEX_SMTP_HOST", "ZENTHEX_SMTP_USER", "ZENTHEX_SMTP_PASSWORD"])
 
 def send_account_email(to_email: str, subject: str, body: str):
     smtp_host = os.getenv("ZENTHEX_SMTP_HOST")
@@ -93,11 +97,16 @@ def issue_user_token(user: User):
     SESSION_TOKENS[access_token] = user.id
     return {"access_token": access_token, "token_type": "bearer", "user_info": UserResponse.model_validate(user)}
 
+def apply_owner_privileges(user: User):
+    user.role = "owner"
+    user.plan = "ultimate"
+    user.studio_generations_left = 999999
+
 @router.post("/phone/send-code")
 def send_phone_verification(req: PhoneCodeRequest, request: Request):
     phone_number = normalize_phone(req.phone_number)
     if len(phone_number) < 10:
-        raise HTTPException(status_code=400, detail="휴대폰 번호를 정확히 입력해주세요.")
+        raise HTTPException(status_code=400, detail="Please enter a valid phone number.")
     sms_configured = all(os.getenv(key) for key in [
         "ZENTHEX_SMS_PROVIDER",
         "ZENTHEX_SMS_ACCESS_KEY",
@@ -108,49 +117,44 @@ def send_phone_verification(req: PhoneCodeRequest, request: Request):
     PHONE_VERIFICATION_CODES[phone_number] = code
     DEV_PHONE_OUTBOX.append({"phone_number": phone_number, "code": code})
     print(f"[Zenthex SMS:DEV] phone={phone_number} code={code}")
-
-    show_dev_code = (
-        os.getenv("ZENTHEX_ENABLE_DEV_OUTBOX", "false").lower() == "true"
-        or is_local_request(request)
-        or not sms_configured
-    )
-    response = {"status": "success", "message": "휴대폰 인증 코드를 발송했습니다."}
+    show_dev_code = os.getenv("ZENTHEX_ENABLE_DEV_OUTBOX", "false").lower() == "true" or is_local_request(request) or not sms_configured
+    response = {"status": "success", "message": "Phone verification code has been sent."}
     if show_dev_code:
         response["dev_code"] = code
-        response["message"] = "테스트용 휴대폰 인증코드를 표시합니다."
+        response["message"] = "Test phone verification code is available."
     return response
 
 @router.post("/phone/verify")
 def verify_phone(req: PhoneVerifyRequest):
     phone_number = normalize_phone(req.phone_number)
     if not phone_number or PHONE_VERIFICATION_CODES.get(phone_number) != req.code.strip():
-        raise HTTPException(status_code=400, detail="휴대폰 인증 코드가 올바르지 않습니다.")
+        raise HTTPException(status_code=400, detail="Invalid phone verification code.")
     PHONE_VERIFIED_NUMBERS.add(phone_number)
     PHONE_VERIFICATION_CODES.pop(phone_number, None)
-    return {"status": "success", "message": "휴대폰 인증이 완료되었습니다."}
+    return {"status": "success", "message": "Phone verification completed."}
 
 @router.post("/signup", response_model=UserResponse)
 def signup(user: UserCreate, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.email == user.email).first()
     if db_user:
-        raise HTTPException(status_code=400, detail="이미 가입된 이메일입니다.")
+        raise HTTPException(status_code=400, detail="This email is already registered.")
 
     role = resolve_role(user.email)
-    verification_code = make_code()
+    verification_code = make_code() if smtp_configured() else TEST_EMAIL_CODE
     hint_answer = normalize_hint_answer(user.password_hint_answer)
     phone_number = normalize_phone(user.phone_number or "")
     if len(user.full_name.strip()) < 2:
-        raise HTTPException(status_code=400, detail="이름을 입력해주세요.")
+        raise HTTPException(status_code=400, detail="Please enter your name.")
     if len(user.birth_date or "") < 8:
-        raise HTTPException(status_code=400, detail="생년월일을 입력해주세요.")
+        raise HTTPException(status_code=400, detail="Please enter your birth date.")
     if len(phone_number) < 10:
-        raise HTTPException(status_code=400, detail="휴대폰 번호를 입력해주세요.")
+        raise HTTPException(status_code=400, detail="Please enter your phone number.")
     if role != "owner" and phone_number not in PHONE_VERIFIED_NUMBERS:
-        raise HTTPException(status_code=400, detail="휴대폰 인증을 완료해주세요.")
+        raise HTTPException(status_code=400, detail="Please complete phone verification.")
     if len(user.password) < 6:
-        raise HTTPException(status_code=400, detail="비밀번호는 6자 이상이어야 합니다.")
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters.")
     if not user.password_hint_question.strip() or len(hint_answer) < 2:
-        raise HTTPException(status_code=400, detail="비밀번호 힌트 질문과 답변을 입력해주세요.")
+        raise HTTPException(status_code=400, detail="Please enter a password hint question and answer.")
 
     new_user = User(
         full_name=user.full_name.strip()[:80],
@@ -165,15 +169,14 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
         role=role,
         plan="ultimate" if role == "owner" else "free",
         studio_generations_left=999999 if role == "owner" else 3,
-        email_verified=role == "owner",
-        email_verification_code=None if role == "owner" else verification_code,
+        email_verified=False,
+        email_verification_code=verification_code,
     )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
 
-    if role != "owner":
-        send_account_email(user.email, "Zenthex 이메일 인증 코드", f"인증 코드: {verification_code}")
+    send_account_email(user.email, "Zenthex email verification code", f"Verification code: {verification_code}")
     PHONE_VERIFIED_NUMBERS.discard(phone_number)
     return new_user
 
@@ -181,16 +184,14 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
 def login(user: UserLogin, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.email == user.email).first()
     if not db_user or not verify_password(user.password, db_user.hashed_password):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="이메일 또는 비밀번호가 올바르지 않습니다.")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password.")
 
     desired_role = resolve_role(db_user.email)
-    if db_user.role != desired_role:
-        db_user.role = desired_role
+    if db_user.role != desired_role or desired_role == "owner":
         if desired_role == "owner":
-            db_user.plan = "ultimate"
-            db_user.studio_generations_left = 999999
-            db_user.email_verified = True
-            db_user.email_verification_code = None
+            apply_owner_privileges(db_user)
+        else:
+            db_user.role = desired_role
         db.commit()
         db.refresh(db_user)
 
@@ -199,54 +200,66 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
 @router.get("/me", response_model=UserResponse)
 def me(Authorization: str = Header(None), db: Session = Depends(get_db)):
     if not Authorization:
-        raise HTTPException(status_code=401, detail="로그인이 필요합니다.")
+        raise HTTPException(status_code=401, detail="Login required.")
     token = Authorization.replace("Bearer ", "")
-    return get_current_user(token, db)
+    user = get_current_user(token, db)
+    if resolve_role(user.email) == "owner" and (user.role != "owner" or user.plan != "ultimate"):
+        apply_owner_privileges(user)
+        db.commit()
+        db.refresh(user)
+    return user
 
 @router.post("/email/resend")
-def resend_verification(Authorization: str = Header(None), db: Session = Depends(get_db)):
+def resend_verification(request: Request, Authorization: str = Header(None), db: Session = Depends(get_db)):
     user = require_current_user(Authorization, db)
     if user.email_verified:
-        return {"status": "success", "message": "이미 인증된 이메일입니다."}
-    user.email_verification_code = make_code()
+        return {"status": "success", "message": "Email is already verified."}
+    if resolve_role(user.email) == "owner":
+        apply_owner_privileges(user)
+    user.email_verification_code = make_code() if smtp_configured() else TEST_EMAIL_CODE
     db.commit()
-    send_account_email(user.email, "Zenthex 이메일 인증 코드", f"인증 코드: {user.email_verification_code}")
-    return {"status": "success", "message": "인증 코드를 발송했습니다."}
+    send_account_email(user.email, "Zenthex email verification code", f"Verification code: {user.email_verification_code}")
+    response = {"status": "success", "message": "Verification code has been sent."}
+    if is_local_request(request) or not smtp_configured() or os.getenv("ZENTHEX_ENABLE_DEV_OUTBOX", "false").lower() == "true":
+        response["dev_code"] = user.email_verification_code
+    return response
 
 @router.post("/email/verify")
 def verify_email(req: VerifyEmailRequest, Authorization: str = Header(None), db: Session = Depends(get_db)):
     user = require_current_user(Authorization, db)
     if user.email_verified:
-        return {"status": "success", "message": "이미 인증되었습니다."}
+        return {"status": "success", "message": "Email is already verified."}
     if not user.email_verification_code or user.email_verification_code != req.code:
-        raise HTTPException(status_code=400, detail="인증 코드가 올바르지 않습니다.")
+        raise HTTPException(status_code=400, detail="Invalid verification code.")
+    if resolve_role(user.email) == "owner":
+        apply_owner_privileges(user)
     user.email_verified = True
     user.email_verification_code = None
     db.commit()
-    return {"status": "success", "message": "이메일 인증이 완료되었습니다."}
+    return {"status": "success", "message": "Email verification completed."}
 
 @router.post("/find-id")
 def find_id(req: EmailRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == req.email).first()
     if user:
-        send_account_email(req.email, "Zenthex 아이디 안내", f"가입된 아이디는 이메일 주소 {req.email} 입니다.")
-    return {"status": "success", "message": "가입 여부와 아이디 안내를 이메일로 발송했습니다."}
+        send_account_email(req.email, "Zenthex ID notice", f"Your Zenthex ID is your email address: {req.email}")
+    return {"status": "success", "message": "If an account exists, ID information has been sent by email."}
 
 @router.post("/password/request-reset")
 def request_password_reset(req: EmailRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == req.email).first()
     if user:
-        user.password_reset_code = make_code()
+        user.password_reset_code = make_code() if smtp_configured() else TEST_EMAIL_CODE
         db.commit()
-        hint_text = f"\n비밀번호 힌트 질문: {user.password_hint_question}" if user.password_hint_question else ""
-        send_account_email(req.email, "Zenthex 비밀번호 재설정 코드", f"재설정 코드: {user.password_reset_code}{hint_text}")
-    return {"status": "success", "message": "비밀번호 재설정 안내를 이메일로 발송했습니다."}
+        hint_text = f"\nPassword hint question: {user.password_hint_question}" if user.password_hint_question else ""
+        send_account_email(req.email, "Zenthex password reset code", f"Reset code: {user.password_reset_code}{hint_text}")
+    return {"status": "success", "message": "If an account exists, reset instructions have been sent by email."}
 
 @router.post("/password/question")
 def get_password_hint_question(req: EmailRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == req.email).first()
     if not user or not user.password_hint_question:
-        raise HTTPException(status_code=404, detail="등록된 비밀번호 힌트 질문을 찾을 수 없습니다.")
+        raise HTTPException(status_code=404, detail="No password hint question found.")
     return {"status": "success", "password_hint_question": user.password_hint_question}
 
 @router.post("/password/hint")
@@ -259,23 +272,23 @@ def check_password_hint(req: PasswordHintRequest, db: Session = Depends(get_db))
         or user.password_hint_question.strip() != req.password_hint_question.strip()
         or not verify_password(normalize_hint_answer(req.password_hint_answer), user.password_hint_answer_hash)
     ):
-        raise HTTPException(status_code=400, detail="비밀번호 힌트가 일치하지 않습니다.")
-    user.password_reset_code = make_code()
+        raise HTTPException(status_code=400, detail="Password hint does not match.")
+    user.password_reset_code = make_code() if smtp_configured() else TEST_EMAIL_CODE
     db.commit()
-    send_account_email(req.email, "Zenthex 비밀번호 재설정 코드", f"재설정 코드: {user.password_reset_code}")
-    return {"status": "success", "message": "힌트가 확인되었습니다. 이메일로 재설정 코드를 발송했습니다."}
+    send_account_email(req.email, "Zenthex password reset code", f"Reset code: {user.password_reset_code}")
+    return {"status": "success", "message": "Hint verified. Reset code has been sent.", "dev_code": user.password_reset_code if not smtp_configured() else None}
 
 @router.post("/password/reset")
 def reset_password(req: PasswordResetRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == req.email).first()
     if not user or not user.password_reset_code or user.password_reset_code != req.code:
-        raise HTTPException(status_code=400, detail="재설정 코드가 올바르지 않습니다.")
+        raise HTTPException(status_code=400, detail="Invalid reset code.")
     if len(req.new_password) < 6:
-        raise HTTPException(status_code=400, detail="비밀번호는 6자 이상이어야 합니다.")
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters.")
     user.hashed_password = get_password_hash(req.new_password)
     user.password_reset_code = None
     db.commit()
-    return {"status": "success", "message": "비밀번호가 변경되었습니다."}
+    return {"status": "success", "message": "Password has been changed."}
 
 @router.get("/dev/outbox")
 def dev_outbox():
@@ -285,7 +298,7 @@ def dev_outbox():
 
 def require_current_user(Authorization: str, db: Session):
     if not Authorization:
-        raise HTTPException(status_code=401, detail="로그인이 필요합니다.")
+        raise HTTPException(status_code=401, detail="Login required.")
     token = Authorization.replace("Bearer ", "")
     return get_current_user(token, db)
 

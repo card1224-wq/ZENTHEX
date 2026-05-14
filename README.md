@@ -16,6 +16,7 @@ Zenthex is an AI SaaS platform with Zenthex Studio and Zenthex Trading.
 - SMTP mail delivery through environment variables
 - Protected dev outbox and mock payment controls for safer public uploads
 - Owner launch review system in the CEO dashboard
+- Owner account receives Ultimate access without payment, but still needs email code verification
 
 ## Account Verification
 
@@ -68,10 +69,10 @@ http://127.0.0.1:8080/
 ## Environment
 
 Copy `.env.example` to `.env` locally and fill SMTP values. Do not commit `.env`.
-For production, set `ZENTHEX_OWNER_EMAILS` in the server environment to the CEO email address.
+For production, set `ZENTHEX_OWNER_EMAILS` in the server environment to the CEO email address. The current CEO email is `7foliath@naver.com`.
 
 ```env
-ZENTHEX_OWNER_EMAILS=owner@example.com
+ZENTHEX_OWNER_EMAILS=7foliath@naver.com
 ZENTHEX_SMTP_HOST=smtp.example.com
 ZENTHEX_SMTP_PORT=587
 ZENTHEX_SMTP_SSL=false
