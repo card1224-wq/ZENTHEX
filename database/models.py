@@ -6,8 +6,13 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
+    full_name = Column(String, nullable=True)
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
+    birth_date = Column(String, nullable=True)
+    phone_number = Column(String, nullable=True)
+    password_hint_question = Column(String, nullable=True)
+    password_hint_answer_hash = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
     email_verified = Column(Boolean, default=False)
     email_verification_code = Column(String, nullable=True)

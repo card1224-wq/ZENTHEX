@@ -26,6 +26,7 @@ class BotState:
         self.selected_ticker = "KRW-BTC"
         self.signal_candidates = []
         self.target_yield = 1.01
+        self.stop_loss_yield = 0.994
         self.investment_mode = "fixed"
         self.investment_amount = 50000.0
         self.investment_ratio = 0.5
@@ -55,24 +56,100 @@ def get_current_price(ticker: str) -> float:
         return 0.0
 
 def scan_upbit_candidates(limit: int = 5):
-    """Signal scanner. It filters momentum candidates, not guaranteed profit."""
+    """Scalping scanner. It filters 24h strength, then ranks 1/3/5m entry signals."""
     try:
-        markets = pyupbit.get_tickers(fiat="KRW")[:80]
+        markets = pyupbit.get_tickers(fiat="KRW")
         candidates = []
         for ticker in markets:
             try:
-                ohlcv = pyupbit.get_ohlcv(ticker, interval="minute60", count=6)
-                if ohlcv is None or len(ohlcv) < 2:
+                hourly = pyupbit.get_ohlcv(ticker, interval="minute60", count=25)
+                minute1 = pyupbit.get_ohlcv(ticker, interval="minute1", count=20)
+                minute3 = pyupbit.get_ohlcv(ticker, interval="minute3", count=20)
+                minute5 = pyupbit.get_ohlcv(ticker, interval="minute5", count=20)
+                if hourly is None or minute1 is None or minute3 is None or minute5 is None:
                     continue
-                first = float(ohlcv["close"].iloc[0])
-                last = float(ohlcv["close"].iloc[-1])
-                volume = float(ohlcv["volume"].tail(3).sum())
-                if first <= 0:
+                if len(hourly) < 12 or len(minute1) < 10 or len(minute3) < 10 or len(minute5) < 10:
                     continue
-                momentum = (last / first) - 1.0
-                score = momentum * 100000 + min(volume, 1000000) / 1000000
-                if momentum > 0:
-                    candidates.append({"ticker": ticker, "momentum": momentum, "price": last, "score": score})
+                closes = hourly["close"]
+                volumes = hourly["volume"]
+                first = float(closes.iloc[0])
+                last = float(closes.iloc[-1])
+                close_6h = float(closes.iloc[-7]) if len(closes) >= 7 else first
+                high_24h = float(ohlcv["high"].max())
+                low_24h = float(ohlcv["low"].min())
+                value_24h = float((closes * volumes).sum())
+                recent_volume = float(volumes.tail(3).mean())
+                previous_volume = float(volumes.iloc[-9:-3].mean() or 1)
+                ma12 = float(closes.tail(12).mean())
+                ma24 = float(closes.tail(24).mean()) if len(closes) >= 24 else ma12
+                if first <= 0 or close_6h <= 0 or low_24h <= 0 or high_24h <= 0:
+                    continue
+
+                change_24h = (last / first) - 1.0
+                momentum_6h = (last / close_6h) - 1.0
+                volume_surge = recent_volume / max(previous_volume, 1e-9)
+                volatility = (high_24h / low_24h) - 1.0
+                drawdown = (high_24h - last) / high_24h
+                trend_bonus = 1.0 if last > ma12 > ma24 else 0.0
+
+                if change_24h <= 0.015 or momentum_6h <= 0 or value_24h < 300_000_000:
+                    continue
+                if volatility > 0.45 or drawdown > 0.18:
+                    continue
+
+                c1 = minute1["close"]
+                v1 = minute1["volume"]
+                c3 = minute3["close"]
+                c5 = minute5["close"]
+                last1 = float(c1.iloc[-1])
+                prev_high_5 = float(c1.iloc[-6:-1].max())
+                minute1_momentum = (last1 / float(c1.iloc[-4])) - 1.0
+                minute3_momentum = (float(c3.iloc[-1]) / float(c3.iloc[-4])) - 1.0
+                minute5_momentum = (float(c5.iloc[-1]) / float(c5.iloc[-4])) - 1.0
+                recent_tick_volume = float(v1.tail(3).mean())
+                previous_tick_volume = float(v1.iloc[-12:-3].mean() or 1)
+                tick_volume_surge = recent_tick_volume / max(previous_tick_volume, 1e-9)
+                ma5 = float(c1.tail(5).mean())
+                ma10 = float(c1.tail(10).mean())
+                breakout = 1.0 if last1 > prev_high_5 else 0.0
+                short_trend = 1.0 if last1 > ma5 > ma10 else 0.0
+
+                if minute1_momentum <= 0 or minute3_momentum <= 0 or minute5_momentum < -0.002:
+                    continue
+                if tick_volume_surge < 1.4 and not breakout:
+                    continue
+
+                score = (
+                    change_24h * 12
+                    + momentum_6h * 8
+                    + minute1_momentum * 40
+                    + minute3_momentum * 24
+                    + minute5_momentum * 14
+                    + min(volume_surge, 4.0) * 0.04
+                    + min(tick_volume_surge, 5.0) * 0.12
+                    + breakout * 0.22
+                    + short_trend * 0.18
+                    + trend_bonus * 0.08
+                    - volatility * 0.18
+                    - drawdown * 0.35
+                )
+                candidates.append({
+                    "ticker": ticker,
+                    "momentum": change_24h,
+                    "momentum6h": momentum_6h,
+                    "volumeSurge": volume_surge,
+                    "tickVolumeSurge": tick_volume_surge,
+                    "minute1Momentum": minute1_momentum,
+                    "minute3Momentum": minute3_momentum,
+                    "minute5Momentum": minute5_momentum,
+                    "breakout": breakout,
+                    "shortTrend": short_trend,
+                    "value24h": value_24h,
+                    "volatility": volatility,
+                    "drawdown": drawdown,
+                    "price": last,
+                    "score": score,
+                })
             except Exception:
                 continue
         candidates.sort(key=lambda item: item["score"], reverse=True)
@@ -131,7 +208,13 @@ async def scalping_loop():
                     chosen = candidates[0]
                     bot_state.active_ticker = chosen["ticker"]
                     price = chosen["price"] or get_current_price(bot_state.active_ticker) or price
-                    log_trade(f"[Signal Guard] 상승 후보 선정: {bot_state.active_ticker} / 최근 모멘텀 {chosen['momentum'] * 100:.2f}%")
+                    log_trade(
+                        f"[Scalping Signal] {bot_state.active_ticker} / "
+                        f"1m +{chosen.get('minute1Momentum', 0) * 100:.2f}% / "
+                        f"3m +{chosen.get('minute3Momentum', 0) * 100:.2f}% / "
+                        f"거래량 {chosen.get('tickVolumeSurge', 0):.1f}x / "
+                        f"24h +{chosen['momentum'] * 100:.2f}%"
+                    )
 
                 bot_state.state = TradingState.BUYING
                 if bot_state.trading_mode == "real":
@@ -167,6 +250,18 @@ async def scalping_loop():
 
             elif bot_state.state == TradingState.HOLDING:
                 current_yield = price / bot_state.avg_buy_price if bot_state.avg_buy_price else 1.0
+                if bot_state.trading_mode == "practice" and current_yield < 1.003:
+                    replacement = scan_upbit_candidates(limit=1)
+                    if replacement and replacement[0]["ticker"] != bot_state.active_ticker and replacement[0]["score"] > 0.55:
+                        sell_amount = (bot_state.held_btc * price) * 0.9995
+                        bot_state.balance += sell_amount
+                        old_ticker = bot_state.active_ticker
+                        bot_state.held_btc = 0
+                        bot_state.avg_buy_price = 0
+                        bot_state.state = TradingState.IDLE
+                        log_trade(f"[Rotation] {old_ticker} 힘이 약해 더 강한 후보 {replacement[0]['ticker']}로 교체 대기")
+                        await asyncio.sleep(1)
+                        continue
                 if current_yield >= bot_state.target_yield:
                     bot_state.state = TradingState.SELLING
                     profit_pct = (current_yield - 1.0) * 100
@@ -189,7 +284,7 @@ async def scalping_loop():
                     bot_state.state = TradingState.STOPPED
                     send_push_notification("목표 수익률 도달", f"{bot_state.active_ticker} +{profit_pct:.2f}% 달성. 엔진을 종료했습니다.")
 
-                elif current_yield <= 0.98:
+                elif current_yield <= bot_state.stop_loss_yield:
                     bot_state.state = TradingState.SELLING
                     loss_pct = (1.0 - current_yield) * 100
                     if bot_state.trading_mode == "real":

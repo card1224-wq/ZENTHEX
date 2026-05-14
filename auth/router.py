@@ -4,6 +4,7 @@ from database.session import get_db
 from database.models import User
 from auth.schemas import (
     EmailRequest,
+    PasswordHintRequest,
     PasswordResetRequest,
     UserCreate,
     UserLogin,
@@ -21,7 +22,7 @@ from email.message import EmailMessage
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 SESSION_TOKENS = {}
-DEFAULT_OWNER_EMAILS = {"7foliath@naver.com"}
+DEFAULT_OWNER_EMAILS = set()
 DEV_EMAIL_OUTBOX = []
 
 def get_owner_emails():
@@ -34,6 +35,9 @@ def resolve_role(email: str) -> str:
 
 def make_code() -> str:
     return f"{random.randint(100000, 999999)}"
+
+def normalize_hint_answer(answer: str) -> str:
+    return " ".join((answer or "").strip().lower().split())
 
 def send_account_email(to_email: str, subject: str, body: str):
     smtp_host = os.getenv("ZENTHEX_SMTP_HOST")
@@ -83,9 +87,22 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
 
     role = resolve_role(user.email)
     verification_code = make_code()
+    hint_answer = normalize_hint_answer(user.password_hint_answer)
+    if len(user.full_name.strip()) < 2:
+        raise HTTPException(status_code=400, detail="이름을 입력해주세요.")
+    if len(user.password) < 6:
+        raise HTTPException(status_code=400, detail="비밀번호는 6자 이상이어야 합니다.")
+    if not user.password_hint_question.strip() or len(hint_answer) < 2:
+        raise HTTPException(status_code=400, detail="비밀번호 힌트 질문과 답변을 입력해주세요.")
+
     new_user = User(
+        full_name=user.full_name.strip()[:80],
         email=user.email,
         hashed_password=get_password_hash(user.password),
+        birth_date=(user.birth_date or "").strip()[:20],
+        phone_number=(user.phone_number or "").strip()[:30],
+        password_hint_question=user.password_hint_question.strip()[:120],
+        password_hint_answer_hash=get_password_hash(hint_answer),
         role=role,
         plan="ultimate" if role == "owner" else "free",
         studio_generations_left=999999 if role == "owner" else 3,
@@ -134,7 +151,7 @@ def resend_verification(Authorization: str = Header(None), db: Session = Depends
     user.email_verification_code = make_code()
     db.commit()
     send_account_email(user.email, "Zenthex 이메일 인증 코드", f"인증 코드: {user.email_verification_code}")
-    return {"status": "success", "message": "인증 코드를 발송했습니다.", "dev_code": user.email_verification_code}
+    return {"status": "success", "message": "인증 코드를 발송했습니다."}
 
 @router.post("/email/verify")
 def verify_email(req: VerifyEmailRequest, Authorization: str = Header(None), db: Session = Depends(get_db)):
@@ -161,8 +178,32 @@ def request_password_reset(req: EmailRequest, db: Session = Depends(get_db)):
     if user:
         user.password_reset_code = make_code()
         db.commit()
-        send_account_email(req.email, "Zenthex 비밀번호 재설정 코드", f"재설정 코드: {user.password_reset_code}")
+        hint_text = f"\n비밀번호 힌트 질문: {user.password_hint_question}" if user.password_hint_question else ""
+        send_account_email(req.email, "Zenthex 비밀번호 재설정 코드", f"재설정 코드: {user.password_reset_code}{hint_text}")
     return {"status": "success", "message": "비밀번호 재설정 안내를 이메일로 발송했습니다."}
+
+@router.post("/password/question")
+def get_password_hint_question(req: EmailRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == req.email).first()
+    if not user or not user.password_hint_question:
+        raise HTTPException(status_code=404, detail="등록된 비밀번호 힌트 질문을 찾을 수 없습니다.")
+    return {"status": "success", "password_hint_question": user.password_hint_question}
+
+@router.post("/password/hint")
+def check_password_hint(req: PasswordHintRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == req.email).first()
+    if (
+        not user
+        or not user.password_hint_question
+        or not user.password_hint_answer_hash
+        or user.password_hint_question.strip() != req.password_hint_question.strip()
+        or not verify_password(normalize_hint_answer(req.password_hint_answer), user.password_hint_answer_hash)
+    ):
+        raise HTTPException(status_code=400, detail="비밀번호 힌트가 일치하지 않습니다.")
+    user.password_reset_code = make_code()
+    db.commit()
+    send_account_email(req.email, "Zenthex 비밀번호 재설정 코드", f"재설정 코드: {user.password_reset_code}")
+    return {"status": "success", "message": "힌트가 확인되었습니다. 이메일로 재설정 코드를 발송했습니다."}
 
 @router.post("/password/reset")
 def reset_password(req: PasswordResetRequest, db: Session = Depends(get_db)):
@@ -178,6 +219,8 @@ def reset_password(req: PasswordResetRequest, db: Session = Depends(get_db)):
 
 @router.get("/dev/outbox")
 def dev_outbox():
+    if os.getenv("ZENTHEX_ENABLE_DEV_OUTBOX", "false").lower() != "true":
+        raise HTTPException(status_code=404, detail="Not found")
     return {"messages": DEV_EMAIL_OUTBOX[-20:]}
 
 def require_current_user(Authorization: str, db: Session):

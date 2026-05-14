@@ -3,6 +3,16 @@
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
+    full_name: str
+    birth_date: str | None = None
+    phone_number: str | None = None
+    password_hint_question: str
+    password_hint_answer: str
+
+class PasswordHintRequest(BaseModel):
+    email: EmailStr
+    password_hint_question: str
+    password_hint_answer: str
 
 class UserLogin(BaseModel):
     email: str

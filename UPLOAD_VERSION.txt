@@ -1,0 +1,4 @@
+ZENTHEX_UPLOAD_VERSION=2026-05-14-2235
+Homepage: Zenthex brand mark, Studio one-day trial, Trading structure view
+Login: signup has name, birth date, phone, password confirm, password hint question
+Trading: trial hides API keys, real trading is visible only after owner/subscription permission

@@ -2,9 +2,19 @@
 from database.session import engine
 
 USER_COLUMNS = {
+    "full_name": "VARCHAR",
     "email_verified": "BOOLEAN DEFAULT 0",
     "email_verification_code": "VARCHAR",
     "password_reset_code": "VARCHAR",
+    "birth_date": "VARCHAR",
+    "phone_number": "VARCHAR",
+    "password_hint_question": "VARCHAR",
+    "password_hint_answer_hash": "VARCHAR",
+    "plan": "VARCHAR DEFAULT 'free'",
+    "role": "VARCHAR DEFAULT 'user'",
+    "binance_access_key": "VARCHAR",
+    "binance_secret_key": "VARCHAR",
+    "studio_generations_left": "INTEGER DEFAULT 3",
 }
 
 def _column_exists(conn, table_name: str, column_name: str) -> bool:

@@ -5,7 +5,7 @@ import uuid
 
 import cv2
 import numpy as np
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Header, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Header, HTTPException, Request, UploadFile
 from sqlalchemy.orm import Session
 
 from auth.router import get_current_user
@@ -16,6 +16,7 @@ router = APIRouter(prefix="/api/studio", tags=["studio"])
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 MAX_FILE_SIZE = 10 * 1024 * 1024
+TRIAL_USAGE_BY_IP: dict[str, str] = {}
 
 def generate_3d_task(file_path: str, model_path: str, bg_path: str, style: str, wall_height: float):
     try:
@@ -31,15 +32,37 @@ def get_optional_user(authorization: str | None, db: Session):
         return None
     return get_current_user(token, db)
 
-def charge_studio_quota(user, db: Session):
+def get_client_ip(request: Request) -> str:
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    if request.client:
+        return request.client.host
+    return "unknown"
+
+def charge_studio_trial_or_quota(user, db: Session, request: Request):
     if not user:
+        today = time.strftime("%Y-%m-%d")
+        client_ip = get_client_ip(request)
+        if TRIAL_USAGE_BY_IP.get(client_ip) == today:
+            raise HTTPException(
+                status_code=403,
+                detail="오늘의 무료 체험을 이미 사용했습니다. 내일 다시 체험하거나 Studio Pro 또는 Ultimate 구독 후 계속 사용할 수 있습니다.",
+            )
+        TRIAL_USAGE_BY_IP[client_ip] = today
         return
+
     if user.role == "owner":
         return
     if user.studio_generations_left <= 0:
         raise HTTPException(status_code=403, detail="무료 사용량을 모두 사용했습니다. Studio Pro 또는 Ultimate 구독이 필요합니다.")
     user.studio_generations_left -= 1
     db.commit()
+
+def user_can_export(user) -> bool:
+    if not user:
+        return False
+    return user.role == "owner" or user.plan in ["studio_pro", "ultimate"]
 
 def prompt_to_floorplan(prompt: str):
     img = np.ones((1000, 1500), dtype=np.uint8) * 255
@@ -67,12 +90,13 @@ def prompt_to_floorplan(prompt: str):
 @router.post("/upload")
 async def upload_floorplan(
     background_tasks: BackgroundTasks,
+    request: Request,
     file: UploadFile = File(...),
     Authorization: str = Header(None),
     db: Session = Depends(get_db),
 ):
     user = get_optional_user(Authorization, db)
-    charge_studio_quota(user, db)
+    charge_studio_trial_or_quota(user, db, request)
 
     file_ext = os.path.splitext(file.filename)[1].lower()
     if file_ext not in ALLOWED_EXTENSIONS:
@@ -93,17 +117,26 @@ async def upload_floorplan(
     bg_path = f"static/models/{bg_filename}"
     background_tasks.add_task(generate_3d_task, file_path, model_path, bg_path, "premium", 25.0)
 
-    return {"status": "success", "message": "3D 생성 작업을 시작했습니다.", "model_url": f"/static/models/{model_filename}", "bg_url": f"/static/models/{bg_filename}"}
+    can_export = user_can_export(user)
+    return {
+        "status": "success",
+        "message": "3D 생성 작업을 시작했습니다.",
+        "preview_only": not can_export,
+        "export_locked": not can_export,
+        "model_url": f"/static/models/{model_filename}" if can_export else None,
+        "bg_url": f"/static/models/{bg_filename}" if can_export else None,
+    }
 
 @router.post("/generate")
 async def generate_floorplan(
     background_tasks: BackgroundTasks,
+    request: Request,
     prompt: str = Form(...),
     Authorization: str = Header(None),
     db: Session = Depends(get_db),
 ):
     user = get_optional_user(Authorization, db)
-    charge_studio_quota(user, db)
+    charge_studio_trial_or_quota(user, db, request)
 
     style = "gallery" if any(word in prompt.lower() for word in ["갤러리", "통유리", "카페"]) else "premium"
     wall_height = 24.0 if "아파트" in prompt.lower() else 30.0
@@ -117,4 +150,12 @@ async def generate_floorplan(
     bg_path = f"static/models/{filename}_bg.png"
     background_tasks.add_task(generate_3d_task, img_path, model_path, bg_path, style, wall_height)
 
-    return {"status": "success", "message": "프롬프트 기반 3D 생성 작업을 시작했습니다.", "model_url": f"/static/models/{filename}.glb", "bg_url": f"/static/models/{filename}_bg.png"}
+    can_export = user_can_export(user)
+    return {
+        "status": "success",
+        "message": "프롬프트 기반 3D 생성 작업을 시작했습니다.",
+        "preview_only": not can_export,
+        "export_locked": not can_export,
+        "model_url": f"/static/models/{filename}.glb" if can_export else None,
+        "bg_url": f"/static/models/{filename}_bg.png" if can_export else None,
+    }
