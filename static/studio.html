@@ -8,25 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
     <style>
         :root { --accent-indigo: #6366f1; --accent-purple: #8b5cf6; --bg-dark: #09090b; }
-        body { font-family: 'Outfit', sans-serif; background-color: var(--bg-dark); color: #d1d5db; margin: 0; overflow-x: hidden; }
-        * { box-sizing: border-box; }
-        nav { min-height: 80px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 16px 24px; border-bottom: 1px solid rgba(255,255,255,.08); background: rgba(0,0,0,.45); }
-        nav a { color: #a1a1aa; text-decoration: none; }
-        main { display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); min-height: calc(100vh - 80px); }
-        main > div:first-child { padding: 28px; background: #0c0c0e; border-right: 1px solid rgba(255,255,255,.08); }
-        main > div:last-child { min-height: calc(100vh - 80px); position: relative; background: #050507; }
-        h2 { margin: 0 0 16px; }
-        textarea, input, select { width: 100%; border: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.55); color: #fff; border-radius: 10px; padding: 12px; }
-        button { cursor: pointer; }
-        #drop-zone { border: 2px dashed rgba(255,255,255,.14); border-radius: 16px; padding: 28px; text-align: center; cursor: pointer; }
-        #btn-generate { width: 100%; margin-top: 12px; border: 1px solid rgba(139,92,246,.55); background: rgba(139,92,246,.22); color: #d8b4fe; border-radius: 12px; padding: 13px; font-weight: 800; }
-        #status-box { margin-top: 16px; padding: 14px; border-radius: 12px; border: 1px solid rgba(99,102,241,.28); background: rgba(99,102,241,.08); color: #c7d2fe; }
-        .fallback-preview {
-            position: absolute; inset: 14%; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.12);
-            border-radius: 18px; background: linear-gradient(135deg, rgba(99,102,241,.12), rgba(0,255,204,.06));
-            color: #e5e7eb; text-align: center; padding: 24px; z-index: 15;
-        }
-        .hidden { display: none !important; }
+        body { font-family: 'Outfit', sans-serif; background-color: var(--bg-dark); color: #d1d5db; margin: 0; overflow: hidden; }
         .glass-panel { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.1); }
         #viewer-container { width: 100%; height: 100%; position: relative; }
         
@@ -42,51 +24,28 @@
             border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite;
         }
         @keyframes spin { 100% { transform: rotate(360deg); } }
-        .preview-watermark {
-            position: absolute; inset: 0; z-index: 20; pointer-events: none;
-            background-image: repeating-linear-gradient(-28deg, rgba(255,255,255,0.035) 0 2px, transparent 2px 120px);
-        }
-        .preview-watermark::after {
-            content: "ZENTHEX PREVIEW · VIEW ONLY";
-            position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(-18deg);
-            color: rgba(255,255,255,0.11); font-size: 44px; font-weight: 800; letter-spacing: 6px;
-            white-space: nowrap;
-        }
-        @media print {
-            #viewer-container { display: none !important; }
-            body::before { content: "Zenthex Studio preview cannot be printed."; color: #111; font-size: 20px; }
-        }
-        @media (max-width: 1023px) {
-            body { overflow-y: auto; }
-            nav { padding: 14px 16px; }
-            main { grid-template-columns: 1fr; }
-            main > div:first-child { border-right: 0; border-bottom: 1px solid rgba(255,255,255,.08); padding: 20px; }
-            main > div:last-child { min-height: 58vh; }
-            .preview-watermark::after { font-size: 20px; letter-spacing: 3px; }
-            #viewer-container { min-height: 56vh; }
-        }
     </style>
 </head>
 <body class="bg-[#050507] text-white">
 
-    <nav class="sticky top-0 z-50 backdrop-blur-2xl bg-black/40 border-b border-white/5 min-h-20 flex items-center px-4 md:px-10 py-4 justify-between gap-4 flex-wrap">
-        <div class="flex items-center gap-3 md:gap-4 min-w-0">
-            <a href="index.html" class="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-white border-r border-white/10 pr-4 md:pr-6 mr-1 md:mr-2 transition-colors shrink-0">
+    <nav class="sticky top-0 z-50 backdrop-blur-2xl bg-black/40 border-b border-white/5 h-20 flex items-center px-10 justify-between">
+        <div class="flex items-center gap-4">
+            <a href="index.html" class="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-white border-r border-white/10 pr-6 mr-2 transition-colors">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></svg>
                 메인으로
             </a>
             <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center font-bold">HL</div>
-            <span class="font-extrabold tracking-widest text-sm md:text-base uppercase truncate">Zenthex Studio <span class="text-xs text-indigo-400 ml-1">AI 3D ENGINE</span></span>
+            <span class="font-extrabold tracking-widest text-base uppercase">Zenthex Studio <span class="text-xs text-indigo-400 ml-1">AI 3D ENGINE</span></span>
         </div>
         <div class="hidden md:block px-4 py-1 rounded-full bg-purple-500/20 text-purple-300 text-[10px] font-bold border border-purple-500/30">
             CLOUD AI WORKSPACE
         </div>
     </nav>
 
-    <main class="flex-grow grid grid-cols-1 lg:grid-cols-12 lg:overflow-hidden min-h-[calc(100vh-5rem)] lg:h-[calc(100vh-5rem)]">
+    <main class="flex-grow grid grid-cols-12 overflow-hidden h-[calc(100vh-5rem)]">
         <!-- Left Sidebar -->
-        <div class="col-span-1 lg:col-span-3 border-r border-white/5 p-5 md:p-8 flex flex-col gap-6 bg-[#0c0c0e]">
-            <div class="glass-panel p-4 rounded-xl border-indigo-500/30 text-indigo-200 text-xs font-bold leading-relaxed mb-4">Zenthex Studio는 프롬프트와 2D 도면을 3D 공간으로 변환하는 AI 제작 워크스페이스입니다. 무료 체험은 같은 IP 기준 하루 1회 제공되며, 이후에는 Studio Pro 또는 Ultimate 구독이 필요합니다.</div>
+        <div class="col-span-1 lg:col-span-3 border-r border-white/5 p-8 flex flex-col gap-6 bg-[#0c0c0e]">
+            <div class="glass-panel p-4 rounded-xl border-indigo-500/30 text-indigo-200 text-xs font-bold leading-relaxed mb-4">Zenthex Studio는 프롬프트와 2D 도면을 3D 공간으로 변환하는 AI 제작 워크스페이스입니다. 원하는 공간을 문장으로 입력하거나 도면 이미지를 업로드하세요.</div>
 
             <!-- Upload flow -->
             <div>
@@ -116,9 +75,8 @@
         </div>
 
         <!-- Right 3D Viewport -->
-        <div class="col-span-1 lg:col-span-9 relative bg-[#050507] min-h-[56vh] lg:min-h-0">
+        <div class="col-span-1 lg:col-span-9 relative bg-[#050507]">
             <div id="viewer-container" class="w-full h-full">
-                <div id="preview-watermark" class="preview-watermark"></div>
                 <div id="placeholder" class="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
                     <p class="text-xs uppercase tracking-[0.4em] text-gray-600 font-bold">프롬프트 또는 도면을 입력하세요</p>
                 </div>
@@ -129,64 +87,6 @@
             </div>
         </div>
     </main>
-
-    <script>
-        function zxAuthHeaders() {
-            return { "Authorization": `Bearer ${localStorage.getItem("zx_token") || ""}` };
-        }
-        function zxShowStatus(html) {
-            const box = document.getElementById('status-box');
-            box.classList.remove('hidden');
-            box.innerHTML = html;
-        }
-        function zxShowFallbackPreview() {
-            const placeholder = document.getElementById('placeholder');
-            if (placeholder) placeholder.classList.add('hidden');
-            let preview = document.getElementById('fallback-preview');
-            if (!preview) {
-                preview = document.createElement('div');
-                preview.id = 'fallback-preview';
-                preview.className = 'fallback-preview';
-                preview.innerHTML = '<div><strong style="font-size:24px">Zenthex 3D Preview</strong><p style="margin-top:12px;color:#a1a1aa">모바일 미리보기 구성이 완료되었습니다.<br>구독 후 GLB 다운로드와 고급 렌더링이 제공됩니다.</p></div>';
-                document.getElementById('viewer-container').appendChild(preview);
-            }
-        }
-        async function zxFallbackUpload(file) {
-            const formData = new FormData();
-            formData.append("file", file);
-            const response = await fetch("/api/studio/upload", { method: "POST", headers: zxAuthHeaders(), body: formData });
-            const result = await response.json();
-            if (!response.ok || result.status !== "success") throw new Error(result.detail || result.message || "업로드 체험에 실패했습니다.");
-            zxShowFallbackPreview();
-            zxShowStatus(`3D 생성 요청이 완료되었습니다.<br><span style="color:#fcd34d">체험 미리보기는 보기 전용입니다. 다운로드는 구독 후 제공됩니다.</span>`);
-        }
-        async function zxFallbackGenerate() {
-            const promptStr = document.getElementById('ai-prompt').value.trim();
-            if (!promptStr) return alert("프롬프트를 입력해주세요.");
-            const formData = new FormData();
-            formData.append("prompt", promptStr);
-            const response = await fetch("/api/studio/generate", { method: "POST", headers: zxAuthHeaders(), body: formData });
-            const result = await response.json();
-            if (!response.ok || result.status !== "success") throw new Error(result.detail || result.message || "프롬프트 체험에 실패했습니다.");
-            zxShowFallbackPreview();
-            zxShowStatus(`프롬프트 기반 3D 생성 요청이 완료되었습니다.<br><span style="color:#fcd34d">체험 미리보기는 보기 전용입니다. 다운로드는 구독 후 제공됩니다.</span>`);
-        }
-        document.addEventListener('DOMContentLoaded', () => {
-            const dropZone = document.getElementById('drop-zone');
-            const fileInput = document.getElementById('file-input');
-            const generateBtn = document.getElementById('btn-generate');
-            dropZone.onclick = () => fileInput.click();
-            fileInput.onchange = async (event) => {
-                if (!event.target.files[0]) return;
-                try { zxShowStatus('업로드 및 분석 중...'); await zxFallbackUpload(event.target.files[0]); }
-                catch (error) { zxShowStatus(`<span style="color:#f87171">오류 발생: ${error.message}</span>`); }
-            };
-            generateBtn.onclick = async () => {
-                try { zxShowStatus('프롬프트로 공간을 생성하는 중...'); await zxFallbackGenerate(); }
-                catch (error) { zxShowStatus(`<span style="color:#f87171">오류 발생: ${error.message}</span>`); }
-            };
-        });
-    </script>
 
     <!-- Three.js renderer -->
     <script type="importmap">
@@ -201,17 +101,6 @@
     <script type="module">
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-
-        document.addEventListener('contextmenu', (event) => event.preventDefault());
-        document.addEventListener('dragstart', (event) => event.preventDefault());
-        document.addEventListener('keydown', async (event) => {
-            const key = event.key.toLowerCase();
-            if (key === 'printscreen' || (event.ctrlKey && ['s', 'p'].includes(key))) {
-                event.preventDefault();
-                try { await navigator.clipboard.writeText(''); } catch (_) {}
-                alert('체험 미리보기는 저장, 출력, 스크린샷 단축키를 지원하지 않습니다. 다운로드는 구독 후 제공됩니다.');
-            }
-        });
 
         // Set up Scene
         const container = document.getElementById('viewer-container');
@@ -348,14 +237,13 @@
                     scene.add(currentModel);
                     
                     loader.classList.remove('active');
-                    const lockedMsg = result.preview_only ? '<br><span class="text-amber-300">체험 미리보기는 보기 전용입니다. 다운로드는 구독 후 제공됩니다.</span>' : '<br><span class="text-[#00ffcc]">구독 권한으로 다운로드가 가능합니다.</span>';
-                    document.getElementById('status-box').innerHTML = `3D 생성이 완료되었습니다.<br><span class="text-white">마우스로 공간을 둘러보세요.</span>${lockedMsg}`;
+                    document.getElementById('status-box').innerHTML = '3D 생성이 완료되었습니다.<br><span class="text-white">마우스로 공간을 둘러보세요.</span>';
                     
                     // Fly-in Camera Animation
                     camera.position.set(60, 50, 60);
                     controls.target.set(0, 5, 0);
                 } else {
-                    throw new Error(result.detail || result.message || "3D 생성에 실패했습니다.");
+                    throw new Error(result.message);
                 }
             } catch(error) {
                 loader.classList.remove('active');
@@ -412,13 +300,12 @@
                     scene.add(currentModel);
                     
                     loader.classList.remove('active');
-                    const lockedMsg = result.preview_only ? '<br><span class="text-amber-300">체험 미리보기는 보기 전용입니다. 다운로드는 구독 후 제공됩니다.</span>' : '<br><span class="text-[#00ffcc]">구독 권한으로 다운로드가 가능합니다.</span>';
-                    document.getElementById('status-box').innerHTML = `<span class="text-purple-400">프롬프트 기반 3D 생성이 완료되었습니다.<br>공간을 둘러보세요.</span>${lockedMsg}`;
+                    document.getElementById('status-box').innerHTML = '<span class="text-purple-400">프롬프트 기반 3D 생성이 완료되었습니다.<br>공간을 둘러보세요.</span>';
                     
                     camera.position.set(60, 50, 60);
                     controls.target.set(0, 5, 0);
                 } else {
-                    throw new Error(result.detail || result.message || "3D 생성에 실패했습니다.");
+                    throw new Error(result.message);
                 }
             } catch(error) {
                 loader.classList.remove('active');

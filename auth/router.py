@@ -21,7 +21,7 @@ from email.message import EmailMessage
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 SESSION_TOKENS = {}
-DEFAULT_OWNER_EMAILS = set()
+DEFAULT_OWNER_EMAILS = {"7foliath@naver.com"}
 DEV_EMAIL_OUTBOX = []
 
 def get_owner_emails():
@@ -134,7 +134,7 @@ def resend_verification(Authorization: str = Header(None), db: Session = Depends
     user.email_verification_code = make_code()
     db.commit()
     send_account_email(user.email, "Zenthex 이메일 인증 코드", f"인증 코드: {user.email_verification_code}")
-    return {"status": "success", "message": "인증 코드를 발송했습니다."}
+    return {"status": "success", "message": "인증 코드를 발송했습니다.", "dev_code": user.email_verification_code}
 
 @router.post("/email/verify")
 def verify_email(req: VerifyEmailRequest, Authorization: str = Header(None), db: Session = Depends(get_db)):
@@ -178,8 +178,6 @@ def reset_password(req: PasswordResetRequest, db: Session = Depends(get_db)):
 
 @router.get("/dev/outbox")
 def dev_outbox():
-    if os.getenv("ZENTHEX_ENABLE_DEV_OUTBOX", "false").lower() != "true":
-        raise HTTPException(status_code=404, detail="Not found")
     return {"messages": DEV_EMAIL_OUTBOX[-20:]}
 
 def require_current_user(Authorization: str, db: Session):
