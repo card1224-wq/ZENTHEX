@@ -11,10 +11,21 @@ Zenthex is an AI SaaS platform with Zenthex Studio and Zenthex Trading.
 - Upbit: live market scan, strategy experience, and gated real trading
 - Binance: next exchange integration target, gated the same way as Upbit for real orders
 - Owner dashboard for the email configured in `ZENTHEX_OWNER_EMAILS`
-- Email verification, ID lookup, password reset
+- Email verification, phone verification, ID lookup, password reset
 - My Page with billing history and receipt print view
 - SMTP mail delivery through environment variables
 - Protected dev outbox and mock payment controls for safer public uploads
+- Owner launch review system in the CEO dashboard
+
+## Account Verification
+
+Signup collects name, email, password confirmation, birth date, phone number, and password hint question/answer. Phone verification is required before a normal user can complete signup. The current build stores SMS codes in the protected dev outbox; a production SMS provider such as Naver Cloud SENS, Aligo, or Twilio should be connected before public launch.
+
+## Launch Review
+
+The CEO dashboard includes a "출시 전 검토" panel. It checks core release risks such as owner account exposure, signup fields, phone verification, Studio trial lock, Trading real-trade lock, mock payment protection, and required database columns.
+
+Detailed review criteria are in `PROJECT_REVIEW.md`.
 
 ## Trading Direction
 
@@ -69,6 +80,12 @@ ZENTHEX_SMTP_PASSWORD=change-me
 ZENTHEX_SMTP_FROM="Zenthex <no-reply@example.com>"
 ZENTHEX_ENABLE_DEV_OUTBOX=false
 ZENTHEX_ENABLE_MOCK_PAYMENT=false
+
+# Future SMS provider values
+ZENTHEX_SMS_PROVIDER=
+ZENTHEX_SMS_ACCESS_KEY=
+ZENTHEX_SMS_SECRET_KEY=
+ZENTHEX_SMS_FROM=
 ```
 
 ## Do Not Commit

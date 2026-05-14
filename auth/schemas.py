@@ -14,6 +14,13 @@ class PasswordHintRequest(BaseModel):
     password_hint_question: str
     password_hint_answer: str
 
+class PhoneCodeRequest(BaseModel):
+    phone_number: str
+
+class PhoneVerifyRequest(BaseModel):
+    phone_number: str
+    code: str
+
 class UserLogin(BaseModel):
     email: str
     password: str

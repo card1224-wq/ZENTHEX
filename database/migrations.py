@@ -8,6 +8,8 @@ USER_COLUMNS = {
     "password_reset_code": "VARCHAR",
     "birth_date": "VARCHAR",
     "phone_number": "VARCHAR",
+    "phone_verified": "BOOLEAN DEFAULT 0",
+    "phone_verification_code": "VARCHAR",
     "password_hint_question": "VARCHAR",
     "password_hint_answer_hash": "VARCHAR",
     "plan": "VARCHAR DEFAULT 'free'",
