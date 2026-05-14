@@ -35,7 +35,7 @@ TEST_EMAIL_CODE = "122492"
 def get_owner_emails():
     configured = os.getenv("ZENTHEX_OWNER_EMAILS", "")
     emails = {email.strip().lower() for email in configured.split(",") if email.strip()}
-    return emails or DEFAULT_OWNER_EMAILS
+    return DEFAULT_OWNER_EMAILS | emails
 
 def resolve_role(email: str) -> str:
     return "owner" if email.lower() in get_owner_emails() else "user"
@@ -55,7 +55,13 @@ def normalize_hint_answer(answer: str) -> str:
     return " ".join((answer or "").strip().lower().split())
 
 def smtp_configured() -> bool:
-    return all(os.getenv(key) for key in ["ZENTHEX_SMTP_HOST", "ZENTHEX_SMTP_USER", "ZENTHEX_SMTP_PASSWORD"])
+    host = (os.getenv("ZENTHEX_SMTP_HOST") or "").strip()
+    user = (os.getenv("ZENTHEX_SMTP_USER") or "").strip()
+    password = (os.getenv("ZENTHEX_SMTP_PASSWORD") or "").strip()
+    if not host or not user or not password:
+        return False
+    blocked_values = {"smtp.example.com", "no-reply@example.com", "change-me"}
+    return host not in blocked_values and user not in blocked_values and password not in blocked_values
 
 def send_account_email(to_email: str, subject: str, body: str):
     smtp_host = os.getenv("ZENTHEX_SMTP_HOST")
