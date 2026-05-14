@@ -1,123 +1,97 @@
-﻿from fastapi import APIRouter, Depends, Header
-from pydantic import BaseModel
-from sqlalchemy.orm import Session
-import asyncio
-import pyupbit
+﻿# Zenthex SaaS
 
-from auth.router import get_current_user
-from database.session import get_db
-from trading.engine import bot_state, TradingState, scalping_loop, log_trade
+Zenthex is an AI SaaS platform with Zenthex Studio and Zenthex Trading.
 
-router = APIRouter(prefix="/api/finance", tags=["finance"])
+## Features
 
-class StartConfig(BaseModel):
-    accessKey: str = ""
-    secretKey: str = ""
-    targetYield: float
-    investmentMode: str = "fixed"
-    investmentAmount: float = 50000.0
-    investmentRatio: float = 0.5
-    tickerMode: str = "auto"
-    selectedTicker: str = "KRW-BTC"
-    tradingMode: str = "practice"
-    realAccepted: bool = False
+- Zenthex Studio: prompt and 2D drawing to AI 3D workspace
+- Studio trial: anonymous users get 1 generation per IP per day
+- Studio preview protection: trial/free users receive view-only previews without download URLs
+- Zenthex Trading: risk-managed strategy experience and Signal Guard
+- Upbit: live market scan, strategy experience, and gated real trading
+- Binance: next exchange integration target, gated the same way as Upbit for real orders
+- Owner dashboard for the email configured in `ZENTHEX_OWNER_EMAILS`
+- Email verification, phone verification, ID lookup, password reset
+- My Page with billing history and receipt print view
+- SMTP mail delivery through environment variables
+- Protected dev outbox and mock payment controls for safer public uploads
+- Owner launch review system in the CEO dashboard
 
-class ManualTrade(BaseModel):
-    type: str
-    amount: float
+## Account Verification
 
-def user_can_real_trade(user) -> bool:
-    return user.role in ["owner", "admin"] or user.plan in ["trading_pro", "ultimate"]
+Signup collects name, email, password confirmation, birth date, phone number, and password hint question/answer. Phone verification is required before a normal user can complete signup. If SMS provider keys are not configured, the test build uses the fixed verification code `122492` so testing is not blocked. A production SMS provider such as Naver Cloud SENS, Aligo, or Twilio should be connected before public launch.
 
-@router.post("/start")
-async def start_bot(config: StartConfig, Authorization: str = Header(None), db: Session = Depends(get_db)):
-    if bot_state.state not in [TradingState.STOPPED, TradingState.ERROR]:
-        return {"status": "error", "message": "Bot is already running"}
+## Launch Review
 
-    bot_state.target_yield = config.targetYield
-    bot_state.investment_mode = config.investmentMode
-    bot_state.investment_amount = config.investmentAmount
-    bot_state.investment_ratio = config.investmentRatio
-    bot_state.ticker_mode = config.tickerMode if config.tickerMode in ["auto", "manual"] else "auto"
-    bot_state.selected_ticker = config.selectedTicker if config.selectedTicker.startswith("KRW-") else "KRW-BTC"
-    bot_state.trading_mode = config.tradingMode if config.tradingMode in ["practice", "real"] else "practice"
-    bot_state.consecutive_loss_count = 0
-    bot_state.held_btc = 0
-    bot_state.avg_buy_price = 0
-    bot_state.upbit = None
-    bot_state.is_real_key = False
+The CEO dashboard includes a "출시 전 검토" panel. It checks core release risks such as owner account exposure, signup fields, phone verification, Studio trial lock, Trading real-trade lock, mock payment protection, and required database columns.
 
-    if bot_state.trading_mode == "real":
-        if not Authorization:
-            return {"status": "error", "message": "실거래는 로그인 후 Trading Pro 또는 Ultimate 구독이 필요합니다."}
-        user = get_current_user(Authorization.replace("Bearer ", ""), db)
-        if not user_can_real_trade(user):
-            return {"status": "error", "message": "실거래는 Trading Pro 또는 Ultimate 구독 후 사용할 수 있습니다."}
-        if not config.realAccepted:
-            return {"status": "error", "message": "실거래 위험 확인 체크가 필요합니다."}
-        if not config.accessKey or not config.secretKey:
-            return {"status": "error", "message": "업비트 Access Key와 Secret Key가 필요합니다."}
-        try:
-            bot_state.upbit = pyupbit.Upbit(config.accessKey, config.secretKey)
-            real_krw = bot_state.upbit.get_balance("KRW")
-            if real_krw is None:
-                return {"status": "error", "message": "API 키 확인에 실패했습니다. 조회/주문 권한과 허용 IP를 확인하세요."}
-            bot_state.balance = float(real_krw or 0)
-            bot_state.is_real_key = True
-            log_trade("[Real Mode] 업비트 실거래 모드가 활성화되었습니다. 출금 권한 없는 API 키만 사용하세요.")
-        except Exception as e:
-            bot_state.trading_mode = "practice"
-            bot_state.is_real_key = False
-            return {"status": "error", "message": f"API 키 인증 실패: {e}"}
-    else:
-        bot_state.balance = max(bot_state.balance, 1000000.0)
-        log_trade("[Practice Mode] 전략 체험 모드로 시작합니다.")
+Detailed review criteria are in `PROJECT_REVIEW.md`.
 
-    asyncio.create_task(scalping_loop())
-    return {"status": "success", "message": "Signal Guard Started", "tradingMode": bot_state.trading_mode}
+## Trading Direction
 
-@router.post("/manual_trade")
-async def manual_trade(trade: ManualTrade):
-    current_price = pyupbit.get_current_price(bot_state.active_ticker) or 80000000
-    if trade.type == "buy" and bot_state.balance >= trade.amount:
-        bot_state.held_btc += (trade.amount / current_price) * 0.9995
-        bot_state.avg_buy_price = current_price
-        bot_state.balance -= trade.amount
-        log_trade(f"[Manual Buy] {bot_state.active_ticker} {trade.amount:,.0f}원 진입")
-    elif trade.type == "sell" and bot_state.held_btc > 0:
-        sell_amount = (bot_state.held_btc * current_price) * 0.9995
-        bot_state.balance += sell_amount
-        bot_state.held_btc = 0
-        bot_state.avg_buy_price = 0
-        log_trade(f"[Manual Sell] {bot_state.active_ticker} 전량 매도")
-    else:
-        log_trade("[Manual Trade] 주문 조건이 맞지 않습니다.")
-    return {"status": "success"}
+Current production test target is Upbit because KRW markets and all listed coin scanning are already wired into the experience. Binance should be added as the next connector with the same safety structure:
 
-@router.post("/stop")
-async def stop_bot():
-    bot_state.state = TradingState.STOPPED
-    log_trade("[User Stop] 사용자 요청으로 엔진을 중지합니다.")
-    return {"status": "success", "message": "Bot Engine Stopped"}
+- Public: exchange status, market scan preview, strategy explanation
+- Paid: real trading, API key registration, order execution
+- Required safety: order-only API key, withdrawal permission disabled, risk agreement, owner kill switch
+- First Binance scope: spot trading only, small order tests, no futures until risk controls are proven
 
-@router.get("/status")
-async def status():
-    current_price = pyupbit.get_current_price(bot_state.active_ticker) or 80000000
-    est_balance = bot_state.balance + (bot_state.held_btc * current_price if bot_state.held_btc > 0 else 0)
-    return {
-        "isRunning": bot_state.state not in [TradingState.STOPPED, TradingState.ERROR],
-        "state": bot_state.state,
-        "isRealKey": bot_state.is_real_key,
-        "tradingMode": bot_state.trading_mode,
-        "activeTicker": bot_state.active_ticker,
-        "tickerMode": bot_state.ticker_mode,
-        "selectedTicker": bot_state.selected_ticker,
-        "signalCandidates": bot_state.signal_candidates,
-        "currentBtcPrice": current_price,
-        "currentPrice": current_price,
-        "balance": bot_state.balance,
-        "estBalance": est_balance,
-        "heldBtc": bot_state.held_btc,
-        "avgBuyPrice": bot_state.avg_buy_price,
-        "logs": bot_state.logs[-20:],
-    }
+## Signal Guard Formula
+
+The trading experience does not promise profit. It uses 24h strength as a broad filter, then ranks short-term scalping signals:
+
+- 24h price change
+- recent 6h momentum
+- 24h traded value
+- 1m / 3m / 5m momentum
+- short-term volume surge
+- short-term breakout
+- 1m moving-average trend
+- volatility filter
+- drawdown from 24h high
+
+Default scalping targets should be small, such as +0.3% to +1.0%, with a tight stop loss around -0.6%. Practice mode can rotate away from weak candidates into stronger candidates. Real rotation should require a separate opt-in because it can sell assets from a user's account.
+
+## Run Locally
+
+```powershell
+pip install -r requirements.txt
+python main.py
+```
+
+Open:
+
+```text
+http://127.0.0.1:8080/
+```
+
+## Environment
+
+Copy `.env.example` to `.env` locally and fill SMTP values. Do not commit `.env`.
+For production, set `ZENTHEX_OWNER_EMAILS` in the server environment to the CEO email address.
+
+```env
+ZENTHEX_OWNER_EMAILS=owner@example.com
+ZENTHEX_SMTP_HOST=smtp.example.com
+ZENTHEX_SMTP_PORT=587
+ZENTHEX_SMTP_SSL=false
+ZENTHEX_SMTP_USER=no-reply@example.com
+ZENTHEX_SMTP_PASSWORD=change-me
+ZENTHEX_SMTP_FROM="Zenthex <no-reply@example.com>"
+ZENTHEX_ENABLE_DEV_OUTBOX=false
+ZENTHEX_ENABLE_MOCK_PAYMENT=false
+
+# Future SMS provider values
+ZENTHEX_SMS_PROVIDER=
+ZENTHEX_SMS_ACCESS_KEY=
+ZENTHEX_SMS_SECRET_KEY=
+ZENTHEX_SMS_FROM=
+```
+
+## Do Not Commit
+
+- `.env`
+- `zenthex.db`
+- `uploads/`
+- `__pycache__/`
+- generated model files in `static/models/`

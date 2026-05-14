@@ -1,18 +1,7 @@
-﻿ZENTHEX_OWNER_EMAILS=owner@example.com
-
-# SMTP mail delivery. Leave empty during local development to use /api/auth/dev/outbox.
-ZENTHEX_SMTP_HOST=smtp.example.com
-ZENTHEX_SMTP_PORT=587
-ZENTHEX_SMTP_SSL=false
-ZENTHEX_SMTP_USER=no-reply@example.com
-ZENTHEX_SMTP_PASSWORD=change-me
-ZENTHEX_SMTP_FROM="Zenthex <no-reply@example.com>"
-ZENTHEX_ENABLE_DEV_OUTBOX=false
-ZENTHEX_ENABLE_MOCK_PAYMENT=false
-
-# Future SMS provider values for phone verification.
-ZENTHEX_SMS_PROVIDER=
-ZENTHEX_SMS_ACCESS_KEY=
-ZENTHEX_SMS_SECRET_KEY=
-ZENTHEX_SMS_FROM=
-
+ZENTHEX_UPLOAD_VERSION=2026-05-14-2310
+Homepage: Zenthex brand mark, Studio one-day trial, Trading structure view
+Login: signup has name, birth date, phone, password confirm, password hint question
+Trading: trial hides API keys, real trading is visible only after owner/subscription permission
+Signup: phone verification code flow added before account creation
+Admin: owner launch review system added to CEO dashboard
+Phone: test verification code fixed to 122492 when SMS provider is not configured

@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+sqlalchemy
+pydantic
+pydantic[email]
+passlib
+pyupbit
+google-generativeai
+opencv-python
+numpy
+cryptography
+slowapi
+python-multipart
+aiofiles
+trimesh

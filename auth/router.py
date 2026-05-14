@@ -1,4 +1,4 @@
-﻿from fastapi import APIRouter, Depends, HTTPException, Header, status
+from fastapi import APIRouter, Depends, HTTPException, Header, Request, status
 from sqlalchemy.orm import Session
 from database.session import get_db
 from database.models import User
@@ -29,6 +29,7 @@ DEV_EMAIL_OUTBOX = []
 PHONE_VERIFICATION_CODES = {}
 PHONE_VERIFIED_NUMBERS = set()
 DEV_PHONE_OUTBOX = []
+TEST_PHONE_CODE = "122492"
 
 def get_owner_emails():
     configured = os.getenv("ZENTHEX_OWNER_EMAILS", "")
@@ -43,6 +44,11 @@ def make_code() -> str:
 
 def normalize_phone(phone_number: str) -> str:
     return "".join(ch for ch in (phone_number or "") if ch.isdigit())
+
+def is_local_request(request: Request) -> bool:
+    if not request.client:
+        return False
+    return request.client.host in {"127.0.0.1", "localhost", "::1"}
 
 def normalize_hint_answer(answer: str) -> str:
     return " ".join((answer or "").strip().lower().split())
@@ -88,17 +94,30 @@ def issue_user_token(user: User):
     return {"access_token": access_token, "token_type": "bearer", "user_info": UserResponse.model_validate(user)}
 
 @router.post("/phone/send-code")
-def send_phone_verification(req: PhoneCodeRequest):
+def send_phone_verification(req: PhoneCodeRequest, request: Request):
     phone_number = normalize_phone(req.phone_number)
     if len(phone_number) < 10:
         raise HTTPException(status_code=400, detail="휴대폰 번호를 정확히 입력해주세요.")
-    code = make_code()
+    sms_configured = all(os.getenv(key) for key in [
+        "ZENTHEX_SMS_PROVIDER",
+        "ZENTHEX_SMS_ACCESS_KEY",
+        "ZENTHEX_SMS_SECRET_KEY",
+        "ZENTHEX_SMS_FROM",
+    ])
+    code = make_code() if sms_configured else TEST_PHONE_CODE
     PHONE_VERIFICATION_CODES[phone_number] = code
     DEV_PHONE_OUTBOX.append({"phone_number": phone_number, "code": code})
     print(f"[Zenthex SMS:DEV] phone={phone_number} code={code}")
+
+    show_dev_code = (
+        os.getenv("ZENTHEX_ENABLE_DEV_OUTBOX", "false").lower() == "true"
+        or is_local_request(request)
+        or not sms_configured
+    )
     response = {"status": "success", "message": "휴대폰 인증 코드를 발송했습니다."}
-    if os.getenv("ZENTHEX_ENABLE_DEV_OUTBOX", "false").lower() == "true":
+    if show_dev_code:
         response["dev_code"] = code
+        response["message"] = "테스트용 휴대폰 인증코드를 표시합니다."
     return response
 
 @router.post("/phone/verify")
@@ -278,5 +297,3 @@ def get_current_user(token: str, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     return user
-
-
