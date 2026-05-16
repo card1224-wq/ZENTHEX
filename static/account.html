@@ -41,6 +41,7 @@
 
     <section class="p-6 rounded-xl bg-white/[.03] border border-white/10">
       <h2 class="font-black text-xl mb-4">결제내역</h2>
+      <div id="subscription-box" class="mb-4 p-4 rounded-lg bg-black/30 border border-white/10 text-sm text-gray-300"></div>
       <div id="billing-list" class="space-y-3 text-sm text-gray-300"></div>
     </section>
   </div>
@@ -89,10 +90,11 @@ function renderUser(){
 async function resendCode(){ const res=await fetch('/api/auth/email/resend',{method:'POST',headers:headers()}); const data=await res.json(); document.getElementById('verify-msg').innerText=data.dev_code?`${data.message} 테스트 인증코드: ${data.dev_code}`:(data.detail||data.message); if(res.ok) loadMe(); }
 async function verifyEmail(){ const code=document.getElementById('verify-code').value.trim(); const res=await fetch('/api/auth/email/verify',{method:'POST',headers:headers(),body:JSON.stringify({code})}); const data=await res.json(); document.getElementById('verify-msg').innerText=data.detail||data.message; if(res.ok) loadMe(); }
 async function startCheckout(planId){ const res=await fetch('/api/billing/subscribe',{method:'POST',headers:headers(),body:JSON.stringify({plan_id:planId})}); const data=await res.json(); if(data.status==='owner_unlocked'){ alert('대표 계정 Ultimate 권한이 적용되었습니다.'); loadMe(); return; } if(data.checkout_url){ alert('결제창 연동 주소가 준비되었습니다. 실제 결제사 연결 후 이 주소로 이동합니다.'); return; } alert(data.detail||data.status||'구독 신청이 접수되었습니다.'); }
+async function loadSubscription(){ const box=document.getElementById('subscription-box'); const res=await fetch('/api/billing/subscription',{headers:headers()}); const data=await res.json().catch(()=>null); const sub=data&&data.subscription; if(!sub){ box.innerText='구독 상태를 불러오지 못했습니다.'; return; } const status=sub.status==='active'?'자동결제 활성':sub.status==='owner_unlocked'?'대표 전체 권한':'구독 비활성'; box.innerHTML=`<strong class="text-white block mb-1">현재 구독 상태: ${status}</strong><span>플랜: ${sub.plan_id||'free'} / 다음 결제일: ${sub.next_billing_date||'없음'} / 결제사: ${sub.provider||'미연결'}</span>`; }
 async function loadBilling(){ const res=await fetch('/api/billing/history',{headers:headers()}); const data=await res.json(); const box=document.getElementById('billing-list'); box.innerHTML=''; if(!data.history||!data.history.length){ box.innerHTML='<div class="text-gray-500">결제내역이 없습니다.</div>'; return; } data.history.forEach(item=>{ const row=document.createElement('div'); row.className='p-4 rounded-lg bg-black/30 border border-white/10 flex justify-between gap-4 items-center flex-wrap'; row.innerHTML=`<div><div class="font-black text-white">${item.plan_name}</div><div class="text-gray-400">${item.created_at||''} / ${item.amount_krw.toLocaleString()}원 / ${item.status}</div></div><button class="px-4 py-2 rounded-lg bg-white text-black font-black" onclick="openReceipt(${item.id})">영수증 보기</button>`; box.appendChild(row); }); }
 async function openReceipt(id){ const res=await fetch(`/api/billing/receipt/${id}`,{headers:headers()}); const data=await res.json(); const r=data.receipt; document.getElementById('receipt-content').innerHTML=`<h1 style="font-size:28px;font-weight:900;margin:0 0 20px">Zenthex 영수증</h1><p>영수증 번호: ${r.receipt_no}</p><p>서비스: ${r.plan_name}</p><p>금액: ${r.amount_krw.toLocaleString()}원</p><p>상태: ${r.status}</p><p>결제수단: ${r.payment_method}</p><p>결제일: ${r.created_at||''}</p><hr style="margin:24px 0"><p>Zenthex SaaS Platform</p>`; document.getElementById('receipt-modal').classList.remove('hidden'); document.getElementById('receipt-modal').classList.add('flex'); }
 function closeReceipt(){ document.getElementById('receipt-modal').classList.add('hidden'); document.getElementById('receipt-modal').classList.remove('flex'); }
-loadMe(); loadBilling();
+loadMe(); loadSubscription(); loadBilling();
 </script>
 </body>
 </html>

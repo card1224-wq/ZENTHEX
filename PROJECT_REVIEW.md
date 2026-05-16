@@ -33,13 +33,19 @@ This checklist is the master review gate before uploading or publishing Zenthex.
 - Owner dashboard includes subscriber management: list users, change plan/role, and delete duplicate or withdrawn accounts.
 - Mock payment cannot unlock paid plans unless explicitly enabled.
 - Database migrations include the latest auth, phone, billing, and usage columns.
+- Production data must be separated from GitHub uploads with a persistent database before paid users join.
+- Monthly auto-renewal billing must store current subscription state separately from receipt history.
+- CEO review must separate no-cost validation, low-cost launch testing, and paid production operating costs.
+- The current full architecture and launch risks must be maintained in `ZENTHEX_MASTER_PLAN.md`.
 
 ## Recommended Before Public Launch
 
 - Configure real SMTP delivery.
 - Connect a production SMS provider.
+- Connect persistent PostgreSQL or another production database before real paid users.
 - Test mobile signup, Studio trial, Trading structure view, owner login, My Page receipts, and admin user deletion.
 - Add production payment provider.
+- Confirm expected monthly operating costs: database, server, storage, AI generation, GPU worker, email/SMS, monitoring, and payment fees.
 - Add persistent queue/storage for Studio jobs.
 - Add Studio job history and admin cleanup for generated files.
 - Add Binance Spot connector only after Upbit real-order safety checks are proven.

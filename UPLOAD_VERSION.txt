@@ -1,4 +1,4 @@
-ZENTHEX_UPLOAD_VERSION=2026-05-16-0245
+ZENTHEX_UPLOAD_VERSION=2026-05-16-0345
 Homepage: Zenthex brand mark, Studio one-day trial, Trading structure view
 Login: signup has name, birth date, phone, password confirm, password hint question
 Trading: trial hides API keys, real trading is visible only after owner/subscription permission
@@ -51,3 +51,15 @@ Auth: login errors now separate unregistered email, wrong password, and stale to
 Auth: homepage clears stale login state when the server no longer has the matching account
 Database: ZENTHEX_DATABASE_URL added so production can use persistent DB instead of a fresh server SQLite file
 Trading: Upbit key diagnostic endpoint and UI button added before real-engine start
+Homepage: logged-in cached owner/subscriber state renders immediately so the home screen does not flash as trial
+Review: owner launch checklist now includes persistent production DB and monthly auto-renewal billing
+Billing: plans endpoint now documents Toss Payments for Korea and Stripe subscriptions for global auto-renewal
+Env: payment provider keys and webhook secret placeholders added
+Database: PostgreSQL driver and postgres:// URL normalization added for persistent production DB
+Database: SQLite-only schema patcher now skips itself when PostgreSQL is used
+Billing: subscriptions table and /api/billing/subscription added for current auto-renewal state
+Account: My Page now shows current subscription state and next billing date
+Docs: PRODUCTION_DATABASE.md added to explain why GitHub updates must not own user/payment data
+Docs: ZENTHEX_MASTER_PLAN.md added as the current integrated CEO master plan
+Review: CEO launch review now checks operating cost review and the master plan document
+Review: PROJECT_REVIEW now includes persistent DB, auto-renewal, and operating cost gates

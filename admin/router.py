@@ -144,6 +144,20 @@ def _env_has_real_smtp() -> bool:
     return bool(host and user and password and host not in blocked and user not in blocked and password not in blocked)
 
 
+def _env_has_persistent_database() -> bool:
+    db_url = (os.getenv("ZENTHEX_DATABASE_URL") or "").strip()
+    if not db_url:
+        return False
+    return not db_url.startswith("sqlite:///./zenthex.db")
+
+
+def _billing_provider_ready() -> bool:
+    return any(
+        os.getenv(key)
+        for key in ["ZENTHEX_TOSS_SECRET_KEY", "ZENTHEX_STRIPE_SECRET_KEY", "ZENTHEX_PAYMENT_PROVIDER"]
+    )
+
+
 def _review_item(key: str, title: str, passed: bool, detail: str, level: str = "required"):
     return {"key": key, "title": title, "status": "pass" if passed else "fail", "level": level, "detail": detail}
 
@@ -164,7 +178,10 @@ def get_launch_review(Authorization: str = Header(None), db: Session = Depends(g
     trading_router = _read_text("trading/router.py")
     billing_router = _read_text("billing/router.py")
     models_py = _read_text("database/models.py")
+    session_py = _read_text("database/session.py")
+    migrations_py = _read_text("database/migrations.py")
     engine_py = _read_text("trading/engine.py")
+    master_plan = _read_text("ZENTHEX_MASTER_PLAN.md")
 
     owner_emails = os.getenv("ZENTHEX_OWNER_EMAILS", "").strip() or "7foliath@naver.com"
     smtp_ready = _env_has_real_smtp()
@@ -172,6 +189,8 @@ def get_launch_review(Authorization: str = Header(None), db: Session = Depends(g
         os.getenv(key)
         for key in ["ZENTHEX_SMS_PROVIDER", "ZENTHEX_SMS_ACCESS_KEY", "ZENTHEX_SMS_SECRET_KEY", "ZENTHEX_SMS_FROM"]
     )
+    persistent_db_ready = _env_has_persistent_database()
+    billing_provider_ready = _billing_provider_ready()
 
     checks = [
         _review_item("homepage_brand", "Homepage brand screen", "zenthex-mark.svg" in index_html and "studio.html" in index_html, "Brand mark and Studio entry are present."),
@@ -191,10 +210,18 @@ def get_launch_review(Authorization: str = Header(None), db: Session = Depends(g
         _review_item("trading_targets", "Trading target and capital options", all(text in finance_html for text in ["+10%", "+30%", "+50%", "all_krw"]), "Short scalping targets and high-risk targets are available."),
         _review_item("trading_engine_scan", "Trading scanner stability", "ohlcv[\"" not in engine_py and "hourly[\"high\"]" in engine_py, "Undefined scanner variable is not present."),
         _review_item("mock_payment_guard", "Mock payment guard", "ZENTHEX_ENABLE_MOCK_PAYMENT" in billing_router, "Mock payment cannot unlock paid plans unless explicitly enabled."),
+        _review_item("persistent_database", "Persistent production database", "ZENTHEX_DATABASE_URL" in session_py and "ZENTHEX_DATABASE_URL" in _read_text(".env.example") and "postgres://" in session_py and "psycopg2-binary" in _read_text("requirements.txt"), "User accounts, subscriptions, receipts, Studio history, and Trading settings must live in a persistent DB outside GitHub deploy files."),
+        _review_item("postgres_safe_migration", "PostgreSQL-safe startup", "is_sqlite_database" in migrations_py and "if not is_sqlite_database()" in migrations_py, "SQLite-only migrations are skipped when the production database is PostgreSQL."),
+        _review_item("auto_billing_plan", "Monthly auto-renewal billing plan", all(text in billing_router for text in ["monthly_auto_renewal", "Toss Payments", "Stripe", "webhook_events"]), "Subscriptions are planned as monthly auto-renewal with Toss Payments for Korea and Stripe for global expansion."),
+        _review_item("subscription_state", "Subscription state table", all(text in models_py + billing_router for text in ["class Subscription", "provider_subscription_id", "next_billing_date", "/subscription"]), "Current subscription state is stored separately from one-time receipt history."),
+        _review_item("operating_cost_review", "Operating cost review", all(text in master_plan for text in ["비용 단계", "무료 PostgreSQL", "정식 유료 서비스", "결제 수수료", "GPU Worker"]), "CEO review separates free validation costs from paid production operating costs."),
+        _review_item("master_plan", "Master plan document", all(text in master_plan for text in ["Zenthex SaaS Master Plan", "데이터 보존 원칙", "자동결제", "CEO 대시보드", "최종 결론"]), "Current architecture, role separation, billing, data retention, and launch risks are documented in the master plan."),
         _review_item("db_columns", "Database columns", all(text in models_py for text in ["phone_verified", "password_hint_answer_hash", "email_verified", "studio_generations_left"]), "Latest auth, verification, and Studio usage columns are present."),
         _review_item("user_management", "Subscriber management", all(text in admin_router + admin_html for text in ["/users", "deleteUser", "changePlan"]), "Owner can list users, change plans, and delete accounts."),
         _review_item("smtp_ready", "SMTP delivery configured", smtp_ready, "Real email delivery needs SMTP environment values.", "recommended"),
         _review_item("sms_ready", "SMS provider connected", sms_ready, "Production SMS provider should be connected before public launch.", "recommended"),
+        _review_item("persistent_db_ready", "Production DB environment ready", persistent_db_ready, "Before paid users join, set ZENTHEX_DATABASE_URL to PostgreSQL or another persistent DB so GitHub updates never erase accounts.", "recommended"),
+        _review_item("billing_provider_ready", "Real billing provider connected", billing_provider_ready, "Before charging users, connect Toss Payments billing-key auto-payment and/or Stripe subscriptions with webhook handling.", "recommended"),
     ]
 
     required = [item for item in checks if item["level"] == "required"]

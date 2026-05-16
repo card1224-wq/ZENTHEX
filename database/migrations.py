@@ -1,5 +1,5 @@
 ﻿from sqlalchemy import text
-from database.session import engine
+from database.session import engine, is_sqlite_database
 
 USER_COLUMNS = {
     "full_name": "VARCHAR",
@@ -24,6 +24,8 @@ def _column_exists(conn, table_name: str, column_name: str) -> bool:
     return any(row[1] == column_name for row in rows)
 
 def ensure_sqlite_schema():
+    if not is_sqlite_database():
+        return
     with engine.begin() as conn:
         for column_name, column_type in USER_COLUMNS.items():
             if not _column_exists(conn, "users", column_name):
@@ -43,3 +45,19 @@ def ensure_sqlite_schema():
         """))
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_billing_history_user_id ON billing_history (user_id)"))
         conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_billing_history_receipt_no ON billing_history (receipt_no)"))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS subscriptions (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER UNIQUE,
+                plan_id VARCHAR DEFAULT 'free',
+                status VARCHAR DEFAULT 'inactive',
+                provider VARCHAR,
+                provider_customer_id VARCHAR,
+                provider_subscription_id VARCHAR,
+                next_billing_date VARCHAR,
+                cancel_at_period_end BOOLEAN DEFAULT 0,
+                last_payment_status VARCHAR,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_subscriptions_user_id ON subscriptions (user_id)"))

@@ -206,6 +206,7 @@
 
     async function refreshUser(){
       if(!token){ renderHome(null); return; }
+      if(user){ renderHome(user); }
       try{
         const res=await fetch('/api/auth/me',{headers:{'Authorization':`Bearer ${token}`}});
         if(res.ok){

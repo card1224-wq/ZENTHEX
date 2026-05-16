@@ -40,3 +40,18 @@ class BillingHistory(Base):
     payment_method = Column(String, default="mock_checkout")
     receipt_no = Column(String, unique=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class Subscription(Base):
+    __tablename__ = "subscriptions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, unique=True, index=True)
+    plan_id = Column(String, default="free")
+    status = Column(String, default="inactive")
+    provider = Column(String, nullable=True)
+    provider_customer_id = Column(String, nullable=True)
+    provider_subscription_id = Column(String, nullable=True)
+    next_billing_date = Column(String, nullable=True)
+    cancel_at_period_end = Column(Boolean, default=False)
+    last_payment_status = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
