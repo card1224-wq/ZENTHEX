@@ -1,4 +1,4 @@
-ZENTHEX_UPLOAD_VERSION=2026-05-15-0020
+ZENTHEX_UPLOAD_VERSION=2026-05-16-0010
 Homepage: Zenthex brand mark, Studio one-day trial, Trading structure view
 Login: signup has name, birth date, phone, password confirm, password hint question
 Trading: trial hides API keys, real trading is visible only after owner/subscription permission
@@ -14,3 +14,4 @@ Owner: Ultimate access remains free, but owner email must verify by code
 Fix: owner email is always included even when environment variable has another value
 Fix: placeholder SMTP values no longer block test email code 122492
 Homepage: personalized views added for owner, paid subscribers, and free users
+Homepage: visible labels changed to neutral workspace wording, not owner/subscriber wording

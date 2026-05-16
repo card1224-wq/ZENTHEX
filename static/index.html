@@ -170,24 +170,24 @@
 
       if(isOwner(u)){
         ownerLink.style.display='inline-flex';
-        heroEyebrow.innerText='Owner Ultimate Workspace';
+        heroEyebrow.innerText='Operations Workspace';
         heroEyebrow.className='eyebrow owner';
         heroTitle.innerText='Zenthex Control';
-        heroLead.innerText='대표 계정입니다. 구독 결제 없이 Studio, Trading, 관리자 검토 시스템을 사용할 수 있습니다. 이메일 인증이 필요하면 마이페이지에서 코드를 확인하세요.';
+        heroLead.innerText='Zenthex 운영 워크스페이스입니다. Studio, Trading, 시스템 검토, 운영 제어 기능으로 바로 이동할 수 있습니다.';
         heroActions.innerHTML='<a class="cta main" href="admin.html">CEO 대시보드</a><a class="cta trade" href="studio.html">Studio 작업실</a><a class="cta sub" href="finance.html">Trading 엔진</a><a class="cta sub" href="account.html">계정 확인</a>';
         statusGrid.className='member-grid';
-        statusGrid.innerHTML='<div class="member-card owner"><strong>Owner Ultimate</strong><span>대표 계정은 결제 없이 전체 권한이 적용됩니다.</span></div><div class="member-card owner"><strong>출시 전 검토</strong><span>관리자 화면에서 기능, 보안, 구독 상태를 점검합니다.</span></div><div class="member-card owner"><strong>운영 제어</strong><span>사용량, 결제내역, 긴급 정지 구조를 관리합니다.</span></div>';
+        statusGrid.innerHTML='<div class="member-card owner"><strong>운영 권한</strong><span>Studio, Trading, 관리자 기능에 접근할 수 있습니다.</span></div><div class="member-card owner"><strong>시스템 검토</strong><span>기능, 보안, 구독 상태를 점검합니다.</span></div><div class="member-card owner"><strong>운영 제어</strong><span>사용량, 결제내역, 긴급 정지 구조를 관리합니다.</span></div>';
         return;
       }
 
       if(isPaid(u)){
-        heroEyebrow.innerText='Subscribed Workspace';
+        heroEyebrow.innerText='Zenthex Workspace';
         heroEyebrow.className='eyebrow paid';
         heroTitle.innerText='Zenthex Workspace';
-        heroLead.innerText='구독 계정입니다. 플랜 권한에 따라 Studio 다운로드와 Trading 실거래 기능을 사용할 수 있습니다.';
+        heroLead.innerText='작업을 이어갈 수 있는 Zenthex 워크스페이스입니다. 플랜 권한에 따라 Studio 다운로드와 Trading 실거래 기능이 열립니다.';
         heroActions.innerHTML='<a class="cta main" href="studio.html">Studio 작업실</a><a class="cta trade" href="finance.html">Trading 엔진</a><a class="cta sub" href="account.html">구독/영수증</a>';
         statusGrid.className='member-grid';
-        statusGrid.innerHTML=`<div class="member-card paid"><strong>현재 플랜</strong><span>${u.plan}</span></div><div class="member-card paid"><strong>Studio 권한</strong><span>Studio Pro 또는 Ultimate에서 다운로드가 열립니다.</span></div><div class="member-card paid"><strong>Trading 권한</strong><span>Trading Pro 또는 Ultimate에서 실거래가 열립니다.</span></div>`;
+        statusGrid.innerHTML=`<div class="member-card paid"><strong>현재 플랜</strong><span>${u.plan}</span></div><div class="member-card paid"><strong>Studio 작업</strong><span>생성, 미리보기, 다운로드 권한을 확인합니다.</span></div><div class="member-card paid"><strong>Trading 작업</strong><span>전략 확인과 실거래 권한을 확인합니다.</span></div>`;
         return;
       }
 
