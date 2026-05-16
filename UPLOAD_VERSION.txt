@@ -1,4 +1,4 @@
-ZENTHEX_UPLOAD_VERSION=2026-05-16-0125
+ZENTHEX_UPLOAD_VERSION=2026-05-16-0135
 Homepage: Zenthex brand mark, Studio one-day trial, Trading structure view
 Login: signup has name, birth date, phone, password confirm, password hint question
 Trading: trial hides API keys, real trading is visible only after owner/subscription permission
@@ -27,3 +27,7 @@ Fix: real trading scanner now runs in a background thread so status checks do no
 Fix: Upbit scanner now uses a two-stage filter to reduce API calls before short-term signal scoring
 Safety: real trading now sells only the quantity bought by the current Zenthex engine run, not unrelated coins already held in the account
 UI: Trading page refreshes the current logged-in user before starting real mode so owner/subscription changes are recognized
+Fix: auth tokens are now signed so new logins survive server restarts and redeploys
+Fix: Studio ignores stale invalid tokens for trial generation instead of failing the 3D request
+Fix: Studio retries once as anonymous trial when the browser has an old invalid token
+UI: Trading clears expired login state and asks for a fresh login before real trading

@@ -12,8 +12,10 @@ This checklist is the master review gate before uploading or publishing Zenthex.
 - Signup includes name, email, password confirmation, birth date, phone number, phone code, and password hint question/answer.
 - Phone verification is completed before normal user signup. Local/test builds use the fixed verification code `122492` when no SMS provider is configured.
 - Email verification, ID lookup, password hint, and password reset routes exist.
+- Login tokens must survive server restarts or safely clear themselves in the browser.
 - Studio trial is limited to one generation per IP per day.
 - Studio trial/free users receive view-only previews without model download URLs.
+- Studio should not fail with "Invalid token" when a stale browser token exists; it should retry as trial or ask for login depending on the action.
 - Trading trial does not show API key inputs.
 - Real trading is shown only to owner/admin or Trading Pro/Ultimate users.
 - Trading includes short scalping targets and high-risk target options: +10%, +30%, +50%.

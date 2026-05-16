@@ -132,7 +132,17 @@
 
     <script>
         function zxAuthHeaders() {
-            return { "Authorization": `Bearer ${localStorage.getItem("zx_token") || ""}` };
+            const token = localStorage.getItem("zx_token");
+            return token ? { "Authorization": `Bearer ${token}` } : {};
+        }
+        async function zxStudioFetch(url, options) {
+            const first = await fetch(url, { ...options, headers: { ...(options.headers || {}), ...zxAuthHeaders() } });
+            if (first.status !== 401) return first;
+            const text = await first.clone().text();
+            if (!text.toLowerCase().includes("invalid token")) return first;
+            localStorage.removeItem("zx_token");
+            localStorage.removeItem("zx_user");
+            return fetch(url, { ...options, headers: options.headers || {} });
         }
         function zxShowStatus(html) {
             const box = document.getElementById('status-box');
@@ -154,7 +164,7 @@
         async function zxFallbackUpload(file) {
             const formData = new FormData();
             formData.append("file", file);
-            const response = await fetch("/api/studio/upload", { method: "POST", headers: zxAuthHeaders(), body: formData });
+            const response = await zxStudioFetch("/api/studio/upload", { method: "POST", body: formData });
             const result = await response.json();
             if (!response.ok || result.status !== "success") throw new Error(result.detail || result.message || "업로드 체험에 실패했습니다.");
             zxShowFallbackPreview();
@@ -165,7 +175,7 @@
             if (!promptStr) return alert("프롬프트를 입력해주세요.");
             const formData = new FormData();
             formData.append("prompt", promptStr);
-            const response = await fetch("/api/studio/generate", { method: "POST", headers: zxAuthHeaders(), body: formData });
+            const response = await zxStudioFetch("/api/studio/generate", { method: "POST", body: formData });
             const result = await response.json();
             if (!response.ok || result.status !== "success") throw new Error(result.detail || result.message || "프롬프트 체험에 실패했습니다.");
             zxShowFallbackPreview();
@@ -328,9 +338,8 @@
 
             try {
                 // Send to Real Unified Backend
-                const response = await fetch("/api/studio/upload", {
+                const response = await zxStudioFetch("/api/studio/upload", {
                     method: "POST",
-                    headers: { "Authorization": `Bearer ${localStorage.getItem("zx_token") || ""}` },
                     body: formData
                 });
                 
@@ -395,9 +404,8 @@
             formData.append("prompt", promptStr);
 
             try {
-                const response = await fetch("/api/studio/generate", {
+                const response = await zxStudioFetch("/api/studio/generate", {
                     method: "POST",
-                    headers: { "Authorization": `Bearer ${localStorage.getItem("zx_token") || ""}` },
                     body: formData
                 });
                 

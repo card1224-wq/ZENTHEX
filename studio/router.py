@@ -30,7 +30,12 @@ def get_optional_user(authorization: str | None, db: Session):
     token = authorization.replace("Bearer ", "").strip()
     if not token:
         return None
-    return get_current_user(token, db)
+    try:
+        return get_current_user(token, db)
+    except HTTPException as exc:
+        if exc.status_code == 401:
+            return None
+        raise
 
 def get_client_ip(request: Request) -> str:
     forwarded_for = request.headers.get("x-forwarded-for")

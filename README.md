@@ -19,6 +19,8 @@ Zenthex is an AI SaaS platform with Zenthex Studio and Zenthex Trading.
 - Owner subscriber management: view accounts, change plan/role, and delete duplicate accounts
 - Owner account receives Ultimate access without payment, but still needs email code verification
 
+Login tokens are signed so new logins continue to work after a server restart or redeploy. If an older browser token is still present from a previous build, Studio clears it and retries as a one-day trial instead of blocking the prompt flow with an invalid-token error. Real trading still requires a fresh valid login because it can place real orders.
+
 ## Account Verification
 
 Signup collects name, email, password confirmation, birth date, phone number, and password hint question/answer. Phone verification is required before a normal user can complete signup. If SMS provider keys are not configured, the test build uses the fixed verification code `122492` so testing is not blocked. A production SMS provider such as Naver Cloud SENS, Aligo, or Twilio should be connected before public launch.

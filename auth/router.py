@@ -21,6 +21,9 @@ import random
 import smtplib
 import ssl
 import uuid
+import hmac
+import hashlib
+import base64
 from email.message import EmailMessage
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -105,8 +108,38 @@ def send_account_email(to_email: str, subject: str, body: str):
     print(f"[Zenthex Mail:DEV] to={to_email} subject={subject} body={body}")
     return {"sent": False, "mode": "dev_outbox"}
 
+def token_secret() -> str:
+    return os.getenv("ZENTHEX_TOKEN_SECRET", "zenthex-local-dev-token-secret")
+
+def sign_token_payload(payload: str) -> str:
+    return hmac.new(token_secret().encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).hexdigest()
+
+def make_signed_token(user_id: int) -> str:
+    payload = f"{user_id}:{uuid.uuid4().hex}"
+    signature = sign_token_payload(payload)
+    raw = f"{payload}:{signature}".encode("utf-8")
+    return "zx." + base64.urlsafe_b64encode(raw).decode("utf-8").rstrip("=")
+
+def read_signed_token(token: str):
+    if not token or not token.startswith("zx."):
+        return None
+    encoded = token[3:]
+    encoded += "=" * (-len(encoded) % 4)
+    try:
+        raw = base64.urlsafe_b64decode(encoded.encode("utf-8")).decode("utf-8")
+        user_id, nonce, signature = raw.split(":", 2)
+    except Exception:
+        return None
+    payload = f"{user_id}:{nonce}"
+    if not hmac.compare_digest(sign_token_payload(payload), signature):
+        return None
+    try:
+        return int(user_id)
+    except ValueError:
+        return None
+
 def issue_user_token(user: User):
-    access_token = str(uuid.uuid4())
+    access_token = make_signed_token(user.id)
     SESSION_TOKENS[access_token] = user.id
     return {"access_token": access_token, "token_type": "bearer", "user_info": UserResponse.model_validate(user)}
 
@@ -322,7 +355,7 @@ def require_current_user(Authorization: str, db: Session):
     return get_current_user(token, db)
 
 def get_current_user(token: str, db: Session = Depends(get_db)):
-    user_id = SESSION_TOKENS.get(token)
+    user_id = SESSION_TOKENS.get(token) or read_signed_token(token)
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token")
     user = db.query(User).filter(User.id == user_id).first()
