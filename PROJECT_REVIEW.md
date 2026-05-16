@@ -18,6 +18,7 @@ This checklist is the master review gate before uploading or publishing Zenthex.
 - Only the owner account can access CEO operations, user management, launch review, and emergency stop.
 - Paid subscribers can run only the product their plan unlocks: Studio Pro for Studio, Trading Pro for Trading, Ultimate for both.
 - Signup includes name, email, password confirmation, birth date, phone number, phone code, and password hint question/answer.
+- Normal user signup must enter an owner-approval pending state before login/service use.
 - Phone verification is completed before normal user signup. Local/test builds use the fixed verification code `122492` when no SMS provider is configured.
 - Email verification, ID lookup, password hint, and password reset routes exist.
 - Login tokens must survive server restarts or safely clear themselves in the browser.
@@ -36,11 +37,13 @@ This checklist is the master review gate before uploading or publishing Zenthex.
 - Trading owner and Trading Pro/Ultimate users must land on the real-trade permission view, not a trial-only view.
 - Real trading key check must explain likely Upbit failures: allowed IP mismatch, missing asset/order permission, wrong Access Key, wrong Secret Key.
 - Trading screen must show the Zenthex FastAPI server public IP from `ZENTHEX_SERVER_PUBLIC_IP` with a copy button for Upbit allowed IP registration.
+- Paid real trading must use a fixed outbound server IP. If the auto-detected IP changes, configure a fixed IP server/NAT and set `ZENTHEX_SERVER_PUBLIC_IP`.
 - Public docs must explain that GitHub Pages is not the trading server and cannot provide the Upbit outbound IP.
 - Trading includes short scalping targets and high-risk target options: +10%, +30%, +50%.
-- Trading investment mode supports Upbit KRW all-in, KRW ratio, and fixed amount.
+- Trading investment mode supports KRW cash all-in, KRW cash ratio, fixed amount, and an explicit high-risk existing-holdings rotation mode.
 - Real trading scanner must not freeze the API while it scans the market.
 - Real trading may sell only the quantity bought by the current Zenthex engine run unless the user explicitly opts into rotating existing holdings.
+- Existing-holdings rotation must require a separate checkbox and confirmation because it can sell coins already held in the Upbit account.
 - Owner dashboard includes subscriber management: list users, change plan/role, and delete duplicate or withdrawn accounts.
 - Owner dashboard includes customer inquiry management: list tickets, update status, and save replies or internal notes.
 - Mock payment cannot unlock paid plans unless explicitly enabled.

@@ -31,6 +31,8 @@ class BotState:
         self.investment_mode = "all_krw"
         self.investment_amount = 50000.0
         self.investment_ratio = 0.5
+        self.rotate_existing_accepted = False
+        self.rotated_holdings = False
         self.daily_max_loss_pct = 0.05
         self.consecutive_loss_count = 0
         self.max_consecutive_loss = 3
@@ -76,6 +78,50 @@ def get_real_balance(currency: str) -> float:
     except Exception as e:
         log_trade(f"[Exchange] {currency} 잔고 조회 실패: {e}")
         return 0.0
+
+def krw_ticker_for_currency(currency: str) -> str:
+    return f"KRW-{currency}"
+
+async def liquidate_existing_holdings():
+    if not bot_state.upbit:
+        return
+    if not bot_state.rotate_existing_accepted:
+        log_trade("[Rotation Guard] 보유 코인 정리 동의가 없어 기존 보유 코인은 매도하지 않습니다.")
+        return
+    balances = await asyncio.to_thread(bot_state.upbit.get_balances)
+    markets = set(await asyncio.to_thread(pyupbit.get_tickers, fiat="KRW"))
+    if not isinstance(balances, list):
+        log_trade(f"[Rotation Error] 보유 코인 조회 실패: {balances}")
+        return
+    sell_count = 0
+    for row in balances:
+        currency = row.get("currency")
+        if not currency or currency == "KRW":
+            continue
+        ticker = krw_ticker_for_currency(currency)
+        if ticker not in markets:
+            log_trade(f"[Rotation Skip] {currency}는 KRW 마켓이 없어 자동 매도하지 않습니다.")
+            continue
+        qty = float(row.get("balance") or 0)
+        locked = float(row.get("locked") or 0)
+        if qty <= 0 or locked > 0:
+            log_trade(f"[Rotation Skip] {ticker} 매도 가능 수량이 없거나 미체결 잠금 수량이 있습니다.")
+            continue
+        price = get_current_price(ticker)
+        if qty * price < 5000:
+            log_trade(f"[Rotation Skip] {ticker} 평가금액이 5,000원 미만입니다.")
+            continue
+        log_trade(f"[Rotation Sell Request] 기존 보유 {ticker} {qty:.8f}개 시장가 매도 요청")
+        result = await asyncio.to_thread(bot_state.upbit.sell_market_order, ticker, qty)
+        if not result or (isinstance(result, dict) and result.get("error")):
+            log_trade(f"[Rotation Sell Error] {ticker} 매도 실패: {result}")
+            continue
+        remember_order(result, f"ROTATE SELL {ticker}")
+        sell_count += 1
+        await asyncio.sleep(0.7)
+    await refresh_real_balances()
+    bot_state.rotated_holdings = True
+    log_trade(f"[Rotation Complete] 기존 보유 코인 정리 완료: {sell_count}개 매도 요청, 사용 가능 KRW {bot_state.balance:,.0f}원")
 
 def scan_upbit_candidates(limit: int = 5):
     """Scalping scanner. It filters 24h strength, then ranks 1/3/5m entry signals."""
@@ -273,10 +319,12 @@ async def scalping_loop():
 
                 bot_state.state = TradingState.BUYING
                 if bot_state.trading_mode == "real":
+                    if bot_state.investment_mode == "rotate_holdings" and not bot_state.rotated_holdings:
+                        await liquidate_existing_holdings()
                     await refresh_real_balances()
                     log_trade(f"[Real Balance] 사용 가능 KRW {bot_state.balance:,.0f}원")
 
-                if bot_state.investment_mode == "all_krw":
+                if bot_state.investment_mode in ["all_krw", "rotate_holdings"]:
                     invest_krw = bot_state.balance * 0.99
                 elif bot_state.investment_mode == "fixed":
                     invest_krw = min(bot_state.investment_amount, bot_state.balance * 0.99)

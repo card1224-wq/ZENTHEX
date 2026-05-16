@@ -186,7 +186,7 @@
         const res=await fetch('/api/auth/signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password,full_name,birth_date,phone_number,password_hint_question,password_hint_answer})});
         const data=await res.json().catch(()=>null);
         if(!res.ok) throw new Error(messageFrom(data,'회원가입에 실패했습니다.'));
-        alert('회원가입이 완료되었습니다. 로그인 후 마이페이지에서 이메일 인증을 진행할 수 있습니다.');
+        alert(data.role==='owner' ? '대표 계정 회원가입이 완료되었습니다. 로그인 후 이메일 인증을 진행하세요.' : '회원가입 신청이 접수되었습니다. 대표 승인 후 로그인할 수 있습니다.');
         document.getElementById('login-email').value=email;
         switchTab('login');
       }catch(e){ errorDiv.innerText=e.message||'회원가입에 실패했습니다.'; }

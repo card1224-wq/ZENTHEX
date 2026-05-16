@@ -7,19 +7,19 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
     <style>
-        :root { --accent-indigo: #6366f1; --accent-purple: #8b5cf6; --bg-dark: #09090b; }
+        :root { --accent-indigo: #00e6c3; --accent-purple: #91a7ff; --bg-dark: #050507; }
         body { font-family: 'Outfit', sans-serif; background-color: var(--bg-dark); color: #d1d5db; margin: 0; overflow-x: hidden; }
         * { box-sizing: border-box; }
-        nav { min-height: 80px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 16px 24px; border-bottom: 1px solid rgba(255,255,255,.08); background: rgba(0,0,0,.45); }
+        nav { min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 14px 24px; border-bottom: 1px solid rgba(255,255,255,.08); background: rgba(0,0,0,.45); }
         nav a { color: #a1a1aa; text-decoration: none; }
-        main { display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); min-height: calc(100vh - 80px); }
-        main > div:first-child { padding: 28px; background: #0c0c0e; border-right: 1px solid rgba(255,255,255,.08); }
-        main > div:last-child { min-height: calc(100vh - 80px); position: relative; background: #050507; }
+        main { display: grid; grid-template-columns: minmax(340px, 430px) minmax(0, 1fr); min-height: calc(100vh - 72px); }
+        main > div:first-child { padding: 22px; background: #0c0c0e; border-right: 1px solid rgba(255,255,255,.08); }
+        main > div:last-child { min-height: calc(100vh - 72px); position: relative; background: #050507; }
         h2 { margin: 0 0 16px; }
         textarea, input, select { width: 100%; border: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.55); color: #fff; border-radius: 10px; padding: 12px; }
         button { cursor: pointer; }
         #drop-zone { border: 2px dashed rgba(255,255,255,.14); border-radius: 16px; padding: 28px; text-align: center; cursor: pointer; }
-        #btn-generate { width: 100%; margin-top: 12px; border: 1px solid rgba(139,92,246,.55); background: rgba(139,92,246,.22); color: #d8b4fe; border-radius: 12px; padding: 13px; font-weight: 800; }
+        #btn-generate { width: 100%; margin-top: 12px; border: 1px solid rgba(0,230,195,.45); background: rgba(0,230,195,.16); color: #99f6e4; border-radius: 12px; padding: 13px; font-weight: 800; }
         #status-box { margin-top: 16px; padding: 14px; border-radius: 12px; border: 1px solid rgba(99,102,241,.28); background: rgba(99,102,241,.08); color: #c7d2fe; }
         .fallback-preview {
             position: absolute; inset: 14%; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.12);
@@ -39,6 +39,8 @@
         .account-chip.trial { color: #fcd34d; border-color: rgba(252,211,77,.28); background: rgba(252,211,77,.06); }
         .download-link { display: inline-flex; margin-top: 10px; color: #050507; background: #00e6c3; border-radius: 8px; padding: 9px 12px; font-weight: 900; text-decoration: none; }
         .export-button { display: inline-flex; margin-top: 10px; margin-left: 8px; color: #050507; background: #fff; border-radius: 8px; padding: 9px 12px; font-weight: 900; border: 0; }
+        .studio-format-note { margin-top:10px; color:#a1a1aa; font-size:12px; line-height:1.6; }
+        .sample-badge { position:absolute; left:18px; bottom:18px; z-index:25; border:1px solid rgba(0,230,195,.28); background:rgba(0,230,195,.08); color:#99f6e4; border-radius:999px; padding:8px 11px; font-size:11px; font-weight:900; pointer-events:none; }
         
         .loading-overlay {
             position: absolute; inset: 0; background: rgba(9, 9, 11, 0.95);
@@ -135,9 +137,10 @@
         <div class="col-span-1 lg:col-span-9 relative bg-[#050507] min-h-[56vh] lg:min-h-0">
             <div id="viewer-container" class="w-full h-full">
                 <div id="preview-watermark" class="preview-watermark"></div>
-                <div id="placeholder" class="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                <div id="placeholder" class="absolute inset-0 flex items-center justify-center pointer-events-none z-10 hidden">
                     <p class="text-xs uppercase tracking-[0.4em] text-gray-600 font-bold">프롬프트 또는 도면을 입력하세요</p>
                 </div>
+                <div id="sample-badge" class="sample-badge">샘플 3D 미리보기 표시 중</div>
                 <div id="loading" class="loading-overlay">
                     <div class="spinner mb-4"></div>
                     <div class="text-xs text-indigo-400 font-bold uppercase tracking-widest animate-pulse" id="loading-text">공간을 생성하는 중...</div>
@@ -162,7 +165,7 @@
             if (zxCanExport()) {
                 chip.className = "account-chip full";
                 chip.innerText = zxUser.role === "owner" ? "대표 전체 권한" : "Studio 구독 권한";
-                note.innerHTML = "Zenthex Studio 전체 권한입니다. 프롬프트와 2D 도면 생성 후 GLB 다운로드 권한이 열립니다.";
+                note.innerHTML = "Zenthex Studio 전체 권한입니다. JPG 저장으로 화면 이미지를 받을 수 있고, 필요 시 GLB 3D 모델 파일도 받을 수 있습니다.";
                 if (watermark) watermark.classList.add("hidden");
                 return;
             }
@@ -234,7 +237,7 @@
             if (!response.ok || result.status !== "success") throw new Error(result.detail || result.message || "업로드 체험에 실패했습니다.");
             await zxRefreshUser();
             zxShowFallbackPreview();
-            const exportMsg = result.model_url ? `<br><a class="download-link" href="${result.model_url}" download>GLB 다운로드</a>` : `<br><span style="color:#fcd34d">체험 미리보기는 보기 전용입니다. 다운로드는 구독 후 제공됩니다.</span>`;
+            const exportMsg = result.model_url ? `<br><button class="export-button" onclick="window.zxDownloadJpg()">JPG 저장</button><a class="download-link" href="${result.model_url}" download>GLB 3D 모델 다운로드</a><div class="studio-format-note">JPG는 현재 보이는 화면 이미지이고, GLB는 Blender/Three.js 같은 도구에서 여는 실제 3D 모델 파일입니다.</div>` : `<br><span style="color:#fcd34d">체험 미리보기는 보기 전용입니다. JPG/GLB 저장은 구독 후 제공됩니다.</span>`;
             zxShowStatus(`3D 생성 요청이 완료되었습니다.${exportMsg}`);
         }
         async function zxFallbackGenerate() {
@@ -247,7 +250,7 @@
             if (!response.ok || result.status !== "success") throw new Error(result.detail || result.message || "프롬프트 체험에 실패했습니다.");
             await zxRefreshUser();
             zxShowFallbackPreview();
-            const exportMsg = result.model_url ? `<br><a class="download-link" href="${result.model_url}" download>GLB 다운로드</a>` : `<br><span style="color:#fcd34d">체험 미리보기는 보기 전용입니다. 다운로드는 구독 후 제공됩니다.</span>`;
+            const exportMsg = result.model_url ? `<br><button class="export-button" onclick="window.zxDownloadJpg()">JPG 저장</button><a class="download-link" href="${result.model_url}" download>GLB 3D 모델 다운로드</a><div class="studio-format-note">JPG는 현재 보이는 화면 이미지이고, GLB는 Blender/Three.js 같은 도구에서 여는 실제 3D 모델 파일입니다.</div>` : `<br><span style="color:#fcd34d">체험 미리보기는 보기 전용입니다. JPG/GLB 저장은 구독 후 제공됩니다.</span>`;
             zxShowStatus(`프롬프트 기반 3D 생성 요청이 완료되었습니다.${exportMsg}`);
         }
         document.addEventListener('DOMContentLoaded', () => {
@@ -396,6 +399,11 @@
         };
 
         let currentModel = null;
+        currentModel = generateProceduralBuilding();
+        scene.add(currentModel);
+        controls.target.set(0, 5, 0);
+        document.getElementById('status-box').classList.remove('hidden');
+        document.getElementById('status-box').innerHTML = '샘플 3D 미리보기가 표시되어 있습니다. 프롬프트를 입력하면 새 공간으로 교체됩니다.<div class="studio-format-note">구독 권한에서는 JPG 저장을 먼저 제공하고, GLB는 실제 3D 모델 파일로 함께 제공합니다.</div>';
 
         // Front-end file upload flow
         document.getElementById('drop-zone').onclick = () => document.getElementById('file-input').click();
@@ -429,6 +437,8 @@
                     loadText.innerText = '3D 모델을 불러오는 중...';
                     
                     if(currentModel) scene.remove(currentModel);
+                    const badge = document.getElementById('sample-badge');
+                    if (badge) badge.classList.add('hidden');
                     
                     // Load a generated preview while the GLB pipeline result is prepared
                     // In a full implementation, you would load result.model_url using GLTFLoader.
@@ -437,8 +447,8 @@
                     scene.add(currentModel);
                     
                     loader.classList.remove('active');
-                    const exportLinks = result.model_url ? `<br><a class="download-link" href="${result.model_url}" download>GLB 다운로드</a><button class="export-button" onclick="window.zxDownloadJpg()">JPG 저장</button><br><span class="text-gray-400">GLB는 3D 모델 파일, JPG는 현재 화면 이미지입니다.</span>` : '';
-                    const lockedMsg = result.preview_only ? '<br><span class="text-amber-300">체험 미리보기는 보기 전용입니다. 다운로드는 구독 후 제공됩니다.</span>' : `<br><span class="text-[#00ffcc]">구독 권한으로 GLB와 JPG 저장이 가능합니다.</span>${exportLinks}`;
+                    const exportLinks = result.model_url ? `<br><button class="export-button" onclick="window.zxDownloadJpg()">JPG 저장</button><a class="download-link" href="${result.model_url}" download>GLB 3D 모델 다운로드</a><div class="studio-format-note">JPG는 현재 보이는 화면 이미지이고, GLB는 Blender/Three.js에서 여는 실제 3D 모델 파일입니다.</div>` : '';
+                    const lockedMsg = result.preview_only ? '<br><span class="text-amber-300">체험 미리보기는 보기 전용입니다. JPG/GLB 저장은 구독 후 제공됩니다.</span>' : `<br><span class="text-[#00ffcc]">구독 권한으로 JPG 저장과 GLB 3D 모델 다운로드가 가능합니다.</span>${exportLinks}`;
                     document.getElementById('status-box').innerHTML = `3D 생성이 완료되었습니다.<br><span class="text-white">마우스로 공간을 둘러보세요.</span>${lockedMsg}`;
                     
                     // Fly-in Camera Animation
@@ -496,13 +506,15 @@
                     loadText.innerText = '3D 공간을 구성하는 중...';
                     
                     if(currentModel) scene.remove(currentModel);
+                    const badge = document.getElementById('sample-badge');
+                    if (badge) badge.classList.add('hidden');
                     
                     currentModel = generateProceduralBuilding();
                     scene.add(currentModel);
                     
                     loader.classList.remove('active');
-                    const exportLinks = result.model_url ? `<br><a class="download-link" href="${result.model_url}" download>GLB 다운로드</a><button class="export-button" onclick="window.zxDownloadJpg()">JPG 저장</button><br><span class="text-gray-400">GLB는 3D 모델 파일, JPG는 현재 화면 이미지입니다.</span>` : '';
-                    const lockedMsg = result.preview_only ? '<br><span class="text-amber-300">체험 미리보기는 보기 전용입니다. 다운로드는 구독 후 제공됩니다.</span>' : `<br><span class="text-[#00ffcc]">구독 권한으로 GLB와 JPG 저장이 가능합니다.</span>${exportLinks}`;
+                    const exportLinks = result.model_url ? `<br><button class="export-button" onclick="window.zxDownloadJpg()">JPG 저장</button><a class="download-link" href="${result.model_url}" download>GLB 3D 모델 다운로드</a><div class="studio-format-note">JPG는 현재 보이는 화면 이미지이고, GLB는 Blender/Three.js에서 여는 실제 3D 모델 파일입니다.</div>` : '';
+                    const lockedMsg = result.preview_only ? '<br><span class="text-amber-300">체험 미리보기는 보기 전용입니다. JPG/GLB 저장은 구독 후 제공됩니다.</span>' : `<br><span class="text-[#00ffcc]">구독 권한으로 JPG 저장과 GLB 3D 모델 다운로드가 가능합니다.</span>${exportLinks}`;
                     document.getElementById('status-box').innerHTML = `<span class="text-purple-400">프롬프트 기반 3D 생성이 완료되었습니다.<br>공간을 둘러보세요.</span>${lockedMsg}`;
                     
                     camera.position.set(60, 50, 60);

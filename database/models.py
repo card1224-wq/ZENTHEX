@@ -16,6 +16,7 @@ class User(Base):
     password_hint_question = Column(String, nullable=True)
     password_hint_answer_hash = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
+    approval_status = Column(String, default="approved")
     email_verified = Column(Boolean, default=False)
     email_verification_code = Column(String, nullable=True)
     password_reset_code = Column(String, nullable=True)

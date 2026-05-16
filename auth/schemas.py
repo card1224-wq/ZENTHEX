@@ -43,6 +43,7 @@ class UserResponse(BaseModel):
     role: str
     email_verified: bool
     studio_generations_left: int
+    approval_status: str | None = "approved"
 
     class Config:
         from_attributes = True

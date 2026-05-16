@@ -19,6 +19,7 @@ class StartConfig(BaseModel):
     investmentMode: str = "all_krw"
     investmentAmount: float = 50000.0
     investmentRatio: float = 0.5
+    rotateExistingAccepted: bool = False
     tickerMode: str = "auto"
     selectedTicker: str = "KRW-BTC"
     tradingMode: str = "practice"
@@ -149,7 +150,7 @@ async def start_bot(config: StartConfig, Authorization: str = Header(None), db: 
         return {"status": "error", "message": "Bot is already running"}
 
     bot_state.target_yield = config.targetYield
-    bot_state.investment_mode = config.investmentMode if config.investmentMode in ["all_krw", "fixed", "ratio"] else "all_krw"
+    bot_state.investment_mode = config.investmentMode if config.investmentMode in ["all_krw", "fixed", "ratio", "rotate_holdings"] else "all_krw"
     bot_state.investment_amount = config.investmentAmount
     bot_state.investment_ratio = config.investmentRatio
     bot_state.ticker_mode = config.tickerMode if config.tickerMode in ["auto", "manual"] else "auto"
@@ -163,6 +164,8 @@ async def start_bot(config: StartConfig, Authorization: str = Header(None), db: 
     bot_state.last_order_uuid = ""
     bot_state.last_order_side = ""
     bot_state.last_order_status = "대기"
+    bot_state.rotate_existing_accepted = config.rotateExistingAccepted
+    bot_state.rotated_holdings = False
 
     if bot_state.trading_mode == "real":
         if not Authorization:
@@ -172,6 +175,8 @@ async def start_bot(config: StartConfig, Authorization: str = Header(None), db: 
             return {"status": "error", "message": "실거래는 Trading Pro 또는 Ultimate 구독 후 사용할 수 있습니다."}
         if not config.realAccepted:
             return {"status": "error", "message": "실거래 위험 확인 체크가 필요합니다."}
+        if bot_state.investment_mode == "rotate_holdings" and not config.rotateExistingAccepted:
+            return {"status": "error", "message": "보유 코인 정리 후 재진입은 별도 위험 확인 체크가 필요합니다."}
         access_key = clean_api_key(config.accessKey)
         secret_key = clean_api_key(config.secretKey)
         if not access_key or not secret_key:
@@ -246,6 +251,8 @@ async def status():
         "avgBuyPrice": bot_state.avg_buy_price,
         "currentYield": current_yield,
         "targetYield": bot_state.target_yield,
+        "investmentMode": bot_state.investment_mode,
+        "rotateExistingAccepted": bot_state.rotate_existing_accepted,
         "targetPrice": target_price,
         "stopLossYield": bot_state.stop_loss_yield,
         "stopPrice": stop_price,

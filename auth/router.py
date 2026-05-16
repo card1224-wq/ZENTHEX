@@ -147,6 +147,8 @@ def apply_owner_privileges(user: User):
     user.role = "owner"
     user.plan = "ultimate"
     user.studio_generations_left = 999999
+    user.approval_status = "approved"
+    user.is_active = True
 
 @router.post("/phone/send-code")
 def send_phone_verification(req: PhoneCodeRequest, request: Request):
@@ -214,6 +216,8 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
         role=role,
         plan="ultimate" if role == "owner" else "free",
         studio_generations_left=999999 if role == "owner" else 3,
+        approval_status="approved" if role == "owner" else "pending",
+        is_active=True if role == "owner" else False,
         email_verified=False,
         email_verification_code=verification_code,
     )
@@ -240,6 +244,16 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
         )
 
     desired_role = resolve_role(db_user.email)
+    if desired_role != "owner" and (db_user.approval_status or "approved") != "approved":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="가입 신청은 완료되었지만 대표 승인 대기 중입니다. 승인 후 로그인할 수 있습니다.",
+        )
+    if desired_role != "owner" and db_user.is_active is False:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="대표 승인 대기 중인 계정입니다. 승인 후 사용할 수 있습니다.",
+        )
     if db_user.role != desired_role or desired_role == "owner":
         if desired_role == "owner":
             apply_owner_privileges(db_user)

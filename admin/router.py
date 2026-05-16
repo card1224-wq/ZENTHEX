@@ -14,6 +14,7 @@ router = APIRouter(prefix="/api/admin", tags=["admin"])
 class UserUpdateRequest(BaseModel):
     plan: str | None = None
     role: str | None = None
+    approval_status: str | None = None
 
 
 class AdminState:
@@ -44,6 +45,8 @@ def serialize_user(user: User):
         "plan": user.plan,
         "email_verified": user.email_verified,
         "phone_verified": user.phone_verified,
+        "approval_status": user.approval_status or "approved",
+        "is_active": user.is_active,
         "studio_generations_left": user.studio_generations_left,
         "created_at": user.created_at.isoformat() if user.created_at else None,
     }
@@ -106,6 +109,16 @@ def update_user(user_id: int, req: UserUpdateRequest, Authorization: str = Heade
         if target.role == "owner":
             target.plan = "ultimate"
             target.studio_generations_left = 999999
+            target.approval_status = "approved"
+            target.is_active = True
+
+    if req.approval_status is not None:
+        if req.approval_status not in ["pending", "approved", "rejected"]:
+            raise HTTPException(status_code=400, detail="Unsupported approval status.")
+        if target.role == "owner" and req.approval_status != "approved":
+            raise HTTPException(status_code=400, detail="Owner account must stay approved.")
+        target.approval_status = req.approval_status
+        target.is_active = req.approval_status == "approved"
 
     db.commit()
     db.refresh(target)
@@ -171,6 +184,7 @@ REVIEW_KOREAN_COPY = {
     "owner_hidden": ("대표 계정 노출 방지", "로그인/회원가입 화면에 대표 이메일이나 대표 계정 안내가 노출되면 안 됩니다."),
     "owner_env": ("대표 이메일 기준", "대표 이메일은 서버 환경변수 또는 기본값으로 관리되어야 합니다."),
     "signup_fields": ("회원가입 입력 항목", "이름, 생년월일, 휴대폰, 비밀번호 확인, 힌트 질문 항목이 있는지 확인합니다."),
+    "signup_approval": ("대표 가입 승인", "일반 사용자는 가입 후 승인 대기 상태가 되고 대표가 승인해야 로그인할 수 있어야 합니다."),
     "phone_verification": ("휴대폰 인증 흐름", "휴대폰 인증코드 발송과 확인 흐름이 있는지 확인합니다."),
     "email_recovery": ("이메일 인증과 비밀번호 찾기", "이메일 인증, 힌트 질문, 비밀번호 재설정 API가 있는지 확인합니다."),
     "studio_trial": ("Studio 체험 제한", "무료 체험은 IP 기준 하루 1회이고 보기 전용이어야 합니다."),
@@ -185,7 +199,7 @@ REVIEW_KOREAN_COPY = {
     "trading_access_ui": ("Trading 대표/구독자 화면", "대표와 구독자가 실거래 권한 화면으로 진입해야 합니다."),
     "role_separation": ("대표와 구독자 권한 분리", "CEO 운영 기능은 대표 계정만 사용할 수 있어야 합니다."),
     "plan_separation": ("플랜별 서비스 권한", "Studio Pro, Trading Pro, Ultimate 권한이 서로 섞이지 않아야 합니다."),
-    "trading_targets": ("Trading 목표수익률과 투자금", "+10%, +30%, +50% 목표와 KRW 전액 모드가 있는지 확인합니다."),
+    "trading_targets": ("Trading 목표수익률과 투자금", "+10%, +30%, +50% 목표와 KRW 현금 전액, 비율, 고정금액, 보유 코인 정리 후 재진입 모드가 있는지 확인합니다."),
     "trading_engine_scan": ("Trading 스캐너 안정성", "시장 스캔 코드에 깨진 변수 참조가 없는지 확인합니다."),
     "mock_payment_guard": ("Mock 결제 보호", "테스트 결제가 허용된 경우에만 유료 플랜을 열 수 있어야 합니다."),
     "persistent_database": ("영구 데이터베이스", "유료 사용자 데이터는 GitHub 파일이 아니라 영구 DB에 저장되어야 합니다."),
@@ -256,11 +270,12 @@ def get_launch_review(Authorization: str = Header(None), db: Session = Depends(g
         _review_item("owner_hidden", "Hide owner-account copy", "owner account" not in login_html.lower() and "\ub300\ud45c\uacc4\uc815" not in login_html and "7foliath" not in login_html, "Login/signup does not expose owner-account guidance."),
         _review_item("owner_env", "Owner email basis", "7foliath@naver.com" in owner_emails or "DEFAULT_OWNER_EMAILS" in auth_router, "Owner email is controlled by environment or fallback."),
         _review_item("signup_fields", "Signup fields", all(text in login_html for text in ["signup-birth-date", "signup-phone", "signup-password-confirm", "signup-hint-question"]), "Signup includes identity, phone, password confirmation, and hint fields."),
+        _review_item("signup_approval", "Owner approval for signup", all(text in auth_router + admin_router + admin_html + models_py for text in ["approval_status", "승인 대기", "changeApproval"]), "Normal users wait for owner approval before they can log in."),
         _review_item("phone_verification", "Phone verification flow", all(text in auth_router + login_html for text in ["phone/send-code", "phone/verify", "122492"]), "Phone code send/verify flow is present."),
         _review_item("email_recovery", "Email and password recovery", all(text in auth_router + login_html for text in ["email/verify", "password/question", "password/request-reset", "password/reset"]), "Email verification, hint question, and password reset routes are present."),
         _review_item("studio_trial", "Studio trial limit", "TRIAL_USAGE_BY_IP" in studio_router and "preview_only" in studio_router and "model_url" in studio_router, "Trial is one-day/IP and free users receive view-only output."),
         _review_item("studio_access_ui", "Studio owner/subscriber UI", all(text in studio_html for text in ["studio-access-chip", "zxCanExport", "대표 전체 권한", "GLB 다운로드"]) and "HL</div>" not in studio_html, "Studio refreshes account permission and shows export access for owner/subscribers."),
-        _review_item("studio_jpg_export", "Studio JPG export", all(text in studio_html for text in ["JPG 저장", "zxDownloadJpg", "GLB는 3D 모델 파일"]), "Studio explains GLB versus JPG and lets owner/subscribers save the preview as JPG."),
+        _review_item("studio_jpg_export", "Studio JPG export", all(text in studio_html for text in ["JPG 저장", "zxDownloadJpg", "GLB 3D 모델"]), "Studio explains GLB versus JPG and lets owner/subscribers save the preview as JPG."),
         _review_item("trading_gated", "Trading real-mode gate", all(text in finance_html for text in ["userCanSeeRealTrade", "real-key-box", "practice"]), "Trial hides API keys; owner/subscription is required for real trading."),
         _review_item("upbit_key_verify", "Upbit key verification step", all(text in finance_html + trading_router for text in ["업비트 키 인증하기", "verifyUpbitKey", "/verify-key", "verified"]), "Real trading has a visible key verification button before the live engine starts."),
         _review_item("upbit_server_ip_notice", "Upbit server IP notice", all(text in finance_html + trading_router + _read_text(".env.example") for text in ["ZENTHEX_SERVER_PUBLIC_IP", "server-ip", "Upbit 허용 IP", "복사", "api.ipify.org"]), "Trading screen exposes the Zenthex FastAPI server IP for Upbit allowed-IP registration."),
@@ -270,7 +285,7 @@ def get_launch_review(Authorization: str = Header(None), db: Session = Depends(g
         _review_item("trading_access_ui", "Trading owner/subscriber UI", all(text in finance_html for text in ["finance-access-chip", "대표 실거래 권한", "구독 실거래 권한", "zenthex-mark"]), "Trading refreshes account permission and opens real-mode UI for owner/subscribers."),
         _review_item("role_separation", "Owner and subscriber separation", all(text in admin_router + admin_html + index_html + login_html for text in ["require_owner", "user.role==='owner'", "role==='owner'"]) and "['owner','admin'].includes" not in index_html + login_html + admin_html, "Only the owner account can access CEO operations screens."),
         _review_item("plan_separation", "Plan-specific product access", all(text in studio_router + trading_router + billing_router for text in ["studio_pro", "trading_pro", "studio_limit\": 0", "user.role == \"owner\""]), "Studio Pro unlocks Studio, Trading Pro unlocks Trading, and owner unlocks all."),
-        _review_item("trading_targets", "Trading target and capital options", all(text in finance_html for text in ["+10%", "+30%", "+50%", "all_krw"]), "Short scalping targets and higher-risk targets are available."),
+        _review_item("trading_targets", "Trading target and capital options", all(text in finance_html + trading_router + engine_py for text in ["+10%", "+30%", "+50%", "all_krw", "ratio", "fixed", "rotate_holdings", "rotateExistingAccepted"]), "Short scalping targets, KRW cash modes, and explicit existing-holdings rotation are available."),
         _review_item("trading_engine_scan", "Trading scanner stability", "ohlcv[\"" not in engine_py and "hourly[\"high\"]" in engine_py, "Undefined scanner variable is not present."),
         _review_item("mock_payment_guard", "Mock payment guard", "ZENTHEX_ENABLE_MOCK_PAYMENT" in billing_router, "Mock payment cannot unlock paid plans unless explicitly enabled."),
         _review_item("persistent_database", "Persistent production database", "ZENTHEX_DATABASE_URL" in session_py and "ZENTHEX_DATABASE_URL" in _read_text(".env.example") and "postgres://" in session_py and "psycopg2-binary" in _read_text("requirements.txt"), "Paid user data must live in a persistent DB outside GitHub deploy files."),

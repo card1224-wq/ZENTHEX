@@ -50,6 +50,8 @@ Role separation:
 
 Signup collects name, email, password confirmation, birth date, phone number, and password hint question/answer. Phone verification is required before a normal user can complete signup. If SMS provider keys are not configured, the test build uses the fixed verification code `122492` so testing is not blocked. A production SMS provider such as Naver Cloud SENS, Aligo, or Twilio should be connected before public launch.
 
+Normal users enter an owner-approval pending state after signup. The owner reviews identity details in the CEO dashboard and changes the account to approved before the user can log in and use paid services. The owner email remains automatically approved.
+
 ## Launch Review
 
 The CEO dashboard includes a "출시 전 검토" panel. It checks core release risks such as owner account exposure, signup fields, phone verification, Studio trial lock, Trading real-trade lock, mock payment protection, and required database columns.
@@ -73,6 +75,8 @@ Current production test target is Upbit because KRW markets and all listed coin 
 
 Upbit real-trading keys require asset lookup and order permissions, and the public IP address of the running Zenthex FastAPI server must be registered on the Upbit Open API key. GitHub Pages is not the trading server; it only serves static files. If authentication fails, the UI returns a more specific diagnostic for likely IP, permission, Access Key, or Secret Key problems. The Trading screen shows the configured Zenthex server IP from `ZENTHEX_SERVER_PUBLIC_IP`, or auto-detects the FastAPI server outbound IP through `api.ipify.org` when the environment value is empty. It includes "업비트 키 진단하기" for troubleshooting and "업비트 키 인증하기" for the live-trading gate. Secret Key is hidden by default, with a temporary view button for paste checks. The backend re-checks the key again when the real engine starts.
 
+For real paid trading, the outbound IP should be fixed. If the displayed IP keeps changing, the deployment likely has no fixed outbound IP or `ZENTHEX_SERVER_PUBLIC_IP` is empty and the app is auto-detecting the current egress IP. Use a fixed-IP server/NAT/Elastic IP and set `ZENTHEX_SERVER_PUBLIC_IP` before relying on Upbit allowed-IP registration.
+
 Studio exports use two formats: GLB is the real 3D model file for 3D viewers/tools, while JPG is a flat image of the current preview screen. Owner, Studio Pro, and Ultimate users can use both export paths.
 
 ## Signal Guard Formula
@@ -95,11 +99,12 @@ High-risk target options such as +10%, +30%, and +50% are available in the UI, b
 
 Investment modes:
 
-- Upbit KRW all-in: uses the available KRW cash balance in the Upbit account.
-- Upbit KRW ratio: uses a percentage of available KRW cash.
+- KRW cash all-in: uses only the available KRW cash balance in the Upbit account. If the account already holds coins and KRW cash is low, this mode may stop because there is not enough orderable KRW.
+- KRW cash ratio: uses a percentage of available KRW cash. For example, 50% of 1,000,000 KRW means about 500,000 KRW is used.
 - Fixed amount: uses a fixed KRW amount.
+- Existing-holdings rotation: high-risk explicit mode that first sells KRW-market coins already held in the Upbit account, then uses the resulting KRW for a new entry. It requires a separate checkbox and confirmation.
 
-Selling coins already held in the account and rotating that money into another coin should be added as a separate explicit opt-in feature, not as the default.
+Selling coins already held in the account and rotating that money into another coin is never the default. It is a separate explicit opt-in feature because it can realize losses and change the user's existing portfolio.
 
 For real trading, the scanner runs outside the main API loop so the page can keep showing status while Upbit markets are being checked. The engine also tracks only the quantity bought by the current Zenthex run, so unrelated coins already held in the account are not sold by default.
 

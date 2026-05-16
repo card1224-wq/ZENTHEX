@@ -12,6 +12,7 @@ USER_COLUMNS = {
     "phone_verification_code": "VARCHAR",
     "password_hint_question": "VARCHAR",
     "password_hint_answer_hash": "VARCHAR",
+    "approval_status": "VARCHAR DEFAULT 'approved'",
     "plan": "VARCHAR DEFAULT 'free'",
     "role": "VARCHAR DEFAULT 'user'",
     "binance_access_key": "VARCHAR",
