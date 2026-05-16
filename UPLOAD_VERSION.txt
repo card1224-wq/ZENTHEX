@@ -1,4 +1,4 @@
-ZENTHEX_UPLOAD_VERSION=2026-05-16-0410
+ZENTHEX_UPLOAD_VERSION=2026-05-16-0455
 Homepage: Zenthex brand mark, Studio one-day trial, Trading structure view
 Login: signup has name, birth date, phone, password confirm, password hint question
 Trading: trial hides API keys, real trading is visible only after owner/subscription permission
@@ -66,3 +66,10 @@ Review: PROJECT_REVIEW now includes persistent DB, auto-renewal, and operating c
 Trading: Upbit key verification button added beside diagnostics before real trading
 Trading: real engine start now requires a verified key fingerprint in the UI and still re-checks on the backend
 Review: launch checklist now verifies the Upbit key authentication step
+Homepage: Korean copy restored and logged-in navigation now shows My Page, Customer Center, Logout, and CEO Dashboard for owner
+Homepage: logged-in owner actions now open Studio workspace and Trading engine instead of trial-only actions
+Customer: customer center page and route added
+Trading: Secret Key remains hidden by default but now has a temporary view button for paste checks
+Trading: Zenthex server public IP notice, API endpoint, and copy button added for Upbit allowed IP setup
+Env: ZENTHEX_SERVER_PUBLIC_IP added so production can display the fixed FastAPI outbound IP
+Docs: master plan and review now clarify GitHub Pages is not the Upbit trading server

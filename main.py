@@ -77,6 +77,11 @@ async def serve_account():
     with open("static/account.html", "r", encoding="utf-8") as f:
         return f.read()
 
+@app.get("/customer.html", response_class=HTMLResponse)
+async def serve_customer():
+    with open("static/customer.html", "r", encoding="utf-8") as f:
+        return f.read()
+
 # FINANCE ENGINE is now modularized in trading/router.py
 
 

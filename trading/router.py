@@ -2,6 +2,7 @@
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 import asyncio
+import os
 import pyupbit
 
 from auth.router import get_current_user
@@ -35,6 +36,21 @@ def clean_api_key(value: str) -> str:
 
 def user_can_real_trade(user) -> bool:
     return user.role == "owner" or user.plan in ["trading_pro", "ultimate"]
+
+@router.get("/server-ip")
+async def server_ip():
+    public_ip = (os.getenv("ZENTHEX_SERVER_PUBLIC_IP") or "").strip()
+    if not public_ip:
+        return {
+            "status": "missing",
+            "server_ip": "",
+            "message": "Zenthex 서버 공인 IP가 아직 설정되지 않았습니다. 실거래 서버에서 확인한 고정 IP를 ZENTHEX_SERVER_PUBLIC_IP 환경변수에 넣어야 합니다.",
+        }
+    return {
+        "status": "success",
+        "server_ip": public_ip,
+        "message": "이 IP를 Upbit Open API 허용 IP에 등록하세요.",
+    }
 
 def explain_upbit_auth_error(raw_error) -> str:
     text = str(raw_error or "")

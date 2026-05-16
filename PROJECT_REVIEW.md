@@ -6,6 +6,9 @@ This checklist is the master review gate before uploading or publishing Zenthex.
 
 - Homepage shows one clear Zenthex brand experience, not a split demo screen.
 - Homepage hero must always introduce Zenthex as a public brand, not change into "Zenthex Control" for the owner.
+- Logged-in homepage navigation must show My Page, Customer Center, and Logout instead of only Login.
+- Owner homepage actions must open Studio workspace, Trading engine, CEO dashboard, and My Page instead of trial-only actions.
+- Customer Center must exist for account, subscription, Studio, Trading, and Upbit key guidance.
 - No public page contains "demo" copy for the production-facing flow.
 - Login and signup pages do not expose owner email or owner account guidance.
 - Owner email is controlled by `ZENTHEX_OWNER_EMAILS`, with `7foliath@naver.com` kept as the built-in owner fallback.
@@ -25,9 +28,12 @@ This checklist is the master review gate before uploading or publishing Zenthex.
 - Trading trial does not show API key inputs.
 - Real trading is shown only to owner or Trading Pro/Ultimate users.
 - Real trading must show an Upbit key verification button, not only a diagnostic button.
+- Secret Key should stay hidden by default but have a temporary view button so users can confirm copied text.
 - Real trading start should require key verification and then re-check the key on the backend before placing live orders.
 - Trading owner and Trading Pro/Ultimate users must land on the real-trade permission view, not a trial-only view.
 - Real trading key check must explain likely Upbit failures: allowed IP mismatch, missing asset/order permission, wrong Access Key, wrong Secret Key.
+- Trading screen must show the Zenthex FastAPI server public IP from `ZENTHEX_SERVER_PUBLIC_IP` with a copy button for Upbit allowed IP registration.
+- Public docs must explain that GitHub Pages is not the trading server and cannot provide the Upbit outbound IP.
 - Trading includes short scalping targets and high-risk target options: +10%, +30%, +50%.
 - Trading investment mode supports Upbit KRW all-in, KRW ratio, and fixed amount.
 - Real trading scanner must not freeze the API while it scans the market.

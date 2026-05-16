@@ -35,6 +35,8 @@ Studio and Trading refresh the current account on page load. Owner and paid user
 
 The homepage hero stays as a public Zenthex brand introduction for every visitor, including the owner account. Owner operations are exposed through dashboard links and owner-only cards, not by replacing the main brand headline.
 
+Logged-in users see My Page, Customer Center, and Logout in the homepage navigation. The owner also sees CEO Dashboard. Logged-in users should not see only the anonymous Login/Trial navigation.
+
 Role separation:
 
 - Owner: can access CEO dashboard, subscriber management, launch review, emergency stop, Studio, and Trading without payment.
@@ -64,7 +66,7 @@ Current production test target is Upbit because KRW markets and all listed coin 
 - Required safety: order-only API key, withdrawal permission disabled, risk agreement, owner kill switch
 - First Binance scope: spot trading only, small order tests, no futures until risk controls are proven
 
-Upbit real-trading keys require asset lookup and order permissions, and the public IP address of the running Zenthex server must be registered on the Upbit Open API key. If authentication fails, the UI returns a more specific diagnostic for likely IP, permission, Access Key, or Secret Key problems. The Trading screen includes "업비트 키 진단하기" for troubleshooting and "업비트 키 인증하기" for the live-trading gate. The backend re-checks the key again when the real engine starts.
+Upbit real-trading keys require asset lookup and order permissions, and the public IP address of the running Zenthex FastAPI server must be registered on the Upbit Open API key. GitHub Pages is not the trading server; it only serves static files. If authentication fails, the UI returns a more specific diagnostic for likely IP, permission, Access Key, or Secret Key problems. The Trading screen shows the configured Zenthex server IP from `ZENTHEX_SERVER_PUBLIC_IP`, includes "업비트 키 진단하기" for troubleshooting, and includes "업비트 키 인증하기" for the live-trading gate. Secret Key is hidden by default, with a temporary view button for paste checks. The backend re-checks the key again when the real engine starts.
 
 ## Signal Guard Formula
 
@@ -115,6 +117,7 @@ For production, set `ZENTHEX_OWNER_EMAILS` in the server environment to the CEO 
 ```env
 ZENTHEX_OWNER_EMAILS=7foliath@naver.com
 ZENTHEX_DATABASE_URL=sqlite:///./zenthex.db
+ZENTHEX_SERVER_PUBLIC_IP=
 ZENTHEX_SMTP_HOST=smtp.example.com
 ZENTHEX_SMTP_PORT=587
 ZENTHEX_SMTP_SSL=false

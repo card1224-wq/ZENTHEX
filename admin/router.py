@@ -171,6 +171,7 @@ def get_launch_review(Authorization: str = Header(None), db: Session = Depends(g
     login_html = _read_text("static/login.html")
     studio_html = _read_text("static/studio.html")
     finance_html = _read_text("static/finance.html")
+    customer_html = _read_text("static/customer.html")
     admin_html = _read_text("static/admin.html")
     auth_router = _read_text("auth/router.py")
     admin_router = _read_text("admin/router.py")
@@ -195,6 +196,7 @@ def get_launch_review(Authorization: str = Header(None), db: Session = Depends(g
     checks = [
         _review_item("homepage_brand", "Homepage brand screen", "zenthex-mark.svg" in index_html and "studio.html" in index_html, "Brand mark and Studio entry are present."),
         _review_item("homepage_copy", "Homepage public copy", all(text in index_html for text in ["Zenthex는 프롬프트와 2D 도면", "Studio 체험하기", "Trading 구조 보기", "Zenthex란?"]) and "Zenthex Control" not in index_html, "Homepage remains a public Zenthex brand introduction even when the owner is signed in."),
+        _review_item("logged_in_home_nav", "Logged-in homepage navigation", all(text in index_html for text in ["마이페이지", "고객센터", "로그아웃", "Studio 작업실", "Trading 엔진"]), "Logged-in users see account/support/logout navigation and owner users do not land on trial-only actions."),
         _review_item("no_demo_copy", "Remove demo copy", "demo" not in (index_html + studio_html + finance_html).lower() and "\ub370\ubaa8" not in index_html + studio_html + finance_html, "Public-facing copy should not read as a demo build."),
         _review_item("owner_hidden", "Hide owner-account copy", "owner account" not in login_html.lower() and "\ub300\ud45c\uacc4\uc815" not in login_html and "7foliath" not in login_html, "Login/signup does not expose owner-account guidance."),
         _review_item("owner_env", "Owner email basis", "7foliath@naver.com" in owner_emails or "DEFAULT_OWNER_EMAILS" in auth_router, "Owner email is controlled by environment or fallback."),
@@ -205,6 +207,9 @@ def get_launch_review(Authorization: str = Header(None), db: Session = Depends(g
         _review_item("studio_access_ui", "Studio owner/subscriber UI", all(text in studio_html for text in ["studio-access-chip", "zxCanExport", "대표 전체 권한", "GLB 다운로드"]) and "HL</div>" not in studio_html, "Studio refreshes account permission, removes the old HL mark, and shows export access for owner/subscribers."),
         _review_item("trading_gated", "Trading real-mode gate", all(text in finance_html for text in ["userCanSeeRealTrade", "real-key-box", "practice"]), "Trial hides API keys; owner/subscription is required for real trading."),
         _review_item("upbit_key_verify", "Upbit key verification step", all(text in finance_html + trading_router for text in ["업비트 키 인증하기", "verifyUpbitKey", "/verify-key", "verified"]), "Real trading has a visible key verification button before the live engine starts."),
+        _review_item("upbit_server_ip_notice", "Upbit server IP notice", all(text in finance_html + trading_router + _read_text(".env.example") for text in ["ZENTHEX_SERVER_PUBLIC_IP", "server-ip", "Upbit 허용 IP", "복사"]), "Trading screen exposes the configured Zenthex FastAPI server IP for Upbit allowed-IP registration."),
+        _review_item("secret_key_visibility", "Secret key visibility control", all(text in finance_html for text in ["toggleSecretKey", "Secret Key가 점으로 보이는 것은 정상", "보기 버튼"]), "Secret Key remains hidden by default but can be temporarily viewed to confirm pasted text."),
+        _review_item("customer_center", "Customer center page", all(text in customer_html + index_html + _read_text("main.py") for text in ["Zenthex 고객센터", "customer.html", "serve_customer"]), "Customer center exists and is linked from the homepage navigation."),
         _review_item("trading_access_ui", "Trading owner/subscriber UI", all(text in finance_html for text in ["finance-access-chip", "대표 실거래 권한", "구독 실거래 권한", "zenthex-mark"]), "Trading refreshes account permission and opens real-mode UI for owner/subscribers."),
         _review_item("role_separation", "Owner and subscriber separation", all(text in admin_router + admin_html + index_html + login_html for text in ["require_owner", "user.role==='owner'", "role==='owner'"]) and "['owner','admin'].includes" not in index_html + login_html + admin_html, "Only the owner account can access CEO operations screens."),
         _review_item("plan_separation", "Plan-specific product access", all(text in studio_router + trading_router + billing_router for text in ["studio_pro", "trading_pro", "studio_limit\": 0", "user.role == \"owner\""]), "Studio Pro unlocks Studio, Trading Pro unlocks Trading, and owner unlocks all."),

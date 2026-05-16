@@ -11,12 +11,12 @@
     body { margin:0; min-height:100vh; background:var(--bg); color:var(--text); font-family:Inter,system-ui,sans-serif; }
     body::before { content:""; position:fixed; inset:0; pointer-events:none; background:linear-gradient(180deg, rgba(255,255,255,.035), transparent 260px), radial-gradient(circle at 50% -10%, rgba(145,167,255,.20), transparent 32%), radial-gradient(circle at 82% 18%, rgba(0,230,195,.10), transparent 22%); }
     body::after { content:"Z"; position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:0; pointer-events:none; color:rgba(255,255,255,.028); font-size:min(58vw,720px); font-weight:900; line-height:.8; text-shadow:0 0 120px rgba(0,230,195,.10); }
-    .nav { position:sticky; top:0; z-index:20; height:74px; padding:0 32px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--line); background:rgba(6,7,10,.86); backdrop-filter:blur(18px); }
+    .nav { position:sticky; top:0; z-index:20; min-height:74px; padding:12px 32px; display:flex; align-items:center; justify-content:space-between; gap:18px; border-bottom:1px solid var(--line); background:rgba(6,7,10,.86); backdrop-filter:blur(18px); }
     .brand { display:flex; align-items:center; gap:12px; font-weight:900; letter-spacing:3px; }
-    .mark-small { width:34px; height:34px; }
+    .mark-small { width:34px; height:34px; flex:0 0 auto; }
     .nav-actions { display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
-    .nav a { color:white; text-decoration:none; border:1px solid var(--line); background:rgba(255,255,255,.04); padding:10px 14px; border-radius:8px; font-size:13px; font-weight:800; }
-    .owner-pill { display:none; color:#ffe1a1 !important; border-color:rgba(246,198,106,.45) !important; }
+    .nav a, .nav button { color:white; text-decoration:none; border:1px solid var(--line); background:rgba(255,255,255,.04); padding:10px 14px; border-radius:8px; font-size:13px; font-weight:800; cursor:pointer; font-family:inherit; }
+    .owner-pill { color:#ffe1a1 !important; border-color:rgba(246,198,106,.45) !important; }
     .shell { position:relative; z-index:1; width:min(1180px, calc(100% - 40px)); margin:0 auto; padding:46px 0 36px; }
     .hero { position:relative; min-height:calc(100vh - 230px); display:flex; align-items:center; justify-content:center; text-align:center; overflow:hidden; border:1px solid rgba(255,255,255,.08); border-radius:18px; background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.018)); }
     .hero-mark { position:absolute; inset:0; display:grid; place-items:center; opacity:.30; pointer-events:none; }
@@ -54,7 +54,7 @@
     .close { width:36px; height:36px; border:1px solid var(--line); background:#17171d; color:white; border-radius:8px; cursor:pointer; font-weight:900; }
     .modal p, .modal li { color:#d4d4d8; line-height:1.8; }
     @media (max-width:900px) {
-      .nav { padding:0 18px; }
+      .nav { padding:12px 18px; }
       .brand span { display:none; }
       .shell { width:min(100% - 28px,1180px); padding-top:34px; }
       .hero { min-height:auto; }
@@ -75,10 +75,9 @@
       </svg>
       <span>ZENTHEX</span>
     </div>
-    <div class="nav-actions">
-      <a id="owner-link" class="owner-pill" href="admin.html">CEO Dashboard</a>
-      <a id="account-link" style="display:none" href="account.html">마이페이지</a>
-      <a href="login.html" id="nav-auth-btn">로그인</a>
+    <div class="nav-actions" id="nav-actions">
+      <a href="customer.html">고객센터</a>
+      <a href="login.html">로그인</a>
     </div>
   </nav>
 
@@ -89,16 +88,8 @@
         <span class="eyebrow">AI Studio + Signal Guard SaaS</span>
         <h1>Zenthex</h1>
         <p class="lead">Zenthex는 프롬프트와 2D 도면을 3D 공간으로 변환하는 AI 스튜디오와, 사용자 설정 기반 자동매매 엔진을 제공하는 구독형 SaaS 플랫폼입니다.</p>
-        <div id="hero-actions" class="actions">
-          <a class="cta main" href="studio.html?trial=1">Studio 체험하기</a>
-          <a class="cta trade" href="finance.html?trial=1">Trading 구조 보기</a>
-          <button class="cta sub" onclick="openModal('platform-modal')">Zenthex란?</button>
-        </div>
-        <div id="status-grid" class="trust">
-          <div><strong>Studio 체험</strong><span>비로그인도 하루 1회 보기 전용 체험 후 구독을 선택할 수 있습니다.</span></div>
-          <div><strong>Trading 보호</strong><span>체험 화면에서는 API 키를 받지 않고, 실거래는 구독 권한 뒤에만 열립니다.</span></div>
-          <div><strong>SaaS 운영</strong><span>계정, 구독, 결제내역, 영수증과 운영 검토를 한 흐름으로 관리합니다.</span></div>
-        </div>
+        <div id="hero-actions" class="actions"></div>
+        <div id="status-grid" class="trust"></div>
       </div>
     </section>
 
@@ -108,14 +99,14 @@
         <h3>프롬프트와 도면을 3D로</h3>
         <p>문장 또는 2D 도면을 기반으로 3D 공간을 미리보고, Studio Pro 또는 Ultimate 구독 후 GLB 다운로드와 작업 보관을 사용할 수 있습니다.</p>
         <div class="chips"><span>Prompt to 3D</span><span>2D 도면 분석</span><span>GLB 다운로드</span></div>
-        <a class="cta main" href="studio.html?trial=1">Studio 열기</a>
+        <a class="cta main" href="studio.html">Studio 열기</a>
       </article>
       <article class="product">
         <span class="kicker">Zenthex Trading</span>
-        <h3>자동매매 구조를 먼저 확인</h3>
+        <h3>자동매매 구조와 실거래 권한</h3>
         <p>업비트 KRW 마켓의 강한 후보를 필터링하고 단기 신호를 점수화합니다. 실제 주문은 Trading Pro 또는 Ultimate 권한과 위험 동의 후에만 실행합니다.</p>
         <div class="chips"><span>Signal Guard</span><span>Upbit 우선</span><span>API 키 보호</span><span>Binance 확장 예정</span></div>
-        <a class="cta trade" href="finance.html?trial=1">Trading 열기</a>
+        <a class="cta trade" href="finance.html">Trading 열기</a>
       </article>
     </section>
 
@@ -147,9 +138,7 @@
 
     let token = localStorage.getItem('zx_token');
     let user = JSON.parse(localStorage.getItem('zx_user') || 'null');
-    const authBtn = document.getElementById('nav-auth-btn');
-    const ownerLink = document.getElementById('owner-link');
-    const accountLink = document.getElementById('account-link');
+    const navActions = document.getElementById('nav-actions');
     const heroActions = document.getElementById('hero-actions');
     const statusGrid = document.getElementById('status-grid');
 
@@ -163,34 +152,37 @@
       user=null;
     }
 
-    function baseActions(){
-      return '<a class="cta main" href="studio.html?trial=1">Studio 체험하기</a><a class="cta trade" href="finance.html?trial=1">Trading 구조 보기</a><button class="cta sub" onclick="openModal(\\'platform-modal\\')">Zenthex란?</button>';
+    function renderNav(u){
+      if(!u){
+        navActions.innerHTML='<a href="customer.html">고객센터</a><a href="login.html">로그인</a>';
+        return;
+      }
+      const ownerLink=isOwner(u)?'<a class="owner-pill" href="admin.html">CEO Dashboard</a>':'';
+      navActions.innerHTML=`${ownerLink}<a href="account.html">마이페이지</a><a href="customer.html">고객센터</a><button type="button" onclick="logout()">로그아웃</button>`;
+    }
+
+    function logout(){
+      clearSession();
+      renderHome(null);
+    }
+
+    function guestCards(){
+      return '<div><strong>Studio 체험</strong><span>비로그인도 하루 1회 보기 전용 체험 후 구독을 선택할 수 있습니다.</span></div><div><strong>Trading 보호</strong><span>체험 화면에서는 API 키를 받지 않고, 실거래는 구독 권한 뒤에만 열립니다.</span></div><div><strong>SaaS 운영</strong><span>계정, 구독, 결제내역, 영수증과 운영 검토를 한 흐름으로 관리합니다.</span></div>';
     }
 
     function renderHome(u){
-      ownerLink.style.display='none';
-      accountLink.style.display='none';
-      authBtn.innerText='로그인';
-      authBtn.href='login.html';
-      authBtn.onclick=null;
-
+      renderNav(u);
       if(!u){
-        heroActions.innerHTML = baseActions();
+        heroActions.innerHTML='<a class="cta main" href="studio.html?trial=1">Studio 체험하기</a><a class="cta trade" href="finance.html?trial=1">Trading 구조 보기</a><button class="cta sub" onclick="openModal(\\'platform-modal\\')">Zenthex란?</button>';
         statusGrid.className='trust';
-        statusGrid.innerHTML='<div><strong>Studio 체험</strong><span>비로그인도 하루 1회 보기 전용 체험 후 구독을 선택할 수 있습니다.</span></div><div><strong>Trading 보호</strong><span>체험 화면에서는 API 키를 받지 않고, 실거래는 구독 권한 뒤에만 열립니다.</span></div><div><strong>SaaS 운영</strong><span>계정, 구독, 결제내역, 영수증과 운영 검토를 한 흐름으로 관리합니다.</span></div>';
+        statusGrid.innerHTML=guestCards();
         return;
       }
 
-      accountLink.style.display='inline-flex';
-      authBtn.innerText='로그아웃';
-      authBtn.href='#';
-      authBtn.onclick=(event)=>{ event.preventDefault(); clearSession(); renderHome(null); };
-
       if(isOwner(u)){
-        ownerLink.style.display='inline-flex';
-        heroActions.innerHTML='<a class="cta main" href="studio.html">Studio 작업실</a><a class="cta trade" href="finance.html">Trading 엔진</a><a class="cta sub" href="admin.html">CEO 대시보드</a><a class="cta sub" href="account.html">계정 확인</a>';
+        heroActions.innerHTML='<a class="cta main" href="studio.html">Studio 작업실</a><a class="cta trade" href="finance.html">Trading 엔진</a><a class="cta sub" href="admin.html">CEO 대시보드</a><a class="cta sub" href="account.html">마이페이지</a>';
         statusGrid.className='member-grid';
-        statusGrid.innerHTML='<div class="member-card owner"><strong>대표 운영 권한</strong><span>Studio, Trading, 가입자 관리와 출시 전 검토에 접근할 수 있습니다.</span></div><div class="member-card owner"><strong>시스템 검토</strong><span>권한, 구독, 실거래 안전장치와 운영 상태를 점검합니다.</span></div><div class="member-card owner"><strong>긴급 제어</strong><span>필요 시 Trading 전체 정지와 사용자 관리를 수행합니다.</span></div>';
+        statusGrid.innerHTML='<div class="member-card owner"><strong>대표 운영 권한</strong><span>Studio, Trading, 가입자 관리와 출시 전 검토에 접근할 수 있습니다.</span></div><div class="member-card owner"><strong>시스템 검토</strong><span>권한, 구독, 실거래 안전장치와 운영 상태를 점검합니다.</span></div><div class="member-card owner"><strong>고객 지원</strong><span>고객센터와 계정 관리 흐름을 함께 확인할 수 있습니다.</span></div>';
         return;
       }
 
@@ -201,7 +193,9 @@
         return;
       }
 
-      heroActions.innerHTML='<a class="cta main" href="studio.html?trial=1">Studio 체험하기</a><a class="cta trade" href="finance.html?trial=1">Trading 구조 보기</a><a class="cta sub" href="account.html">구독하기</a>';
+      heroActions.innerHTML='<a class="cta main" href="studio.html">Studio 열기</a><a class="cta trade" href="finance.html">Trading 보기</a><a class="cta sub" href="account.html">구독하기</a>';
+      statusGrid.className='member-grid';
+      statusGrid.innerHTML='<div class="member-card"><strong>로그인 완료</strong><span>계정은 확인되었습니다. 구독 전에는 제한된 체험만 사용할 수 있습니다.</span></div><div class="member-card"><strong>Studio</strong><span>하루 1회 보기 전용 체험 후 Studio Pro에서 다운로드가 열립니다.</span></div><div class="member-card"><strong>Trading</strong><span>실거래는 Trading Pro 또는 Ultimate 구독 후 열립니다.</span></div>';
     }
 
     async function refreshUser(){
@@ -215,12 +209,8 @@
           renderHome(user);
           return;
         }
-        if(res.status===401){
-          clearSession();
-        }
-      }catch(e){
-        console.error(e);
-      }
+        if(res.status===401){ clearSession(); }
+      }catch(e){ console.error(e); }
       renderHome(user);
     }
 

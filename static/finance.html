@@ -110,10 +110,23 @@
 
           <div id="real-key-box" class="hidden mb-4 p-4 rounded-xl border border-red-500/30 bg-red-500/[.06]">
             <p id="real-key-note" class="text-xs text-red-300 leading-5 font-bold mb-3">실거래 모드는 실제 돈으로 매수/매도합니다. 업비트 API 키는 조회/주문 권한만 허용하고 출금 권한은 절대 켜지 마세요.</p>
+            <div class="mb-4 p-3 rounded-lg bg-black/30 border border-white/10 text-xs text-gray-300 leading-5">
+              <strong class="text-white">Upbit 허용 IP</strong>
+              <p class="mt-1 mb-2">Upbit Open API 허용 IP에는 사용자 휴대폰/PC IP가 아니라 Zenthex 실거래 서버의 공인 IP를 등록해야 합니다.</p>
+              <div class="grid grid-cols-[1fr_auto] gap-2">
+                <input id="server-ip-box" readonly value="확인 중" class="bg-black border border-white/10 rounded-lg p-3" />
+                <button type="button" onclick="copyServerIp()" class="px-4 rounded-lg bg-white/10 border border-white/10 text-white font-black">복사</button>
+              </div>
+              <p id="server-ip-note" class="mt-2 text-amber-300"></p>
+            </div>
             <label class="text-xs text-gray-400 font-bold">Upbit Access Key</label>
             <input id="access-key" class="w-full mt-2 mb-3 bg-black border border-white/10 rounded-lg p-3" autocomplete="off" />
             <label class="text-xs text-gray-400 font-bold">Upbit Secret Key</label>
-            <input id="secret-key" type="password" class="w-full mt-2 mb-3 bg-black border border-white/10 rounded-lg p-3" autocomplete="off" />
+            <div class="grid grid-cols-[1fr_auto] gap-2 mt-2 mb-2">
+              <input id="secret-key" type="password" class="bg-black border border-white/10 rounded-lg p-3" autocomplete="off" />
+              <button type="button" onclick="toggleSecretKey()" class="px-4 rounded-lg bg-white/10 border border-white/10 text-white font-black">보기</button>
+            </div>
+            <p class="text-xs text-gray-400 leading-5 mb-3">Secret Key가 점으로 보이는 것은 정상입니다. 복사 상태를 확인할 때만 보기 버튼을 누르세요.</p>
             <label class="flex gap-2 text-xs text-gray-300 leading-5"><input id="real-accepted" type="checkbox" class="mt-1" /> 출금 권한이 없는 API 키이며, 손실 가능성과 실주문 실행을 이해했습니다.</label>
             <div class="grid grid-cols-1 gap-2 mt-3">
               <button type="button" onclick="checkUpbitKey()" class="w-full py-3 rounded-lg bg-white/10 border border-white/10 text-white font-black">업비트 키 진단하기</button>
@@ -181,7 +194,10 @@ let upbitKeyVerified=false;
 let verifiedKeyFingerprint='';
 function keyFingerprint(){return `${accessKeyEl.value.trim().slice(0,8)}:${secretKeyEl.value.trim().slice(0,8)}:${accessKeyEl.value.trim().length}:${secretKeyEl.value.trim().length}`}
 function resetKeyVerification(){upbitKeyVerified=false;verifiedKeyFingerprint='';const box=document.getElementById('key-check-result');if(box)box.innerText='키를 입력한 뒤 업비트 키 인증하기를 눌러주세요.';if(keyVerifyBtn){keyVerifyBtn.innerText='업비트 키 인증하기';keyVerifyBtn.className='w-full py-3 rounded-lg bg-white text-black font-black'}}
+function toggleSecretKey(){secretKeyEl.type=secretKeyEl.type==='password'?'text':'password'}
 function goBackHome(){location.href='index.html'}
+async function loadServerIp(){const box=document.getElementById('server-ip-box');const note=document.getElementById('server-ip-note');try{const res=await fetch('/api/finance/server-ip');const data=await res.json();box.value=data.server_ip||'서버 IP 미설정';note.innerText=data.message||'Zenthex 서버 IP를 확인할 수 없습니다.';if(!data.server_ip){note.innerText+=' GitHub Pages만 사용 중이면 FastAPI 서버가 아니므로 Upbit 실거래를 실행할 수 없습니다.'}}catch(e){box.value='확인 실패';note.innerText='서버 IP 확인 API에 연결하지 못했습니다. FastAPI 서버가 실제로 실행 중인지 확인하세요.'}}
+async function copyServerIp(){const value=document.getElementById('server-ip-box').value.trim();if(!value||value==='서버 IP 미설정'||value==='확인 실패'){alert('복사할 Zenthex 서버 IP가 아직 없습니다.');return}try{await navigator.clipboard.writeText(value);alert('Zenthex 서버 IP를 복사했습니다. Upbit Open API 허용 IP에 등록하세요.')}catch(e){alert(value)}}
 async function refreshCurrentUser(){token=localStorage.getItem('zx_token');if(!token)return;try{const res=await fetch('/api/auth/me',{headers:{'Authorization':`Bearer ${token}`}});if(res.ok){user=await res.json();localStorage.setItem('zx_user',JSON.stringify(user));return}if(res.status===401){localStorage.removeItem('zx_token');localStorage.removeItem('zx_user');token=null;user=null;alert('로그인 시간이 만료되었습니다. 다시 로그인 후 실거래를 시작해주세요.')}}catch(e){console.error(e)}}
 function userCanSeeRealTrade(){if(!token||!user)return false;if(user.role==='owner')return true;return ['trading_pro','ultimate'].includes(user.plan)}
 function setupTradingModes(){const previous=tradingModeEl.value||'practice';const loginBox=document.getElementById('login-required-box');const action=document.getElementById('login-required-action');const chip=document.getElementById('finance-access-chip');const note=document.getElementById('finance-access-note');tradingModeEl.innerHTML='<option value="practice">전략 체험 모드</option>';if(userCanSeeRealTrade()){tradingModeEl.insertAdjacentHTML('beforeend','<option value="real">업비트 실거래 모드</option><option value="binance_planned">바이낸스 실거래 모드 준비중</option>');loginBox.classList.add('hidden');tradingModeEl.value=['practice','real','binance_planned'].includes(previous)?previous:'real';if(previous==='practice'||!previous)tradingModeEl.value='real';chip.className='access-chip full';chip.innerText=user&&user.role==='owner'?'대표 실거래 권한':'구독 실거래 권한';note.innerText='실거래 권한이 확인되었습니다. 업비트 API 키와 위험 동의 후 실거래 엔진을 시작할 수 있습니다.'}else{loginBox.classList.remove('hidden');loginBox.querySelector('p').innerText=token?'실거래 모드는 Trading Pro 또는 Ultimate 구독 후 표시됩니다.':'실거래 모드는 로그인 후 Trading Pro 또는 Ultimate 구독 상태에서만 표시됩니다.';action.innerText=token?'구독 정보 확인하기':'로그인하고 실거래 보기';action.onclick=()=>{location.href=token?'account.html':'login.html'};tradingModeEl.value='practice';chip.className='access-chip locked';chip.innerText=token?'구독 필요':'구조 체험';note.innerText='체험 화면에서는 API 키를 받지 않고 구조만 확인합니다. 실거래는 로그인과 Trading Pro 또는 Ultimate 권한이 필요합니다.'}toggleTradingMode()}
@@ -197,7 +213,7 @@ async function fetchStatus(){try{const res=await fetch('/api/finance/status');co
 btnToggle.addEventListener('click',async()=>{if(tradingModeEl.value==='binance_planned'){alert('바이낸스 실거래는 다음 연결 단계입니다. 현재는 전략 체험 또는 업비트 실거래만 사용할 수 있습니다.');return}if(!isRunning){await refreshCurrentUser();setupTradingModes();if(tradingModeEl.value==='real'&&!userCanSeeRealTrade()){alert('실거래는 로그인과 Trading Pro 또는 Ultimate 구독이 필요합니다.');location.href=token?'account.html':'login.html';return}if(tradingModeEl.value==='real'&&!realAcceptedEl.checked){alert('실거래 위험 확인 체크가 필요합니다.');return}if(tradingModeEl.value==='real'&&(!upbitKeyVerified||verifiedKeyFingerprint!==keyFingerprint())){const ok=await verifyUpbitKey();if(!ok){alert('업비트 키 인증이 먼저 완료되어야 실거래를 시작할 수 있습니다.');return}}if(tradingModeEl.value==='real'&&!confirm('실제 업비트 주문이 실행됩니다. 계속할까요?'))return;btnToggle.disabled=true;btnToggle.innerText='엔진 시작 확인 중';try{const res=await fetch('/api/finance/start',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token||''}`},body:JSON.stringify({targetYield:parseFloat(targetYieldEl.value),investmentMode:modeEl.value,investmentAmount:parseFloat(amountEl.value||50000),investmentRatio:parseFloat(ratioEl.value||50)/100,tickerMode:tickerModeEl.value,selectedTicker:selectedTickerEl.value,tradingMode:tradingModeEl.value==='real'?'real':'practice',realAccepted:realAcceptedEl.checked,accessKey:accessKeyEl.value.trim(),secretKey:secretKeyEl.value.trim()})});const data=await res.json().catch(()=>({status:'error',message:'서버 응답을 읽지 못했습니다.'}));if(!res.ok||data.status==='error'){alert(data.message||data.detail||'엔진 시작에 실패했습니다.');btnToggle.disabled=false;return}}catch(e){alert('서버 연결에 실패했습니다. 다시 시도해주세요.');btnToggle.disabled=false;return}}else{await fetch('/api/finance/stop',{method:'POST'})}btnToggle.disabled=false;fetchStatus()});
 accessKeyEl.addEventListener('input',resetKeyVerification);
 secretKeyEl.addEventListener('input',resetKeyVerification);
-async function init(){await refreshCurrentUser();setupTradingModes();toggleInvestmentInput();toggleTickerMode();toggleTradingMode();fetchStatus();setInterval(fetchStatus,1000)}
+async function init(){await refreshCurrentUser();setupTradingModes();toggleInvestmentInput();toggleTickerMode();toggleTradingMode();loadServerIp();fetchStatus();setInterval(fetchStatus,1000)}
 init();
 </script>
 </body>
