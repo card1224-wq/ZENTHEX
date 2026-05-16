@@ -127,7 +127,7 @@ def scan_upbit_candidates(limit: int = 5):
                 continue
 
         pre_candidates.sort(key=lambda item: item["roughScore"], reverse=True)
-        for base in pre_candidates[:25]:
+        for base in pre_candidates[:12]:
             ticker = base["ticker"]
             try:
                 minute1 = pyupbit.get_ohlcv(ticker, interval="minute1", count=20)
@@ -233,20 +233,21 @@ async def scalping_loop():
                 break
 
             if bot_state.state == TradingState.IDLE and bot_state.avg_buy_price == 0:
-                bot_state.state = TradingState.SCANNING
-                log_trade("[Signal Guard] 업비트 KRW 전체 마켓 스캔 중입니다. 실거래 주문 전 후보를 검증합니다.")
-                candidates = await asyncio.to_thread(scan_upbit_candidates)
-                bot_state.signal_candidates = candidates
-                if not candidates:
-                    log_trade("[Signal Guard] 조건을 통과한 코인이 없습니다. 10초 후 다시 스캔합니다.")
-                    bot_state.state = TradingState.IDLE
-                    await asyncio.sleep(10)
-                    continue
                 if bot_state.ticker_mode == "manual":
                     bot_state.active_ticker = bot_state.selected_ticker or "KRW-BTC"
                     price = get_current_price(bot_state.active_ticker) or price
-                    log_trade(f"[Signal Guard] 사용자 선택 코인: {bot_state.active_ticker}")
+                    bot_state.signal_candidates = [{"ticker": bot_state.active_ticker, "momentum": 0, "price": price, "score": 0}]
+                    log_trade(f"[Quick Entry] 사용자 선택 코인 {bot_state.active_ticker}로 전체 스캔 없이 바로 진입 검증을 시작합니다.")
                 else:
+                    bot_state.state = TradingState.SCANNING
+                    log_trade("[Signal Guard] 업비트 KRW 전체 마켓 스캔 중입니다. 실거래 주문 전 후보를 검증합니다.")
+                    candidates = await asyncio.to_thread(scan_upbit_candidates)
+                    bot_state.signal_candidates = candidates
+                    if not candidates:
+                        log_trade("[Signal Guard] 조건을 통과한 코인이 없습니다. 10초 후 다시 스캔합니다.")
+                        bot_state.state = TradingState.IDLE
+                        await asyncio.sleep(10)
+                        continue
                     chosen = candidates[0]
                     bot_state.active_ticker = chosen["ticker"]
                     price = chosen["price"] or get_current_price(bot_state.active_ticker) or price
@@ -374,4 +375,4 @@ async def scalping_loop():
             log_trade(f"[System Error] {e}")
             bot_state.state = TradingState.ERROR
 
-        await asyncio.sleep(5)
+        await asyncio.sleep(2)

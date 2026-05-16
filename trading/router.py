@@ -223,6 +223,9 @@ async def stop_bot():
 async def status():
     current_price = pyupbit.get_current_price(bot_state.active_ticker) or 80000000
     est_balance = bot_state.balance + (bot_state.held_btc * current_price if bot_state.held_btc > 0 else 0)
+    current_yield = ((current_price / bot_state.avg_buy_price) - 1.0) if bot_state.avg_buy_price else 0
+    target_price = bot_state.avg_buy_price * bot_state.target_yield if bot_state.avg_buy_price else 0
+    stop_price = bot_state.avg_buy_price * bot_state.stop_loss_yield if bot_state.avg_buy_price else 0
     return {
         "isRunning": bot_state.state not in [TradingState.STOPPED, TradingState.ERROR],
         "state": bot_state.state,
@@ -238,5 +241,11 @@ async def status():
         "estBalance": est_balance,
         "heldBtc": bot_state.held_btc,
         "avgBuyPrice": bot_state.avg_buy_price,
+        "currentYield": current_yield,
+        "targetYield": bot_state.target_yield,
+        "targetPrice": target_price,
+        "stopLossYield": bot_state.stop_loss_yield,
+        "stopPrice": stop_price,
+        "pollIntervalSeconds": 2,
         "logs": bot_state.logs[-20:],
     }
