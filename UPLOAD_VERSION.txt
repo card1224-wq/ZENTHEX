@@ -1,4 +1,5 @@
-ZENTHEX_UPLOAD_VERSION=2026-05-16-0550
+ZENTHEX_UPLOAD_VERSION=2026-05-16-0600
+Admin: launch review now shows Korean primary copy with English helper text for each check
 Customer: inquiry form added to Customer Center with account, billing, Studio, Trading, Upbit, and general categories
 Support: support_tickets database table and /api/support ticket APIs added
 Admin: CEO dashboard now includes customer inquiry list, status updates, and reply/internal note saving

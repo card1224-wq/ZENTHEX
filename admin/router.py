@@ -162,6 +162,59 @@ def _review_item(key: str, title: str, passed: bool, detail: str, level: str = "
     return {"key": key, "title": title, "status": "pass" if passed else "fail", "level": level, "detail": detail}
 
 
+REVIEW_KOREAN_COPY = {
+    "homepage_brand": ("홈페이지 브랜드 화면", "젠텍스 마크와 Studio 진입 버튼이 있는지 확인합니다."),
+    "homepage_copy": ("홈페이지 소개 문구", "대표로 로그인해도 첫 화면은 내부 운영 화면이 아니라 젠텍스 소개 화면이어야 합니다."),
+    "homepage_visual_preview": ("홈페이지 시각 미리보기", "첫 화면이 글만 있는 화면이 아니라 Studio와 Trading 미리보기 패널을 보여주는지 확인합니다."),
+    "logged_in_home_nav": ("로그인 후 상단 메뉴", "로그인 사용자가 마이페이지, 고객센터, 로그아웃, 작업실 진입 메뉴를 볼 수 있어야 합니다."),
+    "no_demo_copy": ("데모 문구 제거", "실서비스 화면에 demo 또는 데모 버전처럼 보이는 문구가 없어야 합니다."),
+    "owner_hidden": ("대표 계정 노출 방지", "로그인/회원가입 화면에 대표 이메일이나 대표 계정 안내가 노출되면 안 됩니다."),
+    "owner_env": ("대표 이메일 기준", "대표 이메일은 서버 환경변수 또는 기본값으로 관리되어야 합니다."),
+    "signup_fields": ("회원가입 입력 항목", "이름, 생년월일, 휴대폰, 비밀번호 확인, 힌트 질문 항목이 있는지 확인합니다."),
+    "phone_verification": ("휴대폰 인증 흐름", "휴대폰 인증코드 발송과 확인 흐름이 있는지 확인합니다."),
+    "email_recovery": ("이메일 인증과 비밀번호 찾기", "이메일 인증, 힌트 질문, 비밀번호 재설정 API가 있는지 확인합니다."),
+    "studio_trial": ("Studio 체험 제한", "무료 체험은 IP 기준 하루 1회이고 보기 전용이어야 합니다."),
+    "studio_access_ui": ("Studio 대표/구독자 화면", "대표와 구독자가 Studio 전체 권한과 다운로드 권한을 볼 수 있어야 합니다."),
+    "studio_jpg_export": ("Studio JPG 저장", "GLB와 JPG의 차이를 안내하고 JPG 저장 기능을 제공해야 합니다."),
+    "trading_gated": ("Trading 실거래 권한 제한", "체험 화면에서는 API 키 입력을 숨기고 구독/대표 권한에서만 실거래를 열어야 합니다."),
+    "upbit_key_verify": ("Upbit 키 인증 버튼", "실거래 전 키 진단뿐 아니라 키 인증 버튼이 있어야 합니다."),
+    "upbit_server_ip_notice": ("Upbit 허용 IP 안내", "Upbit에 등록할 Zenthex FastAPI 서버 IP를 화면에 보여줘야 합니다."),
+    "secret_key_visibility": ("Secret Key 보기 제어", "Secret Key는 기본적으로 숨기고 필요할 때만 임시로 볼 수 있어야 합니다."),
+    "customer_center": ("고객센터 페이지", "고객센터가 홈페이지에서 연결되고 실제 페이지로 열려야 합니다."),
+    "support_tickets": ("고객 문의 접수 시스템", "사용자가 문의를 남기고 대표가 대시보드에서 처리할 수 있어야 합니다."),
+    "trading_access_ui": ("Trading 대표/구독자 화면", "대표와 구독자가 실거래 권한 화면으로 진입해야 합니다."),
+    "role_separation": ("대표와 구독자 권한 분리", "CEO 운영 기능은 대표 계정만 사용할 수 있어야 합니다."),
+    "plan_separation": ("플랜별 서비스 권한", "Studio Pro, Trading Pro, Ultimate 권한이 서로 섞이지 않아야 합니다."),
+    "trading_targets": ("Trading 목표수익률과 투자금", "+10%, +30%, +50% 목표와 KRW 전액 모드가 있는지 확인합니다."),
+    "trading_engine_scan": ("Trading 스캐너 안정성", "시장 스캔 코드에 깨진 변수 참조가 없는지 확인합니다."),
+    "mock_payment_guard": ("Mock 결제 보호", "테스트 결제가 허용된 경우에만 유료 플랜을 열 수 있어야 합니다."),
+    "persistent_database": ("영구 데이터베이스", "유료 사용자 데이터는 GitHub 파일이 아니라 영구 DB에 저장되어야 합니다."),
+    "postgres_safe_migration": ("PostgreSQL 안전 시작", "운영 DB가 PostgreSQL일 때 SQLite 전용 마이그레이션이 실행되지 않아야 합니다."),
+    "auto_billing_plan": ("월 자동결제 구조", "Toss Payments와 Stripe 기반 월 자동결제 구조가 준비되어야 합니다."),
+    "subscription_state": ("현재 구독 상태 저장", "결제내역과 별도로 현재 구독 상태를 저장해야 합니다."),
+    "operating_cost_review": ("운영 비용 검토", "무료 검증 단계와 유료 운영 단계의 비용을 분리해 검토해야 합니다."),
+    "master_plan": ("마스터 플랜 문서", "권한, 결제, 데이터 보존, 리스크가 마스터 플랜에 정리되어야 합니다."),
+    "db_columns": ("DB 컬럼 확인", "인증, Studio 사용량, 고객 문의에 필요한 DB 컬럼이 있는지 확인합니다."),
+    "user_management": ("가입자 관리", "대표가 사용자 목록, 플랜 변경, 계정 삭제를 할 수 있어야 합니다."),
+    "smtp_ready": ("실제 이메일 발송 준비", "정식 출시 전 SMTP 환경값을 연결해야 합니다."),
+    "sms_ready": ("실제 문자 발송 준비", "정식 출시 전 SMS 발송 업체를 연결해야 합니다."),
+    "persistent_db_ready": ("운영 DB 환경 준비", "유료 가입 전 PostgreSQL 같은 영구 DB 환경변수를 설정해야 합니다."),
+    "billing_provider_ready": ("실제 결제사 연결", "유료 결제 전 Toss Payments 또는 Stripe와 webhook을 연결해야 합니다."),
+}
+
+
+def _apply_bilingual_review_copy(checks: list[dict]) -> list[dict]:
+    for item in checks:
+        item["title_en"] = item["title"]
+        item["detail_en"] = item["detail"]
+        korean = REVIEW_KOREAN_COPY.get(item["key"])
+        if korean:
+            item["title_ko"], item["detail_ko"] = korean
+            item["title"] = korean[0]
+            item["detail"] = korean[1]
+    return checks
+
+
 @router.get("/review")
 def get_launch_review(Authorization: str = Header(None), db: Session = Depends(get_db)):
     user = user_from_header(Authorization, db)
@@ -233,6 +286,7 @@ def get_launch_review(Authorization: str = Header(None), db: Session = Depends(g
         _review_item("persistent_db_ready", "Production DB environment ready", persistent_db_ready, "Before paid users join, set ZENTHEX_DATABASE_URL to PostgreSQL or another persistent DB.", "recommended"),
         _review_item("billing_provider_ready", "Real billing provider connected", billing_provider_ready, "Before charging users, connect Toss Payments and/or Stripe subscriptions with webhooks.", "recommended"),
     ]
+    checks = _apply_bilingual_review_copy(checks)
 
     required = [item for item in checks if item["level"] == "required"]
     passed_required = [item for item in required if item["status"] == "pass"]
