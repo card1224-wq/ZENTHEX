@@ -14,7 +14,7 @@
     .nav { position:sticky; top:0; z-index:20; height:74px; padding:0 32px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--line); background:rgba(6,7,10,.86); backdrop-filter:blur(18px); }
     .brand { display:flex; align-items:center; gap:12px; font-weight:900; letter-spacing:3px; }
     .mark-small { width:34px; height:34px; }
-    .nav-actions { display:flex; gap:10px; align-items:center; }
+    .nav-actions { display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
     .nav a { color:white; text-decoration:none; border:1px solid var(--line); background:rgba(255,255,255,.04); padding:10px 14px; border-radius:8px; font-size:13px; font-weight:800; }
     .owner-pill { display:none; color:#ffe1a1 !important; border-color:rgba(246,198,106,.45) !important; }
     .shell { position:relative; z-index:1; width:min(1180px, calc(100% - 40px)); margin:0 auto; padding:46px 0 36px; }
@@ -86,9 +86,9 @@
     <section class="hero">
       <div class="hero-mark"><img src="/static/zenthex-mark.svg" alt="" /></div>
       <div class="hero-content">
-        <span id="hero-eyebrow" class="eyebrow">AI Studio + Signal Guard SaaS</span>
-        <h1 id="hero-title">Zenthex</h1>
-        <p id="hero-lead" class="lead">Zenthex는 프롬프트와 2D 도면을 3D 공간으로 변환하는 AI 스튜디오와, 사용자 설정 기반 자동매매 엔진을 제공하는 구독형 SaaS 플랫폼입니다.</p>
+        <span class="eyebrow">AI Studio + Signal Guard SaaS</span>
+        <h1>Zenthex</h1>
+        <p class="lead">Zenthex는 프롬프트와 2D 도면을 3D 공간으로 변환하는 AI 스튜디오와, 사용자 설정 기반 자동매매 엔진을 제공하는 구독형 SaaS 플랫폼입니다.</p>
         <div id="hero-actions" class="actions">
           <a class="cta main" href="studio.html?trial=1">Studio 체험하기</a>
           <a class="cta trade" href="finance.html?trial=1">Trading 구조 보기</a>
@@ -113,7 +113,7 @@
       <article class="product">
         <span class="kicker">Zenthex Trading</span>
         <h3>자동매매 구조를 먼저 확인</h3>
-        <p>업비트 KRW 마켓의 강한 후보를 필터링하고 단기 신호를 점수화합니다. 실제 주문은 Trading Pro 또는 Ultimate 권한과 위험 동의 후에만 실행됩니다.</p>
+        <p>업비트 KRW 마켓의 강한 후보를 필터링하고 단기 신호를 점수화합니다. 실제 주문은 Trading Pro 또는 Ultimate 권한과 위험 동의 후에만 실행합니다.</p>
         <div class="chips"><span>Signal Guard</span><span>Upbit 우선</span><span>API 키 보호</span><span>Binance 확장 예정</span></div>
         <a class="cta trade" href="finance.html?trial=1">Trading 열기</a>
       </article>
@@ -132,9 +132,9 @@
   <div class="modal" id="platform-modal">
     <div class="modal-card">
       <div class="modal-head"><h2>Zenthex란?</h2><button class="close" onclick="closeModal('platform-modal')">X</button></div>
-      <p>Zenthex는 AI 3D 제작과 자동매매 실행 구조를 하나의 웹 계정, 구독, 모바일 대응 흐름으로 제공하는 SaaS 플랫폼입니다.</p>
+      <p>Zenthex는 AI 3D 제작과 자동매매 실행 구조를 하나의 계정, 구독, 모바일 제어 흐름으로 제공하는 SaaS 플랫폼입니다.</p>
       <ul>
-        <li>Studio 체험은 보기 전용이며 다운로드는 구독 후 제공됩니다.</li>
+        <li>Studio 체험은 보기 전용이며 다운로드는 구독 후 제공합니다.</li>
         <li>Trading 체험은 구조 확인용이며 API 키 입력을 요구하지 않습니다.</li>
         <li>실거래는 로그인, 구독 권한, 위험 동의, API 키 확인 후에만 실행됩니다.</li>
       </ul>
@@ -145,7 +145,7 @@
     function openModal(id){ document.getElementById(id).classList.add('open'); }
     function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 
-    const token = localStorage.getItem('zx_token');
+    let token = localStorage.getItem('zx_token');
     let user = JSON.parse(localStorage.getItem('zx_user') || 'null');
     const authBtn = document.getElementById('nav-auth-btn');
     const ownerLink = document.getElementById('owner-link');
@@ -156,20 +156,35 @@
     function isPaid(u){ return u && ['studio_pro','trading_pro','ultimate'].includes(u.plan); }
     function isOwner(u){ return u && u.role === 'owner'; }
 
+    function clearSession(){
+      localStorage.removeItem('zx_token');
+      localStorage.removeItem('zx_user');
+      token=null;
+      user=null;
+    }
+
     function baseActions(){
       return '<a class="cta main" href="studio.html?trial=1">Studio 체험하기</a><a class="cta trade" href="finance.html?trial=1">Trading 구조 보기</a><button class="cta sub" onclick="openModal(\\'platform-modal\\')">Zenthex란?</button>';
     }
 
     function renderHome(u){
+      ownerLink.style.display='none';
+      accountLink.style.display='none';
+      authBtn.innerText='로그인';
+      authBtn.href='login.html';
+      authBtn.onclick=null;
+
       if(!u){
         heroActions.innerHTML = baseActions();
+        statusGrid.className='trust';
+        statusGrid.innerHTML='<div><strong>Studio 체험</strong><span>비로그인도 하루 1회 보기 전용 체험 후 구독을 선택할 수 있습니다.</span></div><div><strong>Trading 보호</strong><span>체험 화면에서는 API 키를 받지 않고, 실거래는 구독 권한 뒤에만 열립니다.</span></div><div><strong>SaaS 운영</strong><span>계정, 구독, 결제내역, 영수증과 운영 검토를 한 흐름으로 관리합니다.</span></div>';
         return;
       }
 
       accountLink.style.display='inline-flex';
       authBtn.innerText='로그아웃';
       authBtn.href='#';
-      authBtn.onclick=()=>{ localStorage.removeItem('zx_token'); localStorage.removeItem('zx_user'); location.reload(); };
+      authBtn.onclick=(event)=>{ event.preventDefault(); clearSession(); renderHome(null); };
 
       if(isOwner(u)){
         ownerLink.style.display='inline-flex';
@@ -196,8 +211,15 @@
         if(res.ok){
           user=await res.json();
           localStorage.setItem('zx_user',JSON.stringify(user));
+          renderHome(user);
+          return;
         }
-      }catch(e){}
+        if(res.status===401){
+          clearSession();
+        }
+      }catch(e){
+        console.error(e);
+      }
       renderHome(user);
     }
 

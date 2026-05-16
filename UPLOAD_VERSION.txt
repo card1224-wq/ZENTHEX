@@ -1,4 +1,4 @@
-ZENTHEX_UPLOAD_VERSION=2026-05-16-0215
+ZENTHEX_UPLOAD_VERSION=2026-05-16-0245
 Homepage: Zenthex brand mark, Studio one-day trial, Trading structure view
 Login: signup has name, birth date, phone, password confirm, password hint question
 Trading: trial hides API keys, real trading is visible only after owner/subscription permission
@@ -46,3 +46,8 @@ Review: master checklist now verifies owner/subscriber role separation and plan-
 Homepage: hero now always introduces Zenthex as the public brand, even for the owner account
 Homepage: removed owner-facing "Zenthex Control" hero state and restored clean Korean public copy
 Review: launch checklist now verifies homepage public copy and blocks the old control-style hero wording
+Fix: login and homepage Korean files restored as clean UTF-8 after upload-copy corruption
+Auth: login errors now separate unregistered email, wrong password, and stale token with missing server account
+Auth: homepage clears stale login state when the server no longer has the matching account
+Database: ZENTHEX_DATABASE_URL added so production can use persistent DB instead of a fresh server SQLite file
+Trading: Upbit key diagnostic endpoint and UI button added before real-engine start

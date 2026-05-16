@@ -228,8 +228,16 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
 @router.post("/login", response_model=Token)
 def login(user: UserLogin, db: Session = Depends(get_db)):
     db_user = find_user_by_email(db, user.email)
-    if not db_user or not verify_password(user.password, db_user.hashed_password):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password.")
+    if not db_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="가입된 이메일이 없습니다. 배포 후 기존 계정이 사라졌다면 서버 DB가 새로 만들어진 상태일 수 있습니다.",
+        )
+    if not verify_password(user.password, db_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="비밀번호가 틀렸습니다. 비밀번호 찾기에서 힌트 질문 또는 인증 코드로 재설정하세요.",
+        )
 
     desired_role = resolve_role(db_user.email)
     if db_user.role != desired_role or desired_role == "owner":
@@ -360,5 +368,8 @@ def get_current_user(token: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Invalid token")
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise HTTPException(status_code=401, detail="User not found")
+        raise HTTPException(
+            status_code=401,
+            detail="로그인 토큰은 남아 있지만 서버에 계정 데이터가 없습니다. 배포 과정에서 DB가 초기화됐을 가능성이 큽니다. 다시 로그인하거나 계정을 다시 생성해야 합니다.",
+        )
     return user

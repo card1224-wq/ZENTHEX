@@ -21,7 +21,9 @@ Zenthex is an AI SaaS platform with Zenthex Studio and Zenthex Trading.
 
 Login tokens are signed so new logins continue to work after a server restart or redeploy. If an older browser token is still present from a previous build, Studio clears it and retries as a one-day trial instead of blocking the prompt flow with an invalid-token error. Real trading still requires a fresh valid login because it can place real orders.
 
-Studio and Trading refresh the current account on page load. Owner and paid users see full-access language inside the product screens according to their plan, while free or anonymous users see trial/subscription guidance. Old HL/Habilab branding is not used in the product header.
+Accounts are stored in the database, not in the static GitHub files. If the deployment starts with a new empty `zenthex.db`, an old browser login token can remain while the matching account no longer exists on the server. In that case the app now clears stale sessions and the login screen shows whether the email does not exist or the password is wrong. Production should use a persistent database through `ZENTHEX_DATABASE_URL`.
+
+Studio and Trading refresh the current account on page load. Owner and paid users see full-access language inside the product screens according to their plan, while free or anonymous users see trial/subscription guidance. Product headers use Zenthex branding consistently.
 
 The homepage hero stays as a public Zenthex brand introduction for every visitor, including the owner account. Owner operations are exposed through dashboard links and owner-only cards, not by replacing the main brand headline.
 
@@ -52,7 +54,7 @@ Current production test target is Upbit because KRW markets and all listed coin 
 - Required safety: order-only API key, withdrawal permission disabled, risk agreement, owner kill switch
 - First Binance scope: spot trading only, small order tests, no futures until risk controls are proven
 
-Upbit real-trading keys require asset lookup and order permissions, and the public IP address of the running Zenthex server must be registered on the Upbit Open API key. If authentication fails, the UI returns a more specific diagnostic for likely IP, permission, Access Key, or Secret Key problems.
+Upbit real-trading keys require asset lookup and order permissions, and the public IP address of the running Zenthex server must be registered on the Upbit Open API key. If authentication fails, the UI returns a more specific diagnostic for likely IP, permission, Access Key, or Secret Key problems. The Trading screen also includes an "업비트 키 진단하기" button so the key can be checked before starting the real engine.
 
 ## Signal Guard Formula
 
@@ -102,6 +104,7 @@ For production, set `ZENTHEX_OWNER_EMAILS` in the server environment to the CEO 
 
 ```env
 ZENTHEX_OWNER_EMAILS=7foliath@naver.com
+ZENTHEX_DATABASE_URL=sqlite:///./zenthex.db
 ZENTHEX_SMTP_HOST=smtp.example.com
 ZENTHEX_SMTP_PORT=587
 ZENTHEX_SMTP_SSL=false

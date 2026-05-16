@@ -24,8 +24,8 @@
     .link-row button { background:none; border:0; color:#a1a1aa; font-weight:800; cursor:pointer; }
     .inline-actions { display:grid; grid-template-columns:1fr auto; gap:8px; align-items:center; }
     .mini { padding:12px 14px; border:0; border-radius:8px; background:#24242c; color:white; font-weight:900; cursor:pointer; white-space:nowrap; }
-    .err { color:#ff6b6b; min-height:18px; margin-top:10px; font-size:13px; text-align:center; }
-    .ok { color:#00ffcc; min-height:18px; margin-top:10px; font-size:13px; text-align:center; }
+    .err { color:#ff6b6b; min-height:18px; margin-top:10px; font-size:13px; text-align:center; line-height:1.5; }
+    .ok { color:#00ffcc; min-height:18px; margin-top:10px; font-size:13px; text-align:center; line-height:1.5; }
     .muted { color:#71717a; font-size:12px; margin-top:6px; line-height:1.5; }
   </style>
 </head>
@@ -33,7 +33,7 @@
   <div class="card">
     <a href="index.html">← 메인으로</a>
     <h1>ZENTHEX</h1>
-    <p>이메일 주소로 로그인합니다. 비밀번호를 잊은 경우 힌트 질문 또는 이메일 재설정 코드로 새 비밀번호를 만들 수 있습니다.</p>
+    <p>이메일 주소로 로그인합니다. 비밀번호를 잊은 경우 힌트 질문 또는 인증 코드로 새 비밀번호를 만들 수 있습니다.</p>
 
     <div class="tabs">
       <div class="tab active" onclick="switchTab('login')">로그인</div>
@@ -69,7 +69,7 @@
       <label>휴대폰 번호</label>
       <div class="inline-actions">
         <input id="signup-phone" placeholder="01012345678" oninput="phoneVerified=false; document.getElementById('phone-status').innerText='';" />
-        <button class="mini" onclick="sendPhoneCode()">인증코드 발송</button>
+        <button class="mini" onclick="sendPhoneCode()">인증코드 받기</button>
       </div>
       <label>휴대폰 인증코드</label>
       <div class="inline-actions">
@@ -102,7 +102,7 @@
       <div id="hint-answer-box">
         <label>힌트 답변</label>
         <input id="reset-hint-answer" />
-        <button class="submit" onclick="checkHintAndSendCode()">힌트 확인 및 코드 받기</button>
+        <button class="submit" onclick="checkHintAndSendCode()">힌트 확인 후 코드 받기</button>
       </div>
       <button id="direct-reset-btn" class="submit" style="display:none" onclick="requestResetCodeOnly()">이메일 코드 받기</button>
       <label>재설정 코드</label>
@@ -149,10 +149,12 @@
       const password=document.getElementById('login-password').value;
       const errorDiv=document.getElementById('login-error');
       errorDiv.innerText='';
+      if(!email){ errorDiv.innerText='이메일을 입력해주세요.'; return; }
+      if(!password){ errorDiv.innerText='비밀번호를 입력해주세요.'; return; }
       try{
         const res=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
-        const data=await res.json();
-        if(!res.ok) throw new Error(messageFrom(data,'로그인 실패'));
+        const data=await res.json().catch(()=>null);
+        if(!res.ok) throw new Error(messageFrom(data,'로그인에 실패했습니다.'));
         localStorage.setItem('zx_token',data.access_token);
         localStorage.setItem('zx_user',JSON.stringify(data.user_info));
         location.href=data.user_info.role==='owner'?'admin.html':'account.html';
@@ -183,11 +185,11 @@
       try{
         const res=await fetch('/api/auth/signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password,full_name,birth_date,phone_number,password_hint_question,password_hint_answer})});
         const data=await res.json().catch(()=>null);
-        if(!res.ok) throw new Error(messageFrom(data,'회원가입 실패'));
+        if(!res.ok) throw new Error(messageFrom(data,'회원가입에 실패했습니다.'));
         alert('회원가입이 완료되었습니다. 로그인 후 마이페이지에서 이메일 인증을 진행할 수 있습니다.');
         document.getElementById('login-email').value=email;
         switchTab('login');
-      }catch(e){ errorDiv.innerText=e.message||'회원가입 실패'; }
+      }catch(e){ errorDiv.innerText=e.message||'회원가입에 실패했습니다.'; }
     }
 
     async function sendPhoneCode(){
@@ -219,8 +221,8 @@
       const box=document.getElementById('login-ok');
       if(!email){ box.innerText='이메일을 입력해주세요.'; return; }
       const res=await fetch('/api/auth/find-id',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
-      const data=await res.json();
-      box.innerText=data.message||data.detail;
+      const data=await res.json().catch(()=>null);
+      box.innerText=messageFrom(data,'가입 정보가 있다면 이메일로 안내됩니다.');
     }
 
     function requestReset(){

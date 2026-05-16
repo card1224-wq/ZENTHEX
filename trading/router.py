@@ -26,6 +26,10 @@ class ManualTrade(BaseModel):
     type: str
     amount: float
 
+class UpbitKeyCheck(BaseModel):
+    accessKey: str = ""
+    secretKey: str = ""
+
 def clean_api_key(value: str) -> str:
     return (value or "").strip().replace("\u200b", "").replace("\ufeff", "")
 
@@ -60,6 +64,48 @@ def check_upbit_key(access_key: str, secret_key: str):
             krw_balance = float(row.get("balance") or 0)
             break
     return upbit, krw_balance, None
+
+@router.post("/check-key")
+async def check_key(config: UpbitKeyCheck, Authorization: str = Header(None), db: Session = Depends(get_db)):
+    if not Authorization:
+        return {"status": "error", "message": "키 진단은 로그인 후 사용할 수 있습니다."}
+    user = get_current_user(Authorization.replace("Bearer ", ""), db)
+    if not user_can_real_trade(user):
+        return {"status": "error", "message": "키 진단과 실거래는 Trading Pro 또는 Ultimate 구독 권한이 필요합니다."}
+
+    access_key = clean_api_key(config.accessKey)
+    secret_key = clean_api_key(config.secretKey)
+    if not access_key or not secret_key:
+        return {"status": "error", "message": "업비트 Access Key와 Secret Key를 모두 입력해야 합니다."}
+
+    try:
+        _, krw_balance, auth_error = check_upbit_key(access_key, secret_key)
+        if auth_error:
+            return {
+                "status": "error",
+                "message": auth_error,
+                "checklist": [
+                    "업비트 Open API 권한에서 자산조회와 주문하기가 켜져 있는지 확인",
+                    "출금 권한은 꺼져 있어야 함",
+                    "키에 등록한 허용 IP가 Zenthex가 실행되는 서버의 공인 IP와 같은지 확인",
+                    "Secret Key는 발급 직후 한 번만 보이므로 복사 실수 시 새 키 발급",
+                ],
+            }
+        return {
+            "status": "success",
+            "message": f"업비트 키 확인 성공. 조회 가능한 KRW 잔고는 약 {float(krw_balance or 0):,.0f}원입니다.",
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": explain_upbit_auth_error(e),
+            "checklist": [
+                "Access Key가 새로 발급한 키와 같은지 확인",
+                "Secret Key 앞뒤 공백과 줄바꿈이 없는지 확인",
+                "업비트 키의 허용 IP에 현재 배포 서버 공인 IP 등록",
+                "자산조회/주문하기 권한 확인",
+            ],
+        }
 
 @router.post("/start")
 async def start_bot(config: StartConfig, Authorization: str = Header(None), db: Session = Depends(get_db)):
