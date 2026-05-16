@@ -160,6 +160,9 @@ async def start_bot(config: StartConfig, Authorization: str = Header(None), db: 
     bot_state.avg_buy_price = 0
     bot_state.upbit = None
     bot_state.is_real_key = False
+    bot_state.last_order_uuid = ""
+    bot_state.last_order_side = ""
+    bot_state.last_order_status = "대기"
 
     if bot_state.trading_mode == "real":
         if not Authorization:
@@ -246,6 +249,9 @@ async def status():
         "targetPrice": target_price,
         "stopLossYield": bot_state.stop_loss_yield,
         "stopPrice": stop_price,
+        "lastOrderUuid": bot_state.last_order_uuid,
+        "lastOrderSide": bot_state.last_order_side,
+        "lastOrderStatus": bot_state.last_order_status,
         "pollIntervalSeconds": 2,
         "logs": bot_state.logs[-20:],
     }

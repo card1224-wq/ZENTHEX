@@ -35,6 +35,9 @@ class BotState:
         self.consecutive_loss_count = 0
         self.max_consecutive_loss = 3
         self.initial_daily_balance = self.balance
+        self.last_order_uuid = ""
+        self.last_order_side = ""
+        self.last_order_status = "대기"
         self.logs = ["[System] Zenthex Signal Guard 대기 중: 업비트 전체 KRW 마켓을 스캔합니다."]
 
 bot_state = BotState()
@@ -46,6 +49,15 @@ def log_trade(msg: str):
     bot_state.logs.append(full_msg)
     if len(bot_state.logs) > 80:
         bot_state.logs.pop(0)
+
+def remember_order(result, side: str):
+    bot_state.last_order_side = side
+    if isinstance(result, dict):
+        bot_state.last_order_uuid = str(result.get("uuid") or "")
+        bot_state.last_order_status = str(result.get("state") or "requested")
+    else:
+        bot_state.last_order_uuid = ""
+        bot_state.last_order_status = "requested"
 
 def ticker_currency(ticker: str) -> str:
     return ticker.split("-", 1)[1] if "-" in ticker else ticker
@@ -284,6 +296,7 @@ async def scalping_loop():
                         log_trade(f"[Real Buy Error] 매수 주문 실패: {result}")
                         bot_state.state = TradingState.ERROR
                         break
+                    remember_order(result, "BUY")
                     await asyncio.sleep(1)
                     await refresh_real_balances()
                     after_qty = get_real_balance(ticker_currency(bot_state.active_ticker))
@@ -330,6 +343,7 @@ async def scalping_loop():
                             log_trade(f"[Real Sell Error] 매도 주문 실패: {result}")
                             bot_state.state = TradingState.ERROR
                             break
+                        remember_order(result, "SELL")
                         await asyncio.sleep(1)
                         await refresh_real_balances()
                         bot_state.held_btc = 0
@@ -358,6 +372,7 @@ async def scalping_loop():
                             log_trade(f"[Real Stop Error] 손절 주문 실패: {result}")
                             bot_state.state = TradingState.ERROR
                             break
+                        remember_order(result, "STOP SELL")
                         await asyncio.sleep(1)
                         await refresh_real_balances()
                         bot_state.held_btc = 0

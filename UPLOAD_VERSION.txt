@@ -1,4 +1,7 @@
-ZENTHEX_UPLOAD_VERSION=2026-05-16-0615
+ZENTHEX_UPLOAD_VERSION=2026-05-17-0630
+Homepage: hero height reduced so Studio/Trading preview appears sooner without long scrolling
+Trading: real-trade API key and IP setup moved into a collapsible panel to keep the main operation screen compact
+Trading: live monitor now shows latest real order side, status, and Upbit order UUID
 Trading: compact real-trade screen added so settings and live status fit higher on the page
 Trading: manual coin selection now skips full-market scan for faster direct entry
 Trading: live monitor now shows average buy price, held quantity, target price, stop price, estimated balance, and 2-second check interval
