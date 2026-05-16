@@ -16,6 +16,7 @@ Zenthex is an AI SaaS platform with Zenthex Studio and Zenthex Trading.
 - SMTP mail delivery through environment variables
 - Protected dev outbox and mock payment controls for safer public uploads
 - Owner launch review system in the CEO dashboard
+- Owner subscriber management: view accounts, change plan/role, and delete duplicate accounts
 - Owner account receives Ultimate access without payment, but still needs email code verification
 
 ## Account Verification
@@ -52,6 +53,16 @@ The trading experience does not promise profit. It uses 24h strength as a broad 
 - drawdown from 24h high
 
 Default scalping targets should be small, such as +0.3% to +1.0%, with a tight stop loss around -0.6%. Practice mode can rotate away from weak candidates into stronger candidates. Real rotation should require a separate opt-in because it can sell assets from a user's account.
+
+High-risk target options such as +10%, +30%, and +50% are available in the UI, but they are not normal scalping targets. They can keep the engine holding much longer and can expose the user to larger loss swings.
+
+Investment modes:
+
+- Upbit KRW all-in: uses the available KRW cash balance in the Upbit account.
+- Upbit KRW ratio: uses a percentage of available KRW cash.
+- Fixed amount: uses a fixed KRW amount.
+
+Selling coins already held in the account and rotating that money into another coin should be added as a separate explicit opt-in feature, not as the default.
 
 ## Run Locally
 

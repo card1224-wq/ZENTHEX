@@ -1,4 +1,4 @@
-ZENTHEX_UPLOAD_VERSION=2026-05-16-0040
+ZENTHEX_UPLOAD_VERSION=2026-05-16-0115
 Homepage: Zenthex brand mark, Studio one-day trial, Trading structure view
 Login: signup has name, birth date, phone, password confirm, password hint question
 Trading: trial hides API keys, real trading is visible only after owner/subscription permission
@@ -18,3 +18,8 @@ Homepage: visible labels changed to neutral workspace wording, not owner/subscri
 Password: reset flow rebuilt, supports hint-based reset and legacy email-code reset
 Login: Korean copy restored again and reset messages show test code 122492
 Auth: email lookup normalized across signup, login, ID lookup, email verification, and password reset
+Admin: subscriber management added for user list, plan/role changes, and duplicate account deletion
+Review: launch checklist expanded for user management, trading targets, KRW investment modes, and scanner stability
+Trading: target yield options now include +10%, +30%, and +50% as high-risk goals
+Trading: investment mode now supports Upbit KRW all-in, KRW ratio, and fixed amount
+Fix: Upbit scanner high/low reference corrected so all-market scan does not fail on undefined ohlcv

@@ -6,6 +6,7 @@ from admin.router import admin_state
 
 class TradingState:
     IDLE = "IDLE"
+    SCANNING = "SCANNING"
     BUYING = "BUYING"
     HOLDING = "HOLDING"
     SELLING = "SELLING"
@@ -27,7 +28,7 @@ class BotState:
         self.signal_candidates = []
         self.target_yield = 1.01
         self.stop_loss_yield = 0.994
-        self.investment_mode = "fixed"
+        self.investment_mode = "all_krw"
         self.investment_amount = 50000.0
         self.investment_ratio = 0.5
         self.daily_max_loss_pct = 0.05
@@ -55,6 +56,15 @@ def get_current_price(ticker: str) -> float:
     except Exception:
         return 0.0
 
+def get_real_balance(currency: str) -> float:
+    if not bot_state.upbit:
+        return 0.0
+    try:
+        return float(bot_state.upbit.get_balance(currency) or 0)
+    except Exception as e:
+        log_trade(f"[Exchange] {currency} 잔고 조회 실패: {e}")
+        return 0.0
+
 def scan_upbit_candidates(limit: int = 5):
     """Scalping scanner. It filters 24h strength, then ranks 1/3/5m entry signals."""
     try:
@@ -75,8 +85,8 @@ def scan_upbit_candidates(limit: int = 5):
                 first = float(closes.iloc[0])
                 last = float(closes.iloc[-1])
                 close_6h = float(closes.iloc[-7]) if len(closes) >= 7 else first
-                high_24h = float(ohlcv["high"].max())
-                low_24h = float(ohlcv["low"].min())
+                high_24h = float(hourly["high"].max())
+                low_24h = float(hourly["low"].min())
                 value_24h = float((closes * volumes).sum())
                 recent_volume = float(volumes.tail(3).mean())
                 previous_volume = float(volumes.iloc[-9:-3].mean() or 1)
@@ -198,8 +208,15 @@ async def scalping_loop():
                 break
 
             if bot_state.state == TradingState.IDLE and bot_state.held_btc == 0:
-                candidates = scan_upbit_candidates()
+                bot_state.state = TradingState.SCANNING
+                log_trade("[Signal Guard] 업비트 KRW 전체 마켓 스캔 중입니다. 실거래 주문 전 후보를 검증합니다.")
+                candidates = await asyncio.to_thread(scan_upbit_candidates)
                 bot_state.signal_candidates = candidates
+                if not candidates:
+                    log_trade("[Signal Guard] 조건을 통과한 코인이 없습니다. 10초 후 다시 스캔합니다.")
+                    bot_state.state = TradingState.IDLE
+                    await asyncio.sleep(10)
+                    continue
                 if bot_state.ticker_mode == "manual":
                     bot_state.active_ticker = bot_state.selected_ticker or "KRW-BTC"
                     price = get_current_price(bot_state.active_ticker) or price
@@ -219,8 +236,11 @@ async def scalping_loop():
                 bot_state.state = TradingState.BUYING
                 if bot_state.trading_mode == "real":
                     await refresh_real_balances()
+                    log_trade(f"[Real Balance] 사용 가능 KRW {bot_state.balance:,.0f}원")
 
-                if bot_state.investment_mode == "fixed":
+                if bot_state.investment_mode == "all_krw":
+                    invest_krw = bot_state.balance * 0.99
+                elif bot_state.investment_mode == "fixed":
                     invest_krw = min(bot_state.investment_amount, bot_state.balance * 0.99)
                 else:
                     invest_krw = bot_state.balance * bot_state.investment_ratio * 0.99
@@ -231,13 +251,15 @@ async def scalping_loop():
                     break
 
                 if bot_state.trading_mode == "real":
-                    result = bot_state.upbit.buy_market_order(bot_state.active_ticker, invest_krw)
+                    log_trade(f"[Real Buy Request] {bot_state.active_ticker} 시장가 매수 요청: {invest_krw:,.0f}원")
+                    result = await asyncio.to_thread(bot_state.upbit.buy_market_order, bot_state.active_ticker, invest_krw)
                     if not result or (isinstance(result, dict) and result.get("error")):
                         log_trade(f"[Real Buy Error] 매수 주문 실패: {result}")
                         bot_state.state = TradingState.ERROR
                         break
                     await asyncio.sleep(1)
                     await refresh_real_balances()
+                    bot_state.held_btc = get_real_balance(ticker_currency(bot_state.active_ticker))
                     bot_state.avg_buy_price = price
                     log_trade(f"[Real Entry] {bot_state.active_ticker} {invest_krw:,.0f}원 실매수 요청 완료. 기준가 {price:,.0f}원")
                 else:
@@ -251,7 +273,7 @@ async def scalping_loop():
             elif bot_state.state == TradingState.HOLDING:
                 current_yield = price / bot_state.avg_buy_price if bot_state.avg_buy_price else 1.0
                 if bot_state.trading_mode == "practice" and current_yield < 1.003:
-                    replacement = scan_upbit_candidates(limit=1)
+                    replacement = await asyncio.to_thread(scan_upbit_candidates, 1)
                     if replacement and replacement[0]["ticker"] != bot_state.active_ticker and replacement[0]["score"] > 0.55:
                         sell_amount = (bot_state.held_btc * price) * 0.9995
                         bot_state.balance += sell_amount
@@ -266,7 +288,12 @@ async def scalping_loop():
                     bot_state.state = TradingState.SELLING
                     profit_pct = (current_yield - 1.0) * 100
                     if bot_state.trading_mode == "real":
-                        result = bot_state.upbit.sell_market_order(bot_state.active_ticker, bot_state.held_btc)
+                        sell_qty = get_real_balance(ticker_currency(bot_state.active_ticker))
+                        if sell_qty <= 0:
+                            log_trade("[Real Sell Error] 매도 가능한 보유 수량이 없습니다. 엔진을 정지합니다.")
+                            bot_state.state = TradingState.ERROR
+                            break
+                        result = await asyncio.to_thread(bot_state.upbit.sell_market_order, bot_state.active_ticker, sell_qty)
                         if not result or (isinstance(result, dict) and result.get("error")):
                             log_trade(f"[Real Sell Error] 매도 주문 실패: {result}")
                             bot_state.state = TradingState.ERROR
@@ -288,7 +315,12 @@ async def scalping_loop():
                     bot_state.state = TradingState.SELLING
                     loss_pct = (1.0 - current_yield) * 100
                     if bot_state.trading_mode == "real":
-                        result = bot_state.upbit.sell_market_order(bot_state.active_ticker, bot_state.held_btc)
+                        sell_qty = get_real_balance(ticker_currency(bot_state.active_ticker))
+                        if sell_qty <= 0:
+                            log_trade("[Real Stop Error] 손절 매도 가능한 보유 수량이 없습니다. 엔진을 정지합니다.")
+                            bot_state.state = TradingState.ERROR
+                            break
+                        result = await asyncio.to_thread(bot_state.upbit.sell_market_order, bot_state.active_ticker, sell_qty)
                         if not result or (isinstance(result, dict) and result.get("error")):
                             log_trade(f"[Real Stop Error] 손절 주문 실패: {result}")
                             bot_state.state = TradingState.ERROR

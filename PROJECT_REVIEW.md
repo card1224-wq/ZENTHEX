@@ -7,15 +7,18 @@ This checklist is the master review gate before uploading or publishing Zenthex.
 - Homepage shows one clear Zenthex brand experience, not a split demo screen.
 - No public page contains "demo" copy for the production-facing flow.
 - Login and signup pages do not expose owner email or owner account guidance.
-- `ZENTHEX_OWNER_EMAILS` is set on the server environment.
+- Owner email is controlled by `ZENTHEX_OWNER_EMAILS`, with `7foliath@naver.com` kept as the built-in owner fallback.
 - Owner account has Ultimate access without payment, but email verification still requires a code.
-- Signup includes name, email, password confirmation, birth date, phone number, and password hint question/answer.
+- Signup includes name, email, password confirmation, birth date, phone number, phone code, and password hint question/answer.
 - Phone verification is completed before normal user signup. Local/test builds use the fixed verification code `122492` when no SMS provider is configured.
 - Email verification, ID lookup, password hint, and password reset routes exist.
 - Studio trial is limited to one generation per IP per day.
 - Studio trial/free users receive view-only previews without model download URLs.
 - Trading trial does not show API key inputs.
 - Real trading is shown only to owner/admin or Trading Pro/Ultimate users.
+- Trading includes short scalping targets and high-risk target options: +10%, +30%, +50%.
+- Trading investment mode supports Upbit KRW all-in, KRW ratio, and fixed amount.
+- Owner dashboard includes subscriber management: list users, change plan/role, and delete duplicate or withdrawn accounts.
 - Mock payment cannot unlock paid plans unless explicitly enabled.
 - Database migrations include the latest auth, phone, billing, and usage columns.
 
@@ -23,10 +26,12 @@ This checklist is the master review gate before uploading or publishing Zenthex.
 
 - Configure real SMTP delivery.
 - Connect a production SMS provider.
-- Test mobile signup, Studio trial, Trading structure view, owner login, and My Page receipts.
+- Test mobile signup, Studio trial, Trading structure view, owner login, My Page receipts, and admin user deletion.
 - Add production payment provider.
 - Add persistent queue/storage for Studio jobs.
+- Add Studio job history and admin cleanup for generated files.
 - Add Binance Spot connector only after Upbit real-order safety checks are proven.
+- Add separate opt-in for selling/rotating coins the user already holds, because it is riskier than using available KRW cash.
 
 ## Owner Review Screen
 
@@ -36,7 +41,7 @@ After logging in as the owner, open:
 /admin.html
 ```
 
-The "출시 전 검토" panel calls:
+The "Launch Review" panel calls:
 
 ```text
 GET /api/admin/review

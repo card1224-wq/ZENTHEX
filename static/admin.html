@@ -15,9 +15,9 @@
 
     <header class="p-6 rounded-xl bg-white/[.03] border border-white/10 mb-6 flex justify-between gap-4 flex-wrap items-center">
       <div>
-        <p class="text-xs tracking-[.3em] text-red-400 font-black uppercase">Owner Access</p>
-        <h1 class="text-3xl font-black tracking-tight mt-2">Zenthex CEO Dashboard</h1>
-        <p class="text-gray-400 mt-2">대표 계정 전용 운영 화면입니다. 소비자 화면에는 노출되지 않습니다.</p>
+        <p class="text-xs tracking-[.3em] text-red-400 font-black uppercase">Operations Workspace</p>
+        <h1 class="text-3xl font-black tracking-tight mt-2">Zenthex Control</h1>
+        <p class="text-gray-400 mt-2">운영, 가입자, 구독, 출시 전 검토, 긴급 정지를 관리합니다.</p>
       </div>
       <div id="system-status" class="px-4 py-2 rounded-lg bg-green-500/15 text-green-300 border border-green-500/40 font-black">SYSTEM ONLINE</div>
     </header>
@@ -43,7 +43,7 @@
           </div>
           <div id="review-list" class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm"></div>
         </div>
-        <p class="text-xs text-gray-500 leading-5">이 검토는 코드와 환경설정을 기준으로 한 자동 점검입니다. 실제 결제, 실제 문자 발송, 실거래 주문은 별도 운영 테스트가 필요합니다.</p>
+        <p class="text-xs text-gray-500 leading-5">자동 검토는 코드와 환경설정 기준입니다. 실제 결제, 실제 문자/메일 발송, 실거래 주문은 별도 운영 테스트가 필요합니다.</p>
       </div>
 
       <div class="p-6 rounded-xl bg-red-500/[.06] border border-red-500/30">
@@ -53,13 +53,21 @@
       </div>
     </section>
 
+    <section class="p-6 rounded-xl bg-white/[.03] border border-white/10 mb-6">
+      <div class="flex items-center justify-between gap-3 flex-wrap mb-4">
+        <h2 class="font-black text-xl">가입자 관리</h2>
+        <button onclick="fetchUsers()" class="px-4 py-2 rounded-lg bg-white/10 border border-white/10 text-sm font-bold">새로고침</button>
+      </div>
+      <div id="user-list" class="space-y-3 text-sm"></div>
+    </section>
+
     <section class="p-6 rounded-xl bg-white/[.03] border border-white/10">
       <h2 class="font-black text-xl mb-4">운영 체크</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-300">
         <div class="p-4 bg-black/30 rounded-lg border border-white/10">Studio 사용량과 GPU Queue는 다음 단계에서 연결</div>
         <div class="p-4 bg-black/30 rounded-lg border border-white/10">Trading Signal Guard / 전략 검증 상태 감시</div>
-        <div class="p-4 bg-black/30 rounded-lg border border-white/10">대표 계정은 구독 체크 없이 Ultimate 권한</div>
-        <div class="p-4 bg-black/30 rounded-lg border border-white/10">소비자는 체험 후 저장/실거래 시 구독 전환</div>
+        <div class="p-4 bg-black/30 rounded-lg border border-white/10">운영 계정은 구독 체크 없이 전체 권한</div>
+        <div class="p-4 bg-black/30 rounded-lg border border-white/10">사용자는 체험 후 저장/실거래 시 구독 전환</div>
       </div>
     </section>
   </div>
@@ -70,19 +78,12 @@
     let isKillSwitchActive=false;
 
     if(!token||!user||!['owner','admin'].includes(user.role)){
-      alert('대표 또는 관리자 로그인이 필요합니다.');
+      alert('운영 권한 로그인이 필요합니다.');
       location.href='login.html';
     }
 
-    function logout(){
-      localStorage.removeItem('zx_token');
-      localStorage.removeItem('zx_user');
-      location.href='index.html';
-    }
-
-    function authHeaders(){
-      return {'Content-Type':'application/json','Authorization':`Bearer ${token}`};
-    }
+    function logout(){localStorage.removeItem('zx_token');localStorage.removeItem('zx_user');location.href='index.html'}
+    function authHeaders(){return {'Content-Type':'application/json','Authorization':`Bearer ${token}`}}
 
     async function fetchStatus(){
       try{
@@ -95,10 +96,7 @@
         document.getElementById('stat-bots').innerText=data.active_finance_bots;
         isKillSwitchActive=data.global_kill_switch;
         updateUI();
-      }catch(e){
-        alert(e.message);
-        location.href='login.html';
-      }
+      }catch(e){alert(e.message);location.href='login.html'}
     }
 
     async function fetchReview(){
@@ -121,19 +119,31 @@
           const label=pass?'PASS':(item.level==='recommended'?'WARN':'FIX');
           return `<div class="p-4 rounded-lg border ${color}"><div class="flex justify-between gap-3 mb-2"><strong>${item.title}</strong><span class="text-xs font-black">${label}</span></div><p class="text-xs leading-5 text-gray-300">${item.detail}</p></div>`;
         }).join('');
-      }catch(e){
-        scoreEl.innerText='-';
-        readyEl.innerText=e.message;
-        readyEl.className='text-xs mt-2 text-red-300';
-      }
+      }catch(e){scoreEl.innerText='-';readyEl.innerText=e.message;readyEl.className='text-xs mt-2 text-red-300'}
     }
+
+    async function fetchUsers(){
+      const box=document.getElementById('user-list');
+      box.innerHTML='<div class="text-gray-500">불러오는 중...</div>';
+      try{
+        const res=await fetch('/api/admin/users',{headers:authHeaders()});
+        const data=await res.json();
+        if(!res.ok)throw new Error(data.detail||'가입자 조회 실패');
+        if(!data.users.length){box.innerHTML='<div class="text-gray-500">가입자가 없습니다.</div>';return;}
+        box.innerHTML=data.users.map(row=>`<div class="p-4 rounded-lg bg-black/30 border border-white/10 grid grid-cols-1 lg:grid-cols-[1fr_150px_150px_auto] gap-3 items-center"><div><strong class="block text-white">${row.email}</strong><span class="text-xs text-gray-400">${row.full_name||'-'} / 이메일 ${row.email_verified?'인증':'미인증'} / 휴대폰 ${row.phone_verified?'인증':'미인증'}</span></div><select onchange="changePlan(${row.id},this.value)" class="bg-black border border-white/10 rounded-lg p-2"><option value="free" ${row.plan==='free'?'selected':''}>free</option><option value="studio_pro" ${row.plan==='studio_pro'?'selected':''}>studio_pro</option><option value="trading_pro" ${row.plan==='trading_pro'?'selected':''}>trading_pro</option><option value="ultimate" ${row.plan==='ultimate'?'selected':''}>ultimate</option></select><select onchange="changeRole(${row.id},this.value)" class="bg-black border border-white/10 rounded-lg p-2"><option value="user" ${row.role==='user'?'selected':''}>user</option><option value="admin" ${row.role==='admin'?'selected':''}>admin</option><option value="owner" ${row.role==='owner'?'selected':''}>owner</option></select><button onclick="deleteUser(${row.id},'${row.email}')" class="px-4 py-2 rounded-lg bg-red-600 text-white font-black">삭제</button></div>`).join('');
+      }catch(e){box.innerHTML=`<div class="text-red-300">${e.message}</div>`}
+    }
+
+    async function changePlan(id,plan){await fetch(`/api/admin/users/${id}`,{method:'PATCH',headers:authHeaders(),body:JSON.stringify({plan})});fetchStatus();fetchUsers()}
+    async function changeRole(id,role){await fetch(`/api/admin/users/${id}`,{method:'PATCH',headers:authHeaders(),body:JSON.stringify({role})});fetchStatus();fetchUsers()}
+    async function deleteUser(id,email){if(!confirm(`${email} 계정을 삭제할까요?`))return;const res=await fetch(`/api/admin/users/${id}`,{method:'DELETE',headers:authHeaders()});const data=await res.json().catch(()=>null);if(!res.ok){alert((data&&data.detail)||'삭제 실패');return;}fetchStatus();fetchUsers()}
 
     async function toggleKillSwitch(){
       const next=!isKillSwitchActive;
       if(next&&!confirm('전체 트레이딩 엔진을 긴급 정지할까요?'))return;
       const res=await fetch('/api/admin/killswitch',{method:'POST',headers:authHeaders(),body:JSON.stringify({enabled:next})});
       const data=await res.json();
-      if(!res.ok){alert(data.detail||'실패');return;}
+      if(!res.ok){alert(data.detail||'실패');return}
       isKillSwitchActive=data.kill_switch_active;
       updateUI();
     }
@@ -156,6 +166,7 @@
 
     fetchStatus();
     fetchReview();
+    fetchUsers();
     setInterval(fetchStatus,5000);
   </script>
 </body>

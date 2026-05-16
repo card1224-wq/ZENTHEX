@@ -14,7 +14,7 @@ class StartConfig(BaseModel):
     accessKey: str = ""
     secretKey: str = ""
     targetYield: float
-    investmentMode: str = "fixed"
+    investmentMode: str = "all_krw"
     investmentAmount: float = 50000.0
     investmentRatio: float = 0.5
     tickerMode: str = "auto"
@@ -35,7 +35,7 @@ async def start_bot(config: StartConfig, Authorization: str = Header(None), db: 
         return {"status": "error", "message": "Bot is already running"}
 
     bot_state.target_yield = config.targetYield
-    bot_state.investment_mode = config.investmentMode
+    bot_state.investment_mode = config.investmentMode if config.investmentMode in ["all_krw", "fixed", "ratio"] else "all_krw"
     bot_state.investment_amount = config.investmentAmount
     bot_state.investment_ratio = config.investmentRatio
     bot_state.ticker_mode = config.tickerMode if config.tickerMode in ["auto", "manual"] else "auto"
