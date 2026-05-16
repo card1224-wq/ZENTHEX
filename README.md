@@ -64,6 +64,8 @@ Investment modes:
 
 Selling coins already held in the account and rotating that money into another coin should be added as a separate explicit opt-in feature, not as the default.
 
+For real trading, the scanner runs outside the main API loop so the page can keep showing status while Upbit markets are being checked. The engine also tracks only the quantity bought by the current Zenthex run, so unrelated coins already held in the account are not sold by default.
+
 ## Run Locally
 
 ```powershell

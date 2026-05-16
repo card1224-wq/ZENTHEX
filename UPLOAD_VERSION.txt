@@ -1,4 +1,4 @@
-ZENTHEX_UPLOAD_VERSION=2026-05-16-0115
+ZENTHEX_UPLOAD_VERSION=2026-05-16-0125
 Homepage: Zenthex brand mark, Studio one-day trial, Trading structure view
 Login: signup has name, birth date, phone, password confirm, password hint question
 Trading: trial hides API keys, real trading is visible only after owner/subscription permission
@@ -23,3 +23,7 @@ Review: launch checklist expanded for user management, trading targets, KRW inve
 Trading: target yield options now include +10%, +30%, and +50% as high-risk goals
 Trading: investment mode now supports Upbit KRW all-in, KRW ratio, and fixed amount
 Fix: Upbit scanner high/low reference corrected so all-market scan does not fail on undefined ohlcv
+Fix: real trading scanner now runs in a background thread so status checks do not freeze during market scan
+Fix: Upbit scanner now uses a two-stage filter to reduce API calls before short-term signal scoring
+Safety: real trading now sells only the quantity bought by the current Zenthex engine run, not unrelated coins already held in the account
+UI: Trading page refreshes the current logged-in user before starting real mode so owner/subscription changes are recognized

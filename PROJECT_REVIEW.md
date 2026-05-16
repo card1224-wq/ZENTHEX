@@ -18,6 +18,8 @@ This checklist is the master review gate before uploading or publishing Zenthex.
 - Real trading is shown only to owner/admin or Trading Pro/Ultimate users.
 - Trading includes short scalping targets and high-risk target options: +10%, +30%, +50%.
 - Trading investment mode supports Upbit KRW all-in, KRW ratio, and fixed amount.
+- Real trading scanner must not freeze the API while it scans the market.
+- Real trading may sell only the quantity bought by the current Zenthex engine run unless the user explicitly opts into rotating existing holdings.
 - Owner dashboard includes subscriber management: list users, change plan/role, and delete duplicate or withdrawn accounts.
 - Mock payment cannot unlock paid plans unless explicitly enabled.
 - Database migrations include the latest auth, phone, billing, and usage columns.

@@ -69,16 +69,14 @@ def scan_upbit_candidates(limit: int = 5):
     """Scalping scanner. It filters 24h strength, then ranks 1/3/5m entry signals."""
     try:
         markets = pyupbit.get_tickers(fiat="KRW")
+        pre_candidates = []
         candidates = []
         for ticker in markets:
             try:
                 hourly = pyupbit.get_ohlcv(ticker, interval="minute60", count=25)
-                minute1 = pyupbit.get_ohlcv(ticker, interval="minute1", count=20)
-                minute3 = pyupbit.get_ohlcv(ticker, interval="minute3", count=20)
-                minute5 = pyupbit.get_ohlcv(ticker, interval="minute5", count=20)
-                if hourly is None or minute1 is None or minute3 is None or minute5 is None:
+                if hourly is None:
                     continue
-                if len(hourly) < 12 or len(minute1) < 10 or len(minute3) < 10 or len(minute5) < 10:
+                if len(hourly) < 12:
                     continue
                 closes = hourly["close"]
                 volumes = hourly["volume"]
@@ -106,7 +104,39 @@ def scan_upbit_candidates(limit: int = 5):
                     continue
                 if volatility > 0.45 or drawdown > 0.18:
                     continue
+                rough_score = (
+                    change_24h * 12
+                    + momentum_6h * 8
+                    + min(volume_surge, 4.0) * 0.04
+                    + trend_bonus * 0.08
+                    - volatility * 0.18
+                    - drawdown * 0.35
+                )
+                pre_candidates.append({
+                    "ticker": ticker,
+                    "momentum": change_24h,
+                    "momentum6h": momentum_6h,
+                    "volumeSurge": volume_surge,
+                    "value24h": value_24h,
+                    "volatility": volatility,
+                    "drawdown": drawdown,
+                    "price": last,
+                    "roughScore": rough_score,
+                })
+            except Exception:
+                continue
 
+        pre_candidates.sort(key=lambda item: item["roughScore"], reverse=True)
+        for base in pre_candidates[:25]:
+            ticker = base["ticker"]
+            try:
+                minute1 = pyupbit.get_ohlcv(ticker, interval="minute1", count=20)
+                minute3 = pyupbit.get_ohlcv(ticker, interval="minute3", count=20)
+                minute5 = pyupbit.get_ohlcv(ticker, interval="minute5", count=20)
+                if minute1 is None or minute3 is None or minute5 is None:
+                    continue
+                if len(minute1) < 10 or len(minute3) < 10 or len(minute5) < 10:
+                    continue
                 c1 = minute1["close"]
                 v1 = minute1["volume"]
                 c3 = minute3["close"]
@@ -130,34 +160,29 @@ def scan_upbit_candidates(limit: int = 5):
                     continue
 
                 score = (
-                    change_24h * 12
-                    + momentum_6h * 8
+                    base["roughScore"]
                     + minute1_momentum * 40
                     + minute3_momentum * 24
                     + minute5_momentum * 14
-                    + min(volume_surge, 4.0) * 0.04
                     + min(tick_volume_surge, 5.0) * 0.12
                     + breakout * 0.22
                     + short_trend * 0.18
-                    + trend_bonus * 0.08
-                    - volatility * 0.18
-                    - drawdown * 0.35
                 )
                 candidates.append({
                     "ticker": ticker,
-                    "momentum": change_24h,
-                    "momentum6h": momentum_6h,
-                    "volumeSurge": volume_surge,
+                    "momentum": base["momentum"],
+                    "momentum6h": base["momentum6h"],
+                    "volumeSurge": base["volumeSurge"],
                     "tickVolumeSurge": tick_volume_surge,
                     "minute1Momentum": minute1_momentum,
                     "minute3Momentum": minute3_momentum,
                     "minute5Momentum": minute5_momentum,
                     "breakout": breakout,
                     "shortTrend": short_trend,
-                    "value24h": value_24h,
-                    "volatility": volatility,
-                    "drawdown": drawdown,
-                    "price": last,
+                    "value24h": base["value24h"],
+                    "volatility": base["volatility"],
+                    "drawdown": base["drawdown"],
+                    "price": base["price"],
                     "score": score,
                 })
             except Exception:
@@ -207,7 +232,7 @@ async def scalping_loop():
                 bot_state.state = TradingState.ERROR
                 break
 
-            if bot_state.state == TradingState.IDLE and bot_state.held_btc == 0:
+            if bot_state.state == TradingState.IDLE and bot_state.avg_buy_price == 0:
                 bot_state.state = TradingState.SCANNING
                 log_trade("[Signal Guard] 업비트 KRW 전체 마켓 스캔 중입니다. 실거래 주문 전 후보를 검증합니다.")
                 candidates = await asyncio.to_thread(scan_upbit_candidates)
@@ -251,6 +276,7 @@ async def scalping_loop():
                     break
 
                 if bot_state.trading_mode == "real":
+                    before_qty = get_real_balance(ticker_currency(bot_state.active_ticker))
                     log_trade(f"[Real Buy Request] {bot_state.active_ticker} 시장가 매수 요청: {invest_krw:,.0f}원")
                     result = await asyncio.to_thread(bot_state.upbit.buy_market_order, bot_state.active_ticker, invest_krw)
                     if not result or (isinstance(result, dict) and result.get("error")):
@@ -259,7 +285,12 @@ async def scalping_loop():
                         break
                     await asyncio.sleep(1)
                     await refresh_real_balances()
-                    bot_state.held_btc = get_real_balance(ticker_currency(bot_state.active_ticker))
+                    after_qty = get_real_balance(ticker_currency(bot_state.active_ticker))
+                    bot_state.held_btc = max(after_qty - before_qty, 0)
+                    if bot_state.held_btc <= 0:
+                        log_trade("[Real Buy Error] 매수 요청 후 체결 수량을 확인하지 못했습니다. 업비트 주문 내역을 확인하세요.")
+                        bot_state.state = TradingState.ERROR
+                        break
                     bot_state.avg_buy_price = price
                     log_trade(f"[Real Entry] {bot_state.active_ticker} {invest_krw:,.0f}원 실매수 요청 완료. 기준가 {price:,.0f}원")
                 else:
@@ -288,7 +319,7 @@ async def scalping_loop():
                     bot_state.state = TradingState.SELLING
                     profit_pct = (current_yield - 1.0) * 100
                     if bot_state.trading_mode == "real":
-                        sell_qty = get_real_balance(ticker_currency(bot_state.active_ticker))
+                        sell_qty = bot_state.held_btc
                         if sell_qty <= 0:
                             log_trade("[Real Sell Error] 매도 가능한 보유 수량이 없습니다. 엔진을 정지합니다.")
                             bot_state.state = TradingState.ERROR
@@ -300,6 +331,7 @@ async def scalping_loop():
                             break
                         await asyncio.sleep(1)
                         await refresh_real_balances()
+                        bot_state.held_btc = 0
                         log_trade(f"[Real Take Profit] {bot_state.active_ticker} 목표 수익률 도달 +{profit_pct:.2f}%. 실매도 후 엔진 종료.")
                     else:
                         sell_amount = (bot_state.held_btc * price) * 0.9995
@@ -315,7 +347,7 @@ async def scalping_loop():
                     bot_state.state = TradingState.SELLING
                     loss_pct = (1.0 - current_yield) * 100
                     if bot_state.trading_mode == "real":
-                        sell_qty = get_real_balance(ticker_currency(bot_state.active_ticker))
+                        sell_qty = bot_state.held_btc
                         if sell_qty <= 0:
                             log_trade("[Real Stop Error] 손절 매도 가능한 보유 수량이 없습니다. 엔진을 정지합니다.")
                             bot_state.state = TradingState.ERROR
@@ -327,6 +359,7 @@ async def scalping_loop():
                             break
                         await asyncio.sleep(1)
                         await refresh_real_balances()
+                        bot_state.held_btc = 0
                         log_trade(f"[Real Stop Loss] {bot_state.active_ticker} -{loss_pct:.2f}%. 실매도 후 대기 상태로 복귀.")
                     else:
                         sell_amount = (bot_state.held_btc * price) * 0.9995
