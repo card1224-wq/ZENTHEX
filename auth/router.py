@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Header, Request, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from database.session import get_db
 from database.models import User
@@ -32,27 +33,33 @@ DEV_PHONE_OUTBOX = []
 TEST_PHONE_CODE = "122492"
 TEST_EMAIL_CODE = "122492"
 
-def get_owner_emails():
-    configured = os.getenv("ZENTHEX_OWNER_EMAILS", "")
-    emails = {email.strip().lower() for email in configured.split(",") if email.strip()}
-    return DEFAULT_OWNER_EMAILS | emails
-
-def resolve_role(email: str) -> str:
-    return "owner" if email.lower() in get_owner_emails() else "user"
-
-def make_code() -> str:
-    return f"{random.randint(100000, 999999)}"
+def normalize_email(email: str) -> str:
+    return (email or "").strip().lower()
 
 def normalize_phone(phone_number: str) -> str:
     return "".join(ch for ch in (phone_number or "") if ch.isdigit())
+
+def normalize_hint_answer(answer: str) -> str:
+    return " ".join((answer or "").strip().lower().split())
+
+def find_user_by_email(db: Session, email: str):
+    return db.query(User).filter(func.lower(User.email) == normalize_email(email)).first()
+
+def get_owner_emails():
+    configured = os.getenv("ZENTHEX_OWNER_EMAILS", "")
+    emails = {normalize_email(email) for email in configured.split(",") if email.strip()}
+    return DEFAULT_OWNER_EMAILS | emails
+
+def resolve_role(email: str) -> str:
+    return "owner" if normalize_email(email) in get_owner_emails() else "user"
+
+def make_code() -> str:
+    return f"{random.randint(100000, 999999)}"
 
 def is_local_request(request: Request) -> bool:
     if not request.client:
         return False
     return request.client.host in {"127.0.0.1", "localhost", "::1"}
-
-def normalize_hint_answer(answer: str) -> str:
-    return " ".join((answer or "").strip().lower().split())
 
 def smtp_configured() -> bool:
     host = (os.getenv("ZENTHEX_SMTP_HOST") or "").strip()
@@ -77,7 +84,7 @@ def send_account_email(to_email: str, subject: str, body: str):
     message["Subject"] = subject
     message.set_content(body)
 
-    if smtp_host and smtp_user and smtp_password:
+    if smtp_configured():
         try:
             if use_ssl:
                 context = ssl.create_default_context()
@@ -122,10 +129,8 @@ def send_phone_verification(req: PhoneCodeRequest, request: Request):
     code = make_code() if sms_configured else TEST_PHONE_CODE
     PHONE_VERIFICATION_CODES[phone_number] = code
     DEV_PHONE_OUTBOX.append({"phone_number": phone_number, "code": code})
-    print(f"[Zenthex SMS:DEV] phone={phone_number} code={code}")
-    show_dev_code = os.getenv("ZENTHEX_ENABLE_DEV_OUTBOX", "false").lower() == "true" or is_local_request(request) or not sms_configured
     response = {"status": "success", "message": "Phone verification code has been sent."}
-    if show_dev_code:
+    if is_local_request(request) or not sms_configured or os.getenv("ZENTHEX_ENABLE_DEV_OUTBOX", "false").lower() == "true":
         response["dev_code"] = code
         response["message"] = "Test phone verification code is available."
     return response
@@ -141,14 +146,15 @@ def verify_phone(req: PhoneVerifyRequest):
 
 @router.post("/signup", response_model=UserResponse)
 def signup(user: UserCreate, db: Session = Depends(get_db)):
-    db_user = db.query(User).filter(User.email == user.email).first()
-    if db_user:
+    email = normalize_email(user.email)
+    if find_user_by_email(db, email):
         raise HTTPException(status_code=400, detail="This email is already registered.")
 
-    role = resolve_role(user.email)
+    role = resolve_role(email)
     verification_code = make_code() if smtp_configured() else TEST_EMAIL_CODE
     hint_answer = normalize_hint_answer(user.password_hint_answer)
     phone_number = normalize_phone(user.phone_number or "")
+
     if len(user.full_name.strip()) < 2:
         raise HTTPException(status_code=400, detail="Please enter your name.")
     if len(user.birth_date or "") < 8:
@@ -164,7 +170,7 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
 
     new_user = User(
         full_name=user.full_name.strip()[:80],
-        email=user.email,
+        email=email,
         hashed_password=get_password_hash(user.password),
         birth_date=(user.birth_date or "").strip()[:20],
         phone_number=phone_number[:30],
@@ -182,13 +188,13 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    send_account_email(user.email, "Zenthex email verification code", f"Verification code: {verification_code}")
+    send_account_email(email, "Zenthex email verification code", f"Verification code: {verification_code}")
     PHONE_VERIFIED_NUMBERS.discard(phone_number)
     return new_user
 
 @router.post("/login", response_model=Token)
 def login(user: UserLogin, db: Session = Depends(get_db)):
-    db_user = db.query(User).filter(User.email == user.email).first()
+    db_user = find_user_by_email(db, user.email)
     if not db_user or not verify_password(user.password, db_user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password.")
 
@@ -246,31 +252,38 @@ def verify_email(req: VerifyEmailRequest, Authorization: str = Header(None), db:
 
 @router.post("/find-id")
 def find_id(req: EmailRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == req.email).first()
+    user = find_user_by_email(db, req.email)
     if user:
-        send_account_email(req.email, "Zenthex ID notice", f"Your Zenthex ID is your email address: {req.email}")
+        send_account_email(user.email, "Zenthex ID notice", f"Your Zenthex ID is your email address: {user.email}")
     return {"status": "success", "message": "If an account exists, ID information has been sent by email."}
 
 @router.post("/password/request-reset")
-def request_password_reset(req: EmailRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == req.email).first()
+def request_password_reset(req: EmailRequest, request: Request, db: Session = Depends(get_db)):
+    user = find_user_by_email(db, req.email)
+    dev_code = None
     if user:
         user.password_reset_code = make_code() if smtp_configured() else TEST_EMAIL_CODE
+        dev_code = user.password_reset_code
         db.commit()
         hint_text = f"\nPassword hint question: {user.password_hint_question}" if user.password_hint_question else ""
-        send_account_email(req.email, "Zenthex password reset code", f"Reset code: {user.password_reset_code}{hint_text}")
-    return {"status": "success", "message": "If an account exists, reset instructions have been sent by email."}
+        send_account_email(user.email, "Zenthex password reset code", f"Reset code: {user.password_reset_code}{hint_text}")
+    response = {"status": "success", "message": "If an account exists, reset instructions have been sent by email."}
+    if dev_code and (is_local_request(request) or not smtp_configured() or os.getenv("ZENTHEX_ENABLE_DEV_OUTBOX", "false").lower() == "true"):
+        response["dev_code"] = dev_code
+    return response
 
 @router.post("/password/question")
 def get_password_hint_question(req: EmailRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == req.email).first()
-    if not user or not user.password_hint_question:
-        raise HTTPException(status_code=404, detail="No password hint question found.")
-    return {"status": "success", "password_hint_question": user.password_hint_question}
+    user = find_user_by_email(db, req.email)
+    if not user:
+        raise HTTPException(status_code=404, detail="No account found for this email.")
+    if not user.password_hint_question or not user.password_hint_answer_hash:
+        return {"status": "success", "password_hint_question": "기존 계정입니다. 이메일 인증 코드로 비밀번호를 재설정하세요.", "reset_without_hint": True}
+    return {"status": "success", "password_hint_question": user.password_hint_question, "reset_without_hint": False}
 
 @router.post("/password/hint")
 def check_password_hint(req: PasswordHintRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == req.email).first()
+    user = find_user_by_email(db, req.email)
     if (
         not user
         or not user.password_hint_question
@@ -281,12 +294,12 @@ def check_password_hint(req: PasswordHintRequest, db: Session = Depends(get_db))
         raise HTTPException(status_code=400, detail="Password hint does not match.")
     user.password_reset_code = make_code() if smtp_configured() else TEST_EMAIL_CODE
     db.commit()
-    send_account_email(req.email, "Zenthex password reset code", f"Reset code: {user.password_reset_code}")
+    send_account_email(user.email, "Zenthex password reset code", f"Reset code: {user.password_reset_code}")
     return {"status": "success", "message": "Hint verified. Reset code has been sent.", "dev_code": user.password_reset_code if not smtp_configured() else None}
 
 @router.post("/password/reset")
 def reset_password(req: PasswordResetRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == req.email).first()
+    user = find_user_by_email(db, req.email)
     if not user or not user.password_reset_code or user.password_reset_code != req.code:
         raise HTTPException(status_code=400, detail="Invalid reset code.")
     if len(req.new_password) < 6:

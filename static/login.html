@@ -8,7 +8,7 @@
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap');
     * { box-sizing: border-box; }
     body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; background:#050507; color:white; font-family:Inter,system-ui,sans-serif; padding:24px; }
-    .card { width:min(500px,100%); background:#111116; border:1px solid rgba(255,255,255,.12); border-radius:12px; padding:32px; box-shadow:0 30px 80px rgba(0,0,0,.45); }
+    .card { width:min(520px,100%); background:#111116; border:1px solid rgba(255,255,255,.12); border-radius:12px; padding:32px; box-shadow:0 30px 80px rgba(0,0,0,.45); }
     a { color:#a1a1aa; text-decoration:none; font-size:13px; font-weight:800; }
     h1 { margin:16px 0 6px; letter-spacing:4px; font-size:28px; }
     p { color:#a1a1aa; line-height:1.6; margin:0 0 22px; font-size:14px; }
@@ -33,7 +33,7 @@
   <div class="card">
     <a href="index.html">← 메인으로</a>
     <h1>ZENTHEX</h1>
-    <p>이메일 주소로 로그인합니다. 비밀번호를 잊은 경우 가입할 때 선택한 힌트 질문과 답변을 확인한 뒤 이메일 재설정 코드로 변경합니다.</p>
+    <p>이메일 주소로 로그인합니다. 비밀번호를 잊은 경우 힌트 질문 또는 이메일 재설정 코드로 새 비밀번호를 만들 수 있습니다.</p>
 
     <div class="tabs">
       <div class="tab active" onclick="switchTab('login')">로그인</div>
@@ -73,7 +73,7 @@
       </div>
       <label>휴대폰 인증코드</label>
       <div class="inline-actions">
-        <input id="signup-phone-code" placeholder="문자로 받은 6자리 코드" />
+        <input id="signup-phone-code" placeholder="테스트 코드 122492" />
         <button class="mini" onclick="verifyPhoneCode()">인증 확인</button>
       </div>
       <div id="phone-status" class="ok"></div>
@@ -99,11 +99,14 @@
       <label>비밀번호 힌트 질문</label>
       <input id="reset-hint-question" readonly placeholder="이메일 입력 후 질문을 불러오세요" />
       <button class="submit" onclick="loadHintQuestion()">힌트 질문 불러오기</button>
-      <label>힌트 답변</label>
-      <input id="reset-hint-answer" />
-      <button class="submit" onclick="checkHintAndSendCode()">힌트 확인 및 코드 받기</button>
+      <div id="hint-answer-box">
+        <label>힌트 답변</label>
+        <input id="reset-hint-answer" />
+        <button class="submit" onclick="checkHintAndSendCode()">힌트 확인 및 코드 받기</button>
+      </div>
+      <button id="direct-reset-btn" class="submit" style="display:none" onclick="requestResetCodeOnly()">이메일 코드 받기</button>
       <label>재설정 코드</label>
-      <input id="reset-code" />
+      <input id="reset-code" placeholder="테스트 코드 122492" />
       <label>새 비밀번호</label>
       <input type="password" id="reset-password" />
       <button class="submit" onclick="resetPassword()">비밀번호 변경</button>
@@ -114,6 +117,7 @@
 
   <script>
     let phoneVerified = false;
+    let resetWithoutHint = false;
 
     function switchTab(tab){
       document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
@@ -134,6 +138,10 @@
       if(typeof data.detail==='string') return data.detail;
       if(Array.isArray(data.detail)) return data.detail.map(item=>item.msg||JSON.stringify(item)).join(' / ');
       return data.message||fallback;
+    }
+
+    function showCodeMessage(box, data, fallback){
+      box.innerText = data && data.dev_code ? `${data.message || fallback} 테스트 코드: ${data.dev_code}` : messageFrom(data, fallback);
     }
 
     async function doLogin(){
@@ -191,7 +199,7 @@
       const res=await fetch('/api/auth/phone/send-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone_number})});
       const data=await res.json().catch(()=>null);
       if(!res.ok){ box.innerText=messageFrom(data,'인증코드 발송에 실패했습니다.'); return; }
-      box.innerText=data.dev_code ? `개발용 인증코드: ${data.dev_code}` : '인증코드를 발송했습니다.';
+      showCodeMessage(box, data, '인증코드를 발송했습니다.');
     }
 
     async function verifyPhoneCode(){
@@ -209,6 +217,7 @@
     async function findId(){
       const email=document.getElementById('login-email').value.trim();
       const box=document.getElementById('login-ok');
+      if(!email){ box.innerText='이메일을 입력해주세요.'; return; }
       const res=await fetch('/api/auth/find-id',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
       const data=await res.json();
       box.innerText=data.message||data.detail;
@@ -216,6 +225,14 @@
 
     function requestReset(){
       document.getElementById('reset-email').value=document.getElementById('login-email').value.trim();
+      document.getElementById('reset-msg').innerText='';
+      document.getElementById('reset-hint-question').value='';
+      document.getElementById('reset-hint-answer').value='';
+      document.getElementById('reset-code').value='';
+      document.getElementById('reset-password').value='';
+      resetWithoutHint=false;
+      document.getElementById('hint-answer-box').style.display='block';
+      document.getElementById('direct-reset-btn').style.display='none';
       switchTab('reset');
     }
 
@@ -228,10 +245,23 @@
       const data=await res.json().catch(()=>null);
       if(!res.ok){ box.innerText=messageFrom(data,'힌트 질문을 찾을 수 없습니다.'); return; }
       document.getElementById('reset-hint-question').value=data.password_hint_question;
-      box.innerText='힌트 질문을 불러왔습니다. 답변을 입력해주세요.';
+      resetWithoutHint=!!data.reset_without_hint;
+      document.getElementById('hint-answer-box').style.display=resetWithoutHint?'none':'block';
+      document.getElementById('direct-reset-btn').style.display=resetWithoutHint?'block':'none';
+      box.innerText=resetWithoutHint?'기존 계정입니다. 이메일 코드 받기를 눌러 재설정하세요.':'힌트 질문을 불러왔습니다. 답변을 입력해주세요.';
+    }
+
+    async function requestResetCodeOnly(){
+      const email=document.getElementById('reset-email').value.trim();
+      const box=document.getElementById('reset-msg');
+      if(!email){ box.innerText='이메일을 입력해주세요.'; return; }
+      const res=await fetch('/api/auth/password/request-reset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+      const data=await res.json().catch(()=>null);
+      showCodeMessage(box, data, res.ok?'재설정 코드를 발송했습니다.':'재설정 코드 발송 실패');
     }
 
     async function checkHintAndSendCode(){
+      if(resetWithoutHint){ await requestResetCodeOnly(); return; }
       const email=document.getElementById('reset-email').value.trim();
       const password_hint_question=document.getElementById('reset-hint-question').value;
       const password_hint_answer=document.getElementById('reset-hint-answer').value.trim();
@@ -242,17 +272,24 @@
       if(!password_hint_answer){ box.innerText='힌트 답변을 입력해주세요.'; return; }
       const res=await fetch('/api/auth/password/hint',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password_hint_question,password_hint_answer})});
       const data=await res.json().catch(()=>null);
-      box.innerText=messageFrom(data,res.ok?'재설정 코드를 발송했습니다.':'힌트 확인 실패');
+      showCodeMessage(box, data, res.ok?'재설정 코드를 발송했습니다.':'힌트 확인 실패');
     }
 
     async function resetPassword(){
       const email=document.getElementById('reset-email').value.trim();
       const code=document.getElementById('reset-code').value.trim();
       const new_password=document.getElementById('reset-password').value;
+      const box=document.getElementById('reset-msg');
+      if(!email){ box.innerText='이메일을 입력해주세요.'; return; }
+      if(!code){ box.innerText='재설정 코드를 입력해주세요.'; return; }
+      if(new_password.length<6){ box.innerText='새 비밀번호는 6자 이상이어야 합니다.'; return; }
       const res=await fetch('/api/auth/password/reset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,code,new_password})});
-      const data=await res.json();
-      document.getElementById('reset-msg').innerText=data.message||data.detail;
-      if(res.ok) setTimeout(()=>switchTab('login'),900);
+      const data=await res.json().catch(()=>null);
+      box.innerText=messageFrom(data,res.ok?'비밀번호가 변경되었습니다.':'비밀번호 변경 실패');
+      if(res.ok){
+        document.getElementById('login-email').value=email;
+        setTimeout(()=>switchTab('login'),900);
+      }
     }
   </script>
 </body>
