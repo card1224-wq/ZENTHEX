@@ -61,3 +61,19 @@ def ensure_sqlite_schema():
             )
         """))
         conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_subscriptions_user_id ON subscriptions (user_id)"))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS support_tickets (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER,
+                email VARCHAR,
+                category VARCHAR DEFAULT 'general',
+                title VARCHAR,
+                message VARCHAR,
+                status VARCHAR DEFAULT 'open',
+                admin_reply VARCHAR,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME
+            )
+        """))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_support_tickets_user_id ON support_tickets (user_id)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_support_tickets_email ON support_tickets (email)"))

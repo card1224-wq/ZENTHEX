@@ -16,8 +16,8 @@
     <header class="p-6 rounded-xl bg-white/[.03] border border-white/10 mb-6 flex justify-between gap-4 flex-wrap items-center">
       <div>
         <p class="text-xs tracking-[.3em] text-red-400 font-black uppercase">Operations Workspace</p>
-        <h1 class="text-3xl font-black tracking-tight mt-2">Zenthex Control</h1>
-        <p class="text-gray-400 mt-2">운영, 가입자, 구독, 출시 전 검토, 긴급 정지를 관리합니다.</p>
+        <h1 class="text-3xl font-black tracking-tight mt-2">Zenthex CEO Dashboard</h1>
+        <p class="text-gray-400 mt-2">운영, 가입자, 구독, 고객 문의, 출시 전 검토, 긴급 정지를 관리합니다.</p>
       </div>
       <div id="system-status" class="px-4 py-2 rounded-lg bg-green-500/15 text-green-300 border border-green-500/40 font-black">SYSTEM ONLINE</div>
     </header>
@@ -37,7 +37,7 @@
         </div>
         <div class="grid grid-cols-1 md:grid-cols-[150px_1fr] gap-4 mb-4">
           <div class="p-5 rounded-xl bg-black/30 border border-white/10">
-            <p class="text-gray-500 text-xs font-black uppercase">검토 점수</p>
+            <p class="text-gray-500 text-xs font-black uppercase">검사 점수</p>
             <strong id="review-score" class="text-4xl mt-2 block">-</strong>
             <p id="review-ready" class="text-xs mt-2 text-gray-400">검사 대기</p>
           </div>
@@ -55,6 +55,14 @@
 
     <section class="p-6 rounded-xl bg-white/[.03] border border-white/10 mb-6">
       <div class="flex items-center justify-between gap-3 flex-wrap mb-4">
+        <h2 class="font-black text-xl">고객 문의</h2>
+        <button onclick="fetchSupportTickets()" class="px-4 py-2 rounded-lg bg-white/10 border border-white/10 text-sm font-bold">새로고침</button>
+      </div>
+      <div id="support-list" class="space-y-3 text-sm"></div>
+    </section>
+
+    <section class="p-6 rounded-xl bg-white/[.03] border border-white/10 mb-6">
+      <div class="flex items-center justify-between gap-3 flex-wrap mb-4">
         <h2 class="font-black text-xl">가입자 관리</h2>
         <button onclick="fetchUsers()" class="px-4 py-2 rounded-lg bg-white/10 border border-white/10 text-sm font-bold">새로고침</button>
       </div>
@@ -66,8 +74,8 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-300">
         <div class="p-4 bg-black/30 rounded-lg border border-white/10">Studio 사용량과 GPU Queue는 다음 단계에서 연결</div>
         <div class="p-4 bg-black/30 rounded-lg border border-white/10">Trading Signal Guard / 전략 검증 상태 감시</div>
-        <div class="p-4 bg-black/30 rounded-lg border border-white/10">운영 계정은 구독 체크 없이 전체 권한</div>
-        <div class="p-4 bg-black/30 rounded-lg border border-white/10">사용자는 체험 후 저장/실거래 시 구독 전환</div>
+        <div class="p-4 bg-black/30 rounded-lg border border-white/10">대표 계정은 구독 체크 없이 전체 권한</div>
+        <div class="p-4 bg-black/30 rounded-lg border border-white/10">사용자는 체험 후 필요한 서비스만 구독 전환</div>
       </div>
     </section>
   </div>
@@ -84,6 +92,9 @@
 
     function logout(){localStorage.removeItem('zx_token');localStorage.removeItem('zx_user');location.href='index.html'}
     function authHeaders(){return {'Content-Type':'application/json','Authorization':`Bearer ${token}`}}
+    function escapeHtml(value){
+      return String(value||'').replace(/[&<>"']/g,(ch)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    }
 
     async function fetchStatus(){
       try{
@@ -109,7 +120,7 @@
       try{
         const res=await fetch('/api/admin/review',{headers:authHeaders()});
         const data=await res.json();
-        if(!res.ok)throw new Error(data.detail||'검토 실패');
+        if(!res.ok)throw new Error(data.detail||'검사 실패');
         scoreEl.innerText=data.score+'점';
         readyEl.innerText=data.ready?'필수 항목 통과':'필수 항목 보완 필요';
         readyEl.className=data.ready?'text-xs mt-2 text-[#00ffcc]':'text-xs mt-2 text-amber-300';
@@ -117,9 +128,48 @@
           const pass=item.status==='pass';
           const color=pass?'border-emerald-500/30 bg-emerald-500/[.06] text-emerald-200':'border-amber-500/30 bg-amber-500/[.06] text-amber-200';
           const label=pass?'PASS':(item.level==='recommended'?'WARN':'FIX');
-          return `<div class="p-4 rounded-lg border ${color}"><div class="flex justify-between gap-3 mb-2"><strong>${item.title}</strong><span class="text-xs font-black">${label}</span></div><p class="text-xs leading-5 text-gray-300">${item.detail}</p></div>`;
+          return `<div class="p-4 rounded-lg border ${color}"><div class="flex justify-between gap-3 mb-2"><strong>${escapeHtml(item.title)}</strong><span class="text-xs font-black">${label}</span></div><p class="text-xs leading-5 text-gray-300">${escapeHtml(item.detail)}</p></div>`;
         }).join('');
       }catch(e){scoreEl.innerText='-';readyEl.innerText=e.message;readyEl.className='text-xs mt-2 text-red-300'}
+    }
+
+    async function fetchSupportTickets(){
+      const box=document.getElementById('support-list');
+      box.innerHTML='<div class="text-gray-500">문의 내역을 불러오는 중...</div>';
+      try{
+        const res=await fetch('/api/support/admin/tickets',{headers:authHeaders()});
+        const data=await res.json();
+        if(!res.ok)throw new Error(data.detail||'문의 조회 실패');
+        if(!data.tickets.length){box.innerHTML='<div class="text-gray-500">접수된 문의가 없습니다.</div>';return;}
+        box.innerHTML=data.tickets.map(row=>`<div class="p-4 rounded-lg bg-black/30 border border-white/10">
+          <div class="grid grid-cols-1 lg:grid-cols-[1fr_160px] gap-3">
+            <div>
+              <strong class="block text-white">#${row.id} ${escapeHtml(row.title)}</strong>
+              <span class="text-xs text-gray-400">${escapeHtml(row.email)} / ${escapeHtml(row.category)} / ${escapeHtml(row.created_at||'')}</span>
+              <p class="mt-3 text-gray-300 leading-6 whitespace-pre-wrap">${escapeHtml(row.message)}</p>
+            </div>
+            <div>
+              <select id="ticket-status-${row.id}" class="w-full bg-black border border-white/10 rounded-lg p-2 mb-2">
+                <option value="open" ${row.status==='open'?'selected':''}>접수</option>
+                <option value="reviewing" ${row.status==='reviewing'?'selected':''}>확인 중</option>
+                <option value="answered" ${row.status==='answered'?'selected':''}>답변 완료</option>
+                <option value="closed" ${row.status==='closed'?'selected':''}>종료</option>
+              </select>
+              <textarea id="ticket-reply-${row.id}" class="w-full min-h-[90px] bg-black border border-white/10 rounded-lg p-2 text-sm" placeholder="대표 메모 또는 답변">${escapeHtml(row.admin_reply||'')}</textarea>
+              <button onclick="updateTicket(${row.id})" class="mt-2 w-full px-3 py-2 rounded-lg bg-[#00ffcc] text-black font-black">처리 저장</button>
+            </div>
+          </div>
+        </div>`).join('');
+      }catch(e){box.innerHTML=`<div class="text-red-300">${escapeHtml(e.message)}</div>`}
+    }
+
+    async function updateTicket(id){
+      const status=document.getElementById(`ticket-status-${id}`).value;
+      const admin_reply=document.getElementById(`ticket-reply-${id}`).value;
+      const res=await fetch(`/api/support/admin/tickets/${id}`,{method:'PATCH',headers:authHeaders(),body:JSON.stringify({status,admin_reply})});
+      const data=await res.json().catch(()=>null);
+      if(!res.ok){alert((data&&data.detail)||'문의 처리 저장 실패');return;}
+      fetchSupportTickets();
     }
 
     async function fetchUsers(){
@@ -130,8 +180,8 @@
         const data=await res.json();
         if(!res.ok)throw new Error(data.detail||'가입자 조회 실패');
         if(!data.users.length){box.innerHTML='<div class="text-gray-500">가입자가 없습니다.</div>';return;}
-        box.innerHTML=data.users.map(row=>`<div class="p-4 rounded-lg bg-black/30 border border-white/10 grid grid-cols-1 lg:grid-cols-[1fr_150px_150px_auto] gap-3 items-center"><div><strong class="block text-white">${row.email}</strong><span class="text-xs text-gray-400">${row.full_name||'-'} / 이메일 ${row.email_verified?'인증':'미인증'} / 휴대폰 ${row.phone_verified?'인증':'미인증'}</span></div><select onchange="changePlan(${row.id},this.value)" class="bg-black border border-white/10 rounded-lg p-2"><option value="free" ${row.plan==='free'?'selected':''}>free</option><option value="studio_pro" ${row.plan==='studio_pro'?'selected':''}>studio_pro</option><option value="trading_pro" ${row.plan==='trading_pro'?'selected':''}>trading_pro</option><option value="ultimate" ${row.plan==='ultimate'?'selected':''}>ultimate</option></select><select onchange="changeRole(${row.id},this.value)" class="bg-black border border-white/10 rounded-lg p-2"><option value="user" ${row.role==='user'?'selected':''}>user</option><option value="admin" ${row.role==='admin'?'selected':''}>admin</option><option value="owner" ${row.role==='owner'?'selected':''}>owner</option></select><button onclick="deleteUser(${row.id},'${row.email}')" class="px-4 py-2 rounded-lg bg-red-600 text-white font-black">삭제</button></div>`).join('');
-      }catch(e){box.innerHTML=`<div class="text-red-300">${e.message}</div>`}
+        box.innerHTML=data.users.map(row=>`<div class="p-4 rounded-lg bg-black/30 border border-white/10 grid grid-cols-1 lg:grid-cols-[1fr_150px_150px_auto] gap-3 items-center"><div><strong class="block text-white">${escapeHtml(row.email)}</strong><span class="text-xs text-gray-400">${escapeHtml(row.full_name||'-')} / 이메일 ${row.email_verified?'인증':'미인증'} / 휴대폰 ${row.phone_verified?'인증':'미인증'}</span></div><select onchange="changePlan(${row.id},this.value)" class="bg-black border border-white/10 rounded-lg p-2"><option value="free" ${row.plan==='free'?'selected':''}>free</option><option value="studio_pro" ${row.plan==='studio_pro'?'selected':''}>studio_pro</option><option value="trading_pro" ${row.plan==='trading_pro'?'selected':''}>trading_pro</option><option value="ultimate" ${row.plan==='ultimate'?'selected':''}>ultimate</option></select><select onchange="changeRole(${row.id},this.value)" class="bg-black border border-white/10 rounded-lg p-2"><option value="user" ${row.role==='user'?'selected':''}>user</option><option value="admin" ${row.role==='admin'?'selected':''}>admin</option><option value="owner" ${row.role==='owner'?'selected':''}>owner</option></select><button onclick="deleteUser(${row.id},'${escapeHtml(row.email)}')" class="px-4 py-2 rounded-lg bg-red-600 text-white font-black">삭제</button></div>`).join('');
+      }catch(e){box.innerHTML=`<div class="text-red-300">${escapeHtml(e.message)}</div>`}
     }
 
     async function changePlan(id,plan){await fetch(`/api/admin/users/${id}`,{method:'PATCH',headers:authHeaders(),body:JSON.stringify({plan})});fetchStatus();fetchUsers()}
@@ -166,6 +216,7 @@
 
     fetchStatus();
     fetchReview();
+    fetchSupportTickets();
     fetchUsers();
     setInterval(fetchStatus,5000);
   </script>

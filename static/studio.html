@@ -38,6 +38,7 @@
         .account-chip.full { color: #99f6e4; border-color: rgba(0,230,195,.35); background: rgba(0,230,195,.08); }
         .account-chip.trial { color: #fcd34d; border-color: rgba(252,211,77,.28); background: rgba(252,211,77,.06); }
         .download-link { display: inline-flex; margin-top: 10px; color: #050507; background: #00e6c3; border-radius: 8px; padding: 9px 12px; font-weight: 900; text-decoration: none; }
+        .export-button { display: inline-flex; margin-top: 10px; margin-left: 8px; color: #050507; background: #fff; border-radius: 8px; padding: 9px 12px; font-weight: 900; border: 0; }
         
         .loading-overlay {
             position: absolute; inset: 0; background: rgba(9, 9, 11, 0.95);
@@ -308,6 +309,16 @@
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         container.appendChild(renderer.domElement);
+        window.zxDownloadJpg = () => {
+            if (!zxCanExport()) {
+                alert('JPG 저장은 Studio Pro 또는 Ultimate 구독 후 사용할 수 있습니다.');
+                return;
+            }
+            const link = document.createElement('a');
+            link.download = `zenthex-studio-${Date.now()}.jpg`;
+            link.href = renderer.domElement.toDataURL('image/jpeg', 0.92);
+            link.click();
+        };
 
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
@@ -426,7 +437,8 @@
                     scene.add(currentModel);
                     
                     loader.classList.remove('active');
-                    const lockedMsg = result.preview_only ? '<br><span class="text-amber-300">체험 미리보기는 보기 전용입니다. 다운로드는 구독 후 제공됩니다.</span>' : '<br><span class="text-[#00ffcc]">구독 권한으로 다운로드가 가능합니다.</span>';
+                    const exportLinks = result.model_url ? `<br><a class="download-link" href="${result.model_url}" download>GLB 다운로드</a><button class="export-button" onclick="window.zxDownloadJpg()">JPG 저장</button><br><span class="text-gray-400">GLB는 3D 모델 파일, JPG는 현재 화면 이미지입니다.</span>` : '';
+                    const lockedMsg = result.preview_only ? '<br><span class="text-amber-300">체험 미리보기는 보기 전용입니다. 다운로드는 구독 후 제공됩니다.</span>' : `<br><span class="text-[#00ffcc]">구독 권한으로 GLB와 JPG 저장이 가능합니다.</span>${exportLinks}`;
                     document.getElementById('status-box').innerHTML = `3D 생성이 완료되었습니다.<br><span class="text-white">마우스로 공간을 둘러보세요.</span>${lockedMsg}`;
                     
                     // Fly-in Camera Animation
@@ -489,7 +501,8 @@
                     scene.add(currentModel);
                     
                     loader.classList.remove('active');
-                    const lockedMsg = result.preview_only ? '<br><span class="text-amber-300">체험 미리보기는 보기 전용입니다. 다운로드는 구독 후 제공됩니다.</span>' : '<br><span class="text-[#00ffcc]">구독 권한으로 다운로드가 가능합니다.</span>';
+                    const exportLinks = result.model_url ? `<br><a class="download-link" href="${result.model_url}" download>GLB 다운로드</a><button class="export-button" onclick="window.zxDownloadJpg()">JPG 저장</button><br><span class="text-gray-400">GLB는 3D 모델 파일, JPG는 현재 화면 이미지입니다.</span>` : '';
+                    const lockedMsg = result.preview_only ? '<br><span class="text-amber-300">체험 미리보기는 보기 전용입니다. 다운로드는 구독 후 제공됩니다.</span>' : `<br><span class="text-[#00ffcc]">구독 권한으로 GLB와 JPG 저장이 가능합니다.</span>${exportLinks}`;
                     document.getElementById('status-box').innerHTML = `<span class="text-purple-400">프롬프트 기반 3D 생성이 완료되었습니다.<br>공간을 둘러보세요.</span>${lockedMsg}`;
                     
                     camera.position.set(60, 50, 60);

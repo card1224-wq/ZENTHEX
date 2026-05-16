@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 import asyncio
 import os
+import urllib.request
 import pyupbit
 
 from auth.router import get_current_user
@@ -40,6 +41,14 @@ def user_can_real_trade(user) -> bool:
 @router.get("/server-ip")
 async def server_ip():
     public_ip = (os.getenv("ZENTHEX_SERVER_PUBLIC_IP") or "").strip()
+    source = "env"
+    if not public_ip:
+        try:
+            with urllib.request.urlopen("https://api.ipify.org", timeout=4) as response:
+                public_ip = response.read().decode("utf-8").strip()
+                source = "auto_detected"
+        except Exception:
+            public_ip = ""
     if not public_ip:
         return {
             "status": "missing",
@@ -49,6 +58,7 @@ async def server_ip():
     return {
         "status": "success",
         "server_ip": public_ip,
+        "source": source,
         "message": "이 IP를 Upbit Open API 허용 IP에 등록하세요.",
     }
 

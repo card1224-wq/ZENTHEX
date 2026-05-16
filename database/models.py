@@ -55,3 +55,17 @@ class Subscription(Base):
     cancel_at_period_end = Column(Boolean, default=False)
     last_payment_status = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class SupportTicket(Base):
+    __tablename__ = "support_tickets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=True, index=True)
+    email = Column(String, index=True)
+    category = Column(String, default="general")
+    title = Column(String)
+    message = Column(String)
+    status = Column(String, default="open")
+    admin_reply = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=True)

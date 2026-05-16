@@ -6,9 +6,11 @@ This checklist is the master review gate before uploading or publishing Zenthex.
 
 - Homepage shows one clear Zenthex brand experience, not a split demo screen.
 - Homepage hero must always introduce Zenthex as a public brand, not change into "Zenthex Control" for the owner.
+- Homepage must show visual Studio/Trading preview panels so the first screen is not text-only.
 - Logged-in homepage navigation must show My Page, Customer Center, and Logout instead of only Login.
 - Owner homepage actions must open Studio workspace, Trading engine, CEO dashboard, and My Page instead of trial-only actions.
 - Customer Center must exist for account, subscription, Studio, Trading, and Upbit key guidance.
+- Customer Center must include an inquiry form, store tickets in the database, and allow the owner to manage ticket status/replies in the CEO dashboard.
 - No public page contains "demo" copy for the production-facing flow.
 - Login and signup pages do not expose owner email or owner account guidance.
 - Owner email is controlled by `ZENTHEX_OWNER_EMAILS`, with `7foliath@naver.com` kept as the built-in owner fallback.
@@ -23,6 +25,7 @@ This checklist is the master review gate before uploading or publishing Zenthex.
 - Studio trial/free users receive view-only previews without model download URLs.
 - Studio should not fail with "Invalid token" when a stale browser token exists; it should retry as trial or ask for login depending on the action.
 - Studio owner and Studio Pro/Ultimate users must see full-access wording, no trial-only wording, and GLB download access when the backend returns a model URL.
+- Studio owner and Studio Pro/Ultimate users should also be able to save the current preview as JPG.
 - Trading Pro must not unlock Studio export. Studio Pro must not unlock real trading.
 - Studio must show the Zenthex mark, not old HL/Habilab branding.
 - Trading trial does not show API key inputs.
@@ -39,6 +42,7 @@ This checklist is the master review gate before uploading or publishing Zenthex.
 - Real trading scanner must not freeze the API while it scans the market.
 - Real trading may sell only the quantity bought by the current Zenthex engine run unless the user explicitly opts into rotating existing holdings.
 - Owner dashboard includes subscriber management: list users, change plan/role, and delete duplicate or withdrawn accounts.
+- Owner dashboard includes customer inquiry management: list tickets, update status, and save replies or internal notes.
 - Mock payment cannot unlock paid plans unless explicitly enabled.
 - Database migrations include the latest auth, phone, billing, and usage columns.
 - Production data must be separated from GitHub uploads with a persistent database before paid users join.

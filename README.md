@@ -17,6 +17,7 @@ Zenthex is an AI SaaS platform with Zenthex Studio and Zenthex Trading.
 - Protected dev outbox and mock payment controls for safer public uploads
 - Owner launch review system in the CEO dashboard
 - Owner subscriber management: view accounts, change plan/role, and delete duplicate accounts
+- Customer inquiry system: users can submit support tickets and the owner can manage status/replies in the CEO dashboard
 - Owner account receives Ultimate access without payment, but still needs email code verification
 
 Login tokens are signed so new logins continue to work after a server restart or redeploy. If an older browser token is still present from a previous build, Studio clears it and retries as a one-day trial instead of blocking the prompt flow with an invalid-token error. Real trading still requires a fresh valid login because it can place real orders.
@@ -57,6 +58,10 @@ Detailed review criteria are in `PROJECT_REVIEW.md`.
 
 The full representative master plan is in `ZENTHEX_MASTER_PLAN.md`.
 
+## Customer Center
+
+The Customer Center is not only an information page. Users can submit account, billing, Studio, Trading, Upbit, or general inquiries through `/customer.html`. Logged-in users can also view their own recent tickets. The owner can review incoming tickets, change status, and leave an internal reply from `/admin.html`.
+
 ## Trading Direction
 
 Current production test target is Upbit because KRW markets and all listed coin scanning are already wired into the experience. Binance should be added as the next connector with the same safety structure:
@@ -66,7 +71,9 @@ Current production test target is Upbit because KRW markets and all listed coin 
 - Required safety: order-only API key, withdrawal permission disabled, risk agreement, owner kill switch
 - First Binance scope: spot trading only, small order tests, no futures until risk controls are proven
 
-Upbit real-trading keys require asset lookup and order permissions, and the public IP address of the running Zenthex FastAPI server must be registered on the Upbit Open API key. GitHub Pages is not the trading server; it only serves static files. If authentication fails, the UI returns a more specific diagnostic for likely IP, permission, Access Key, or Secret Key problems. The Trading screen shows the configured Zenthex server IP from `ZENTHEX_SERVER_PUBLIC_IP`, includes "업비트 키 진단하기" for troubleshooting, and includes "업비트 키 인증하기" for the live-trading gate. Secret Key is hidden by default, with a temporary view button for paste checks. The backend re-checks the key again when the real engine starts.
+Upbit real-trading keys require asset lookup and order permissions, and the public IP address of the running Zenthex FastAPI server must be registered on the Upbit Open API key. GitHub Pages is not the trading server; it only serves static files. If authentication fails, the UI returns a more specific diagnostic for likely IP, permission, Access Key, or Secret Key problems. The Trading screen shows the configured Zenthex server IP from `ZENTHEX_SERVER_PUBLIC_IP`, or auto-detects the FastAPI server outbound IP through `api.ipify.org` when the environment value is empty. It includes "업비트 키 진단하기" for troubleshooting and "업비트 키 인증하기" for the live-trading gate. Secret Key is hidden by default, with a temporary view button for paste checks. The backend re-checks the key again when the real engine starts.
+
+Studio exports use two formats: GLB is the real 3D model file for 3D viewers/tools, while JPG is a flat image of the current preview screen. Owner, Studio Pro, and Ultimate users can use both export paths.
 
 ## Signal Guard Formula
 

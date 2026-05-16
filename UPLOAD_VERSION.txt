@@ -1,4 +1,9 @@
-ZENTHEX_UPLOAD_VERSION=2026-05-16-0455
+ZENTHEX_UPLOAD_VERSION=2026-05-16-0550
+Customer: inquiry form added to Customer Center with account, billing, Studio, Trading, Upbit, and general categories
+Support: support_tickets database table and /api/support ticket APIs added
+Admin: CEO dashboard now includes customer inquiry list, status updates, and reply/internal note saving
+Review: launch review now checks customer inquiry flow and admin support management
+Docs: master plan rewritten cleanly and now includes customer inquiry operations
 Homepage: Zenthex brand mark, Studio one-day trial, Trading structure view
 Login: signup has name, birth date, phone, password confirm, password hint question
 Trading: trial hides API keys, real trading is visible only after owner/subscription permission
@@ -73,3 +78,7 @@ Trading: Secret Key remains hidden by default but now has a temporary view butto
 Trading: Zenthex server public IP notice, API endpoint, and copy button added for Upbit allowed IP setup
 Env: ZENTHEX_SERVER_PUBLIC_IP added so production can display the fixed FastAPI outbound IP
 Docs: master plan and review now clarify GitHub Pages is not the Upbit trading server
+Trading: server IP endpoint now auto-detects FastAPI outbound IP through api.ipify.org when env IP is empty
+Homepage: visual Studio preview and Trading signal panels added so the landing screen is not text-only
+Studio: JPG export button added for owner/Studio Pro/Ultimate alongside GLB download
+Docs: GLB versus JPG export purpose added to README and master plan
