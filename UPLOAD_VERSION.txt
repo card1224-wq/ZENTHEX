@@ -1,4 +1,4 @@
-ZENTHEX_UPLOAD_VERSION=2026-05-16-0135
+ZENTHEX_UPLOAD_VERSION=2026-05-16-0215
 Homepage: Zenthex brand mark, Studio one-day trial, Trading structure view
 Login: signup has name, birth date, phone, password confirm, password hint question
 Trading: trial hides API keys, real trading is visible only after owner/subscription permission
@@ -31,3 +31,18 @@ Fix: auth tokens are now signed so new logins survive server restarts and redepl
 Fix: Studio ignores stale invalid tokens for trial generation instead of failing the 3D request
 Fix: Studio retries once as anonymous trial when the browser has an old invalid token
 UI: Trading clears expired login state and asks for a fresh login before real trading
+Fix: Upbit real-key validation now checks balances through get_balances and returns clearer diagnostics
+UI: real trading key panel now explains allowed IP, asset/order permission, and Secret Key pitfalls
+Review: master checklist now includes Upbit key diagnostics for real trading launch
+Fix: Studio now refreshes account permission on entry and shows owner/subscriber full-access wording instead of trial-only copy
+Fix: Studio old HL mark removed and replaced with Zenthex mark
+Fix: Studio shows GLB download link when backend returns export permission
+Fix: Trading now shows owner/subscriber real-trade permission state and Zenthex mark in the header
+Review: launch checklist now verifies Studio/Trading inner-page access UI, not only homepage access
+Security: CEO operations now require the owner role, not a general admin/subscriber role
+Access: Studio Pro unlocks Studio export, Trading Pro unlocks Trading real mode, Ultimate unlocks both product areas
+Access: Trading Pro no longer carries Studio quota, and Free uses one-day trial access instead of account quota
+Review: master checklist now verifies owner/subscriber role separation and plan-specific product access
+Homepage: hero now always introduces Zenthex as the public brand, even for the owner account
+Homepage: removed owner-facing "Zenthex Control" hero state and restored clean Korean public copy
+Review: launch checklist now verifies homepage public copy and blocks the old control-style hero wording

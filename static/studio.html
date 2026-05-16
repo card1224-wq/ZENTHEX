@@ -29,6 +29,15 @@
         .hidden { display: none !important; }
         .glass-panel { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.1); }
         #viewer-container { width: 100%; height: 100%; position: relative; }
+        .zenthex-mark {
+            width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px;
+            border: 1px solid rgba(0,230,195,.35); background: rgba(0,230,195,.08);
+        }
+        .zenthex-mark svg { width: 24px; height: 24px; }
+        .account-chip { border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 7px 10px; font-size: 11px; font-weight: 800; color: #c7d2fe; }
+        .account-chip.full { color: #99f6e4; border-color: rgba(0,230,195,.35); background: rgba(0,230,195,.08); }
+        .account-chip.trial { color: #fcd34d; border-color: rgba(252,211,77,.28); background: rgba(252,211,77,.06); }
+        .download-link { display: inline-flex; margin-top: 10px; color: #050507; background: #00e6c3; border-radius: 8px; padding: 9px 12px; font-weight: 900; text-decoration: none; }
         
         .loading-overlay {
             position: absolute; inset: 0; background: rgba(9, 9, 11, 0.95);
@@ -75,18 +84,24 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></svg>
                 메인으로
             </a>
-            <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center font-bold">HL</div>
+            <div class="zenthex-mark" aria-hidden="true">
+                <svg viewBox="0 0 120 120">
+                    <path d="M60 8 104 33v54L60 112 16 87V33L60 8Z" fill="#10141d" stroke="#dbeafe" stroke-width="7"/>
+                    <path d="M31 38h44L45 82h44" fill="none" stroke="#00e6c3" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
             <span class="font-extrabold tracking-widest text-sm md:text-base uppercase truncate">Zenthex Studio <span class="text-xs text-indigo-400 ml-1">AI 3D ENGINE</span></span>
         </div>
-        <div class="hidden md:block px-4 py-1 rounded-full bg-purple-500/20 text-purple-300 text-[10px] font-bold border border-purple-500/30">
-            CLOUD AI WORKSPACE
+        <div class="flex items-center gap-2">
+            <span id="studio-access-chip" class="account-chip trial">권한 확인 중</span>
+            <a id="studio-account-link" href="account.html" class="text-xs font-bold text-gray-400 hover:text-white">구독/계정</a>
         </div>
     </nav>
 
     <main class="flex-grow grid grid-cols-1 lg:grid-cols-12 lg:overflow-hidden min-h-[calc(100vh-5rem)] lg:h-[calc(100vh-5rem)]">
         <!-- Left Sidebar -->
         <div class="col-span-1 lg:col-span-3 border-r border-white/5 p-5 md:p-8 flex flex-col gap-6 bg-[#0c0c0e]">
-            <div class="glass-panel p-4 rounded-xl border-indigo-500/30 text-indigo-200 text-xs font-bold leading-relaxed mb-4">Zenthex Studio는 프롬프트와 2D 도면을 3D 공간으로 변환하는 AI 제작 워크스페이스입니다. 무료 체험은 같은 IP 기준 하루 1회 제공되며, 이후에는 Studio Pro 또는 Ultimate 구독이 필요합니다.</div>
+            <div id="studio-access-note" class="glass-panel p-4 rounded-xl border-indigo-500/30 text-indigo-200 text-xs font-bold leading-relaxed mb-4">Zenthex Studio 권한을 확인하고 있습니다.</div>
 
             <!-- Upload flow -->
             <div>
@@ -131,9 +146,52 @@
     </main>
 
     <script>
+        let zxToken = localStorage.getItem("zx_token");
+        let zxUser = JSON.parse(localStorage.getItem("zx_user") || "null");
+        function zxCanExport() {
+            return zxUser && (zxUser.role === "owner" || ["studio_pro", "ultimate"].includes(zxUser.plan));
+        }
+        function zxIsSignedIn() {
+            return !!zxToken && !!zxUser;
+        }
+        function zxRenderAccessState() {
+            const chip = document.getElementById("studio-access-chip");
+            const note = document.getElementById("studio-access-note");
+            const watermark = document.getElementById("preview-watermark");
+            if (zxCanExport()) {
+                chip.className = "account-chip full";
+                chip.innerText = zxUser.role === "owner" ? "대표 전체 권한" : "Studio 구독 권한";
+                note.innerHTML = "Zenthex Studio 전체 권한입니다. 프롬프트와 2D 도면 생성 후 GLB 다운로드 권한이 열립니다.";
+                if (watermark) watermark.classList.add("hidden");
+                return;
+            }
+            chip.className = "account-chip trial";
+            chip.innerText = zxIsSignedIn() ? "구독 필요" : "1일 1회 체험";
+            note.innerHTML = zxIsSignedIn()
+                ? "현재 계정은 Studio 구독 권한이 없습니다. 생성 미리보기 후 다운로드는 Studio Pro 또는 Ultimate 구독이 필요합니다."
+                : "로그인 없이도 같은 IP 기준 하루 1회 Studio 체험이 가능합니다. 구독하면 다운로드와 작업 보관이 열립니다.";
+            if (watermark) watermark.classList.remove("hidden");
+        }
+        async function zxRefreshUser() {
+            zxToken = localStorage.getItem("zx_token");
+            if (!zxToken) { zxUser = null; zxRenderAccessState(); return; }
+            try {
+                const res = await fetch("/api/auth/me", { headers: { "Authorization": `Bearer ${zxToken}` } });
+                if (res.ok) {
+                    zxUser = await res.json();
+                    localStorage.setItem("zx_user", JSON.stringify(zxUser));
+                } else if (res.status === 401) {
+                    localStorage.removeItem("zx_token");
+                    localStorage.removeItem("zx_user");
+                    zxToken = null;
+                    zxUser = null;
+                }
+            } catch (_) {}
+            zxRenderAccessState();
+        }
         function zxAuthHeaders() {
-            const token = localStorage.getItem("zx_token");
-            return token ? { "Authorization": `Bearer ${token}` } : {};
+            zxToken = localStorage.getItem("zx_token");
+            return zxToken ? { "Authorization": `Bearer ${zxToken}` } : {};
         }
         async function zxStudioFetch(url, options) {
             const first = await fetch(url, { ...options, headers: { ...(options.headers || {}), ...zxAuthHeaders() } });
@@ -142,6 +200,9 @@
             if (!text.toLowerCase().includes("invalid token")) return first;
             localStorage.removeItem("zx_token");
             localStorage.removeItem("zx_user");
+            zxToken = null;
+            zxUser = null;
+            zxRenderAccessState();
             return fetch(url, { ...options, headers: options.headers || {} });
         }
         function zxShowStatus(html) {
@@ -157,9 +218,12 @@
                 preview = document.createElement('div');
                 preview.id = 'fallback-preview';
                 preview.className = 'fallback-preview';
-                preview.innerHTML = '<div><strong style="font-size:24px">Zenthex 3D Preview</strong><p style="margin-top:12px;color:#a1a1aa">모바일 미리보기 구성이 완료되었습니다.<br>구독 후 GLB 다운로드와 고급 렌더링이 제공됩니다.</p></div>';
+                preview.innerHTML = '<div><strong style="font-size:24px">Zenthex 3D Preview</strong><p id="fallback-preview-copy" style="margin-top:12px;color:#a1a1aa"></p></div>';
                 document.getElementById('viewer-container').appendChild(preview);
             }
+            document.getElementById("fallback-preview-copy").innerHTML = zxCanExport()
+                ? "전체 권한으로 생성 미리보기가 완료되었습니다.<br>다운로드 링크가 제공됩니다."
+                : "체험 미리보기가 완료되었습니다.<br>다운로드는 Studio Pro 또는 Ultimate 구독 후 제공됩니다.";
         }
         async function zxFallbackUpload(file) {
             const formData = new FormData();
@@ -167,8 +231,10 @@
             const response = await zxStudioFetch("/api/studio/upload", { method: "POST", body: formData });
             const result = await response.json();
             if (!response.ok || result.status !== "success") throw new Error(result.detail || result.message || "업로드 체험에 실패했습니다.");
+            await zxRefreshUser();
             zxShowFallbackPreview();
-            zxShowStatus(`3D 생성 요청이 완료되었습니다.<br><span style="color:#fcd34d">체험 미리보기는 보기 전용입니다. 다운로드는 구독 후 제공됩니다.</span>`);
+            const exportMsg = result.model_url ? `<br><a class="download-link" href="${result.model_url}" download>GLB 다운로드</a>` : `<br><span style="color:#fcd34d">체험 미리보기는 보기 전용입니다. 다운로드는 구독 후 제공됩니다.</span>`;
+            zxShowStatus(`3D 생성 요청이 완료되었습니다.${exportMsg}`);
         }
         async function zxFallbackGenerate() {
             const promptStr = document.getElementById('ai-prompt').value.trim();
@@ -178,10 +244,13 @@
             const response = await zxStudioFetch("/api/studio/generate", { method: "POST", body: formData });
             const result = await response.json();
             if (!response.ok || result.status !== "success") throw new Error(result.detail || result.message || "프롬프트 체험에 실패했습니다.");
+            await zxRefreshUser();
             zxShowFallbackPreview();
-            zxShowStatus(`프롬프트 기반 3D 생성 요청이 완료되었습니다.<br><span style="color:#fcd34d">체험 미리보기는 보기 전용입니다. 다운로드는 구독 후 제공됩니다.</span>`);
+            const exportMsg = result.model_url ? `<br><a class="download-link" href="${result.model_url}" download>GLB 다운로드</a>` : `<br><span style="color:#fcd34d">체험 미리보기는 보기 전용입니다. 다운로드는 구독 후 제공됩니다.</span>`;
+            zxShowStatus(`프롬프트 기반 3D 생성 요청이 완료되었습니다.${exportMsg}`);
         }
         document.addEventListener('DOMContentLoaded', () => {
+            zxRefreshUser();
             const dropZone = document.getElementById('drop-zone');
             const fileInput = document.getElementById('file-input');
             const generateBtn = document.getElementById('btn-generate');

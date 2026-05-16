@@ -26,8 +26,40 @@ class ManualTrade(BaseModel):
     type: str
     amount: float
 
+def clean_api_key(value: str) -> str:
+    return (value or "").strip().replace("\u200b", "").replace("\ufeff", "")
+
 def user_can_real_trade(user) -> bool:
-    return user.role in ["owner", "admin"] or user.plan in ["trading_pro", "ultimate"]
+    return user.role == "owner" or user.plan in ["trading_pro", "ultimate"]
+
+def explain_upbit_auth_error(raw_error) -> str:
+    text = str(raw_error or "")
+    lowered = text.lower()
+    if "out_of_scope" in lowered or "permission" in lowered:
+        return "API 키 권한이 부족합니다. 업비트 Open API에서 자산조회와 주문하기 권한을 켜야 합니다."
+    if "invalid_access_key" in lowered or "no_authorization" in lowered:
+        return "Access Key가 맞지 않거나 만료된 키입니다. 업비트에서 새 키를 발급해 다시 입력하세요."
+    if "jwt" in lowered or "signature" in lowered or "secret" in lowered:
+        return "Secret Key가 맞지 않거나 복사 중 공백/누락이 있습니다. Secret Key는 재확인이 불가하므로 새 키 발급이 가장 안전합니다."
+    if "ip" in lowered or "blocked" in lowered or "not allowed" in lowered:
+        return "허용 IP가 맞지 않습니다. 업비트 Open API 키에 Zenthex 서버의 공인 IP를 등록해야 합니다."
+    return "업비트 인증에 실패했습니다. 자산조회/주문 권한, 허용 IP, Access/Secret 복사 상태를 확인하세요."
+
+def check_upbit_key(access_key: str, secret_key: str):
+    upbit = pyupbit.Upbit(access_key, secret_key)
+    balances = upbit.get_balances()
+    if balances is None:
+        return None, None, "업비트가 잔고 정보를 반환하지 않았습니다. 대부분 허용 IP 불일치, 권한 부족, 키 복사 오류입니다."
+    if isinstance(balances, dict):
+        return None, balances, explain_upbit_auth_error(balances)
+    if not isinstance(balances, list):
+        return None, balances, explain_upbit_auth_error(balances)
+    krw_balance = 0.0
+    for row in balances:
+        if row.get("currency") == "KRW":
+            krw_balance = float(row.get("balance") or 0)
+            break
+    return upbit, krw_balance, None
 
 @router.post("/start")
 async def start_bot(config: StartConfig, Authorization: str = Header(None), db: Session = Depends(get_db)):
@@ -55,20 +87,25 @@ async def start_bot(config: StartConfig, Authorization: str = Header(None), db: 
             return {"status": "error", "message": "실거래는 Trading Pro 또는 Ultimate 구독 후 사용할 수 있습니다."}
         if not config.realAccepted:
             return {"status": "error", "message": "실거래 위험 확인 체크가 필요합니다."}
-        if not config.accessKey or not config.secretKey:
+        access_key = clean_api_key(config.accessKey)
+        secret_key = clean_api_key(config.secretKey)
+        if not access_key or not secret_key:
             return {"status": "error", "message": "업비트 Access Key와 Secret Key가 필요합니다."}
         try:
-            bot_state.upbit = pyupbit.Upbit(config.accessKey, config.secretKey)
-            real_krw = bot_state.upbit.get_balance("KRW")
-            if real_krw is None:
-                return {"status": "error", "message": "API 키 확인에 실패했습니다. 조회/주문 권한과 허용 IP를 확인하세요."}
+            upbit, real_krw, auth_error = check_upbit_key(access_key, secret_key)
+            if auth_error:
+                log_trade(f"[Real Auth Error] {auth_error}")
+                return {"status": "error", "message": auth_error}
+            bot_state.upbit = upbit
             bot_state.balance = float(real_krw or 0)
             bot_state.is_real_key = True
             log_trade("[Real Mode] 업비트 실거래 모드가 활성화되었습니다. 출금 권한 없는 API 키만 사용하세요.")
         except Exception as e:
             bot_state.trading_mode = "practice"
             bot_state.is_real_key = False
-            return {"status": "error", "message": f"API 키 인증 실패: {e}"}
+            message = explain_upbit_auth_error(e)
+            log_trade(f"[Real Auth Error] {message} / raw={e}")
+            return {"status": "error", "message": message}
     else:
         bot_state.balance = max(bot_state.balance, 1000000.0)
         log_trade("[Practice Mode] 전략 체험 모드로 시작합니다.")

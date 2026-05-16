@@ -21,6 +21,18 @@ Zenthex is an AI SaaS platform with Zenthex Studio and Zenthex Trading.
 
 Login tokens are signed so new logins continue to work after a server restart or redeploy. If an older browser token is still present from a previous build, Studio clears it and retries as a one-day trial instead of blocking the prompt flow with an invalid-token error. Real trading still requires a fresh valid login because it can place real orders.
 
+Studio and Trading refresh the current account on page load. Owner and paid users see full-access language inside the product screens according to their plan, while free or anonymous users see trial/subscription guidance. Old HL/Habilab branding is not used in the product header.
+
+The homepage hero stays as a public Zenthex brand introduction for every visitor, including the owner account. Owner operations are exposed through dashboard links and owner-only cards, not by replacing the main brand headline.
+
+Role separation:
+
+- Owner: can access CEO dashboard, subscriber management, launch review, emergency stop, Studio, and Trading without payment.
+- Studio Pro: can use Studio generation/export features only.
+- Trading Pro: can use Trading real-mode features only.
+- Ultimate: can use Studio and Trading, but not CEO operations.
+- Free or anonymous users: can access limited trial/structure views only.
+
 ## Account Verification
 
 Signup collects name, email, password confirmation, birth date, phone number, and password hint question/answer. Phone verification is required before a normal user can complete signup. If SMS provider keys are not configured, the test build uses the fixed verification code `122492` so testing is not blocked. A production SMS provider such as Naver Cloud SENS, Aligo, or Twilio should be connected before public launch.
@@ -39,6 +51,8 @@ Current production test target is Upbit because KRW markets and all listed coin 
 - Paid: real trading, API key registration, order execution
 - Required safety: order-only API key, withdrawal permission disabled, risk agreement, owner kill switch
 - First Binance scope: spot trading only, small order tests, no futures until risk controls are proven
+
+Upbit real-trading keys require asset lookup and order permissions, and the public IP address of the running Zenthex server must be registered on the Upbit Open API key. If authentication fails, the UI returns a more specific diagnostic for likely IP, permission, Access Key, or Secret Key problems.
 
 ## Signal Guard Formula
 

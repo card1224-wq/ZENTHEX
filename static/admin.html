@@ -77,7 +77,7 @@
     const user=JSON.parse(localStorage.getItem('zx_user')||'null');
     let isKillSwitchActive=false;
 
-    if(!token||!user||!['owner','admin'].includes(user.role)){
+    if(!token||!user||user.role!=='owner'){
       alert('운영 권한 로그인이 필요합니다.');
       location.href='login.html';
     }

@@ -46,7 +46,7 @@ def get_client_ip(request: Request) -> str:
     return "unknown"
 
 def charge_studio_trial_or_quota(user, db: Session, request: Request):
-    if not user:
+    if not user or not user_has_studio_access(user):
         today = time.strftime("%Y-%m-%d")
         client_ip = get_client_ip(request)
         if TRIAL_USAGE_BY_IP.get(client_ip) == today:
@@ -64,10 +64,13 @@ def charge_studio_trial_or_quota(user, db: Session, request: Request):
     user.studio_generations_left -= 1
     db.commit()
 
-def user_can_export(user) -> bool:
+def user_has_studio_access(user) -> bool:
     if not user:
         return False
     return user.role == "owner" or user.plan in ["studio_pro", "ultimate"]
+
+def user_can_export(user) -> bool:
+    return user_has_studio_access(user)
 
 def prompt_to_floorplan(prompt: str):
     img = np.ones((1000, 1500), dtype=np.uint8) * 255

@@ -23,9 +23,9 @@ class AdminState:
 admin_state = AdminState()
 
 
-def require_owner_or_admin(user: User):
-    if user.role not in ["owner", "admin"]:
-        raise HTTPException(status_code=403, detail="Owner or admin permission is required.")
+def require_owner(user: User):
+    if user.role != "owner":
+        raise HTTPException(status_code=403, detail="Owner permission is required.")
 
 
 def user_from_header(Authorization: str, db: Session):
@@ -52,7 +52,7 @@ def serialize_user(user: User):
 @router.get("/status")
 def get_system_status(Authorization: str = Header(None), db: Session = Depends(get_db)):
     user = user_from_header(Authorization, db)
-    require_owner_or_admin(user)
+    require_owner(user)
 
     total_users = db.query(User).count()
     paid_users = db.query(User).filter(User.plan != "free").count()
@@ -75,7 +75,7 @@ def get_system_status(Authorization: str = Header(None), db: Session = Depends(g
 @router.get("/users")
 def list_users(Authorization: str = Header(None), db: Session = Depends(get_db)):
     user = user_from_header(Authorization, db)
-    require_owner_or_admin(user)
+    require_owner(user)
     rows = db.query(User).order_by(User.id.desc()).all()
     return {"status": "success", "users": [serialize_user(row) for row in rows]}
 
@@ -83,7 +83,7 @@ def list_users(Authorization: str = Header(None), db: Session = Depends(get_db))
 @router.patch("/users/{user_id}")
 def update_user(user_id: int, req: UserUpdateRequest, Authorization: str = Header(None), db: Session = Depends(get_db)):
     admin_user = user_from_header(Authorization, db)
-    require_owner_or_admin(admin_user)
+    require_owner(admin_user)
 
     target = db.query(User).filter(User.id == user_id).first()
     if not target:
@@ -93,7 +93,7 @@ def update_user(user_id: int, req: UserUpdateRequest, Authorization: str = Heade
         raise HTTPException(status_code=400, detail="You cannot change your own admin role here.")
 
     if req.plan is not None:
-        plan_limits = {"free": 3, "studio_pro": 100, "trading_pro": 10, "ultimate": 1000}
+        plan_limits = {"free": 0, "studio_pro": 100, "trading_pro": 0, "ultimate": 1000}
         if req.plan not in plan_limits:
             raise HTTPException(status_code=400, detail="Unsupported plan.")
         target.plan = req.plan
@@ -115,7 +115,7 @@ def update_user(user_id: int, req: UserUpdateRequest, Authorization: str = Heade
 @router.delete("/users/{user_id}")
 def delete_user(user_id: int, Authorization: str = Header(None), db: Session = Depends(get_db)):
     admin_user = user_from_header(Authorization, db)
-    require_owner_or_admin(admin_user)
+    require_owner(admin_user)
 
     target = db.query(User).filter(User.id == user_id).first()
     if not target:
@@ -151,7 +151,7 @@ def _review_item(key: str, title: str, passed: bool, detail: str, level: str = "
 @router.get("/review")
 def get_launch_review(Authorization: str = Header(None), db: Session = Depends(get_db)):
     user = user_from_header(Authorization, db)
-    require_owner_or_admin(user)
+    require_owner(user)
 
     index_html = _read_text("static/index.html")
     login_html = _read_text("static/login.html")
@@ -161,6 +161,7 @@ def get_launch_review(Authorization: str = Header(None), db: Session = Depends(g
     auth_router = _read_text("auth/router.py")
     admin_router = _read_text("admin/router.py")
     studio_router = _read_text("studio/router.py")
+    trading_router = _read_text("trading/router.py")
     billing_router = _read_text("billing/router.py")
     models_py = _read_text("database/models.py")
     engine_py = _read_text("trading/engine.py")
@@ -174,6 +175,7 @@ def get_launch_review(Authorization: str = Header(None), db: Session = Depends(g
 
     checks = [
         _review_item("homepage_brand", "Homepage brand screen", "zenthex-mark.svg" in index_html and "studio.html" in index_html, "Brand mark and Studio entry are present."),
+        _review_item("homepage_copy", "Homepage public copy", all(text in index_html for text in ["Zenthex는 프롬프트와 2D 도면", "Studio 체험하기", "Trading 구조 보기", "Zenthex란?"]) and "Zenthex Control" not in index_html, "Homepage remains a public Zenthex brand introduction even when the owner is signed in."),
         _review_item("no_demo_copy", "Remove demo copy", "demo" not in (index_html + studio_html + finance_html).lower() and "\ub370\ubaa8" not in index_html + studio_html + finance_html, "Public-facing copy should not read as a demo build."),
         _review_item("owner_hidden", "Hide owner-account copy", "owner account" not in login_html.lower() and "\ub300\ud45c\uacc4\uc815" not in login_html and "7foliath" not in login_html, "Login/signup does not expose owner-account guidance."),
         _review_item("owner_env", "Owner email basis", "7foliath@naver.com" in owner_emails or "DEFAULT_OWNER_EMAILS" in auth_router, "Owner email is controlled by environment or fallback."),
@@ -181,12 +183,16 @@ def get_launch_review(Authorization: str = Header(None), db: Session = Depends(g
         _review_item("phone_verification", "Phone verification flow", all(text in auth_router + login_html for text in ["phone/send-code", "phone/verify", "122492"]), "Phone code send/verify flow is present."),
         _review_item("email_recovery", "Email and password recovery", all(text in auth_router + login_html for text in ["email/verify", "password/question", "password/request-reset", "password/reset"]), "Email verification, hint question, and password reset routes are present."),
         _review_item("studio_trial", "Studio trial limit", "TRIAL_USAGE_BY_IP" in studio_router and "preview_only" in studio_router and "model_url" in studio_router, "Trial is one-day/IP and free users receive view-only output."),
+        _review_item("studio_access_ui", "Studio owner/subscriber UI", all(text in studio_html for text in ["studio-access-chip", "zxCanExport", "대표 전체 권한", "GLB 다운로드"]) and "HL</div>" not in studio_html, "Studio refreshes account permission, removes the old HL mark, and shows export access for owner/subscribers."),
         _review_item("trading_gated", "Trading real-mode gate", all(text in finance_html for text in ["userCanSeeRealTrade", "real-key-box", "practice"]), "Trial hides API keys; owner/subscription is required for real trading."),
+        _review_item("trading_access_ui", "Trading owner/subscriber UI", all(text in finance_html for text in ["finance-access-chip", "대표 실거래 권한", "구독 실거래 권한", "zenthex-mark"]), "Trading refreshes account permission and opens real-mode UI for owner/subscribers."),
+        _review_item("role_separation", "Owner and subscriber separation", all(text in admin_router + admin_html + index_html + login_html for text in ["require_owner", "user.role==='owner'", "role==='owner'"]) and "['owner','admin'].includes" not in index_html + login_html + admin_html, "Only the owner account can access CEO operations screens."),
+        _review_item("plan_separation", "Plan-specific product access", all(text in studio_router + trading_router + billing_router for text in ["studio_pro", "trading_pro", "studio_limit\": 0", "user.role == \"owner\""]), "Studio Pro unlocks Studio, Trading Pro unlocks Trading, and owner unlocks all."),
         _review_item("trading_targets", "Trading target and capital options", all(text in finance_html for text in ["+10%", "+30%", "+50%", "all_krw"]), "Short scalping targets and high-risk targets are available."),
         _review_item("trading_engine_scan", "Trading scanner stability", "ohlcv[\"" not in engine_py and "hourly[\"high\"]" in engine_py, "Undefined scanner variable is not present."),
         _review_item("mock_payment_guard", "Mock payment guard", "ZENTHEX_ENABLE_MOCK_PAYMENT" in billing_router, "Mock payment cannot unlock paid plans unless explicitly enabled."),
         _review_item("db_columns", "Database columns", all(text in models_py for text in ["phone_verified", "password_hint_answer_hash", "email_verified", "studio_generations_left"]), "Latest auth, verification, and Studio usage columns are present."),
-        _review_item("user_management", "Subscriber management", all(text in admin_router + admin_html for text in ["/users", "deleteUser", "changePlan"]), "Admin can list users, change plans, and delete accounts."),
+        _review_item("user_management", "Subscriber management", all(text in admin_router + admin_html for text in ["/users", "deleteUser", "changePlan"]), "Owner can list users, change plans, and delete accounts."),
         _review_item("smtp_ready", "SMTP delivery configured", smtp_ready, "Real email delivery needs SMTP environment values.", "recommended"),
         _review_item("sms_ready", "SMS provider connected", sms_ready, "Production SMS provider should be connected before public launch.", "recommended"),
     ]
@@ -208,7 +214,7 @@ def get_launch_review(Authorization: str = Header(None), db: Session = Depends(g
 @router.post("/killswitch")
 def toggle_killswitch(action: dict, Authorization: str = Header(None), db: Session = Depends(get_db)):
     user = user_from_header(Authorization, db)
-    require_owner_or_admin(user)
+    require_owner(user)
     is_enabled = action.get("enabled", False)
     admin_state.global_kill_switch = is_enabled
     if is_enabled:

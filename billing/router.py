@@ -18,9 +18,9 @@ class CheckoutResponse(BaseModel):
     status: str
 
 PLANS = {
-    "free": {"name": "Free Trial", "price": 0, "studio_limit": 3, "features": ["무료 체험", "저장 제한"]},
+    "free": {"name": "Free Trial", "price": 0, "studio_limit": 0, "features": ["1일 1회 보기 전용 체험", "저장 제한"]},
     "studio_pro": {"name": "Studio Pro", "price": 49000, "studio_limit": 100, "features": ["3D 생성 100회", "GLB 다운로드", "작업 히스토리"]},
-    "trading_pro": {"name": "Trading Pro", "price": 99000, "studio_limit": 10, "features": ["전략 검증", "Signal Guard", "목표 수익률 자동 종료"]},
+    "trading_pro": {"name": "Trading Pro", "price": 99000, "studio_limit": 0, "features": ["전략 검증", "Signal Guard", "목표 수익률 자동 종료"]},
     "ultimate": {"name": "Zenthex Ultimate", "price": 149000, "studio_limit": 1000, "features": ["Studio + Trading", "우선 처리", "모바일 알림"]},
 }
 

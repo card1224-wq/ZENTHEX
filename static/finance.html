@@ -32,6 +32,12 @@
     .text-amber-300 { color: #fcd34d; }
     .text-gray-400, .text-gray-500 { color: #a1a1aa; }
     .font-black, strong { font-weight: 900; }
+    .brand-row { display:flex; align-items:center; gap:12px; }
+    .zenthex-mark { width:36px; height:36px; display:grid; place-items:center; border-radius:10px; border:1px solid rgba(0,255,204,.35); background:rgba(0,255,204,.08); }
+    .zenthex-mark svg { width:26px; height:26px; }
+    .access-chip { display:inline-flex; align-items:center; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.04); border-radius:999px; padding:7px 10px; font-size:11px; font-weight:900; color:#a1a1aa; }
+    .access-chip.full { color:#99f6e4; border-color:rgba(0,255,204,.38); background:rgba(0,255,204,.08); }
+    .access-chip.locked { color:#fcd34d; border-color:rgba(252,211,77,.30); background:rgba(252,211,77,.07); }
     @media (max-width: 900px) {
       body { padding: 16px; }
       body > div > div.grid, .md\:grid-cols-3, .md\:grid-cols-5 { grid-template-columns: 1fr; }
@@ -47,10 +53,20 @@
     </div>
     <header class="flex justify-between items-center mb-6 bg-white/[.03] border border-white/10 rounded-xl p-5 gap-4 flex-wrap">
       <div>
-        <p class="text-xs tracking-[.3em] text-[#00ffcc] font-black uppercase">Risk Managed Trading</p>
-        <h1 class="text-2xl font-black mt-1">Zenthex Trading <span class="text-[#00ffcc]">Signal Guard</span></h1>
+        <div class="brand-row">
+          <div class="zenthex-mark" aria-hidden="true">
+            <svg viewBox="0 0 120 120">
+              <path d="M60 8 104 33v54L60 112 16 87V33L60 8Z" fill="#10141d" stroke="#dbeafe" stroke-width="7"/>
+              <path d="M31 38h44L45 82h44" fill="none" stroke="#00ffcc" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div>
+            <p class="text-xs tracking-[.3em] text-[#00ffcc] font-black uppercase">Risk Managed Trading</p>
+            <h1 class="text-2xl font-black mt-1">Zenthex Trading <span class="text-[#00ffcc]">Signal Guard</span></h1>
+          </div>
+        </div>
       </div>
-      <div class="text-sm font-bold">상태 <span id="status-indicator" class="text-red-400 ml-2">IDLE</span></div>
+      <div class="text-sm font-bold flex items-center gap-2 flex-wrap"><span id="finance-access-chip" class="access-chip locked">권한 확인 중</span>상태 <span id="status-indicator" class="text-red-400 ml-2">IDLE</span></div>
     </header>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -71,7 +87,7 @@
               <span class="font-black text-white">Binance</span>
               <span class="text-amber-300 font-bold">다음 실거래 연결 대상</span>
             </div>
-            <p class="text-gray-400">체험판은 API 키를 받지 않고 자동매매 구조를 설명합니다. 실거래는 로그인·구독·위험동의 후에만 표시되며, 대표 계정은 구독 없이 접근할 수 있습니다.</p>
+            <p id="finance-access-note" class="text-gray-400">권한을 확인하고 있습니다.</p>
           </div>
         </div>
 
@@ -99,6 +115,10 @@
             <label class="text-xs text-gray-400 font-bold">Upbit Secret Key</label>
             <input id="secret-key" type="password" class="w-full mt-2 mb-3 bg-black border border-white/10 rounded-lg p-3" autocomplete="off" />
             <label class="flex gap-2 text-xs text-gray-300 leading-5"><input id="real-accepted" type="checkbox" class="mt-1" /> 출금 권한이 없는 API 키이며, 손실 가능성과 실주문 실행을 이해했습니다.</label>
+            <div class="mt-3 p-3 rounded-lg bg-black/30 border border-white/10 text-xs text-gray-300 leading-5">
+              <strong class="text-white">키가 정상인데 실패하면</strong><br>
+              업비트 Open API 키에 이 서버의 공인 IP가 허용되어 있어야 합니다. 권한은 자산조회와 주문하기가 필요하고, 출금 권한은 켜지 마세요. Secret Key는 발급 직후 한 번만 보이므로 틀렸다면 새 키 발급이 가장 안전합니다.
+            </div>
           </div>
 
           <div id="binance-planned-box" class="hidden mb-4 p-4 rounded-xl border border-amber-500/30 bg-amber-500/[.06]">
@@ -154,8 +174,8 @@ let token=localStorage.getItem('zx_token');
 let user=JSON.parse(localStorage.getItem('zx_user')||'null');
 function goBackHome(){location.href='index.html'}
 async function refreshCurrentUser(){token=localStorage.getItem('zx_token');if(!token)return;try{const res=await fetch('/api/auth/me',{headers:{'Authorization':`Bearer ${token}`}});if(res.ok){user=await res.json();localStorage.setItem('zx_user',JSON.stringify(user));return}if(res.status===401){localStorage.removeItem('zx_token');localStorage.removeItem('zx_user');token=null;user=null;alert('로그인 시간이 만료되었습니다. 다시 로그인 후 실거래를 시작해주세요.')}}catch(e){console.error(e)}}
-function userCanSeeRealTrade(){if(!token||!user)return false;if(['owner','admin'].includes(user.role))return true;return ['trading_pro','ultimate'].includes(user.plan)}
-function setupTradingModes(){const previous=tradingModeEl.value||'practice';const loginBox=document.getElementById('login-required-box');const action=document.getElementById('login-required-action');tradingModeEl.innerHTML='<option value="practice" selected>전략 체험 모드</option>';if(userCanSeeRealTrade()){tradingModeEl.insertAdjacentHTML('beforeend','<option value="real">업비트 실거래 모드</option><option value="binance_planned">바이낸스 실거래 모드 준비중</option>');loginBox.classList.add('hidden');tradingModeEl.value=['real','binance_planned'].includes(previous)?previous:'practice'}else{loginBox.classList.remove('hidden');loginBox.querySelector('p').innerText=token?'실거래 모드는 Trading Pro 또는 Ultimate 구독 후 표시됩니다.':'실거래 모드는 로그인 후 Trading Pro 또는 Ultimate 구독 상태에서만 표시됩니다.';action.innerText=token?'구독 정보 확인하기':'로그인하고 실거래 보기';action.onclick=()=>{location.href=token?'account.html':'login.html'};tradingModeEl.value='practice'}}
+function userCanSeeRealTrade(){if(!token||!user)return false;if(user.role==='owner')return true;return ['trading_pro','ultimate'].includes(user.plan)}
+function setupTradingModes(){const previous=tradingModeEl.value||'practice';const loginBox=document.getElementById('login-required-box');const action=document.getElementById('login-required-action');const chip=document.getElementById('finance-access-chip');const note=document.getElementById('finance-access-note');tradingModeEl.innerHTML='<option value="practice">전략 체험 모드</option>';if(userCanSeeRealTrade()){tradingModeEl.insertAdjacentHTML('beforeend','<option value="real">업비트 실거래 모드</option><option value="binance_planned">바이낸스 실거래 모드 준비중</option>');loginBox.classList.add('hidden');tradingModeEl.value=['practice','real','binance_planned'].includes(previous)?previous:'real';if(previous==='practice'||!previous)tradingModeEl.value='real';chip.className='access-chip full';chip.innerText=user&&user.role==='owner'?'대표 실거래 권한':'구독 실거래 권한';note.innerText='실거래 권한이 확인되었습니다. 업비트 API 키와 위험 동의 후 실거래 엔진을 시작할 수 있습니다.'}else{loginBox.classList.remove('hidden');loginBox.querySelector('p').innerText=token?'실거래 모드는 Trading Pro 또는 Ultimate 구독 후 표시됩니다.':'실거래 모드는 로그인 후 Trading Pro 또는 Ultimate 구독 상태에서만 표시됩니다.';action.innerText=token?'구독 정보 확인하기':'로그인하고 실거래 보기';action.onclick=()=>{location.href=token?'account.html':'login.html'};tradingModeEl.value='practice';chip.className='access-chip locked';chip.innerText=token?'구독 필요':'구조 체험';note.innerText='체험 화면에서는 API 키를 받지 않고 구조만 확인합니다. 실거래는 로그인과 Trading Pro 또는 Ultimate 권한이 필요합니다.'}toggleTradingMode()}
 function toggleInvestmentInput(){document.getElementById('all-input-box').classList.toggle('hidden',modeEl.value!=='all_krw');document.getElementById('fixed-input-box').classList.toggle('hidden',modeEl.value!=='fixed');document.getElementById('ratio-input-box').classList.toggle('hidden',modeEl.value!=='ratio')}
 function toggleTickerMode(){document.getElementById('manual-ticker-box').classList.toggle('hidden',tickerModeEl.value!=='manual')}
 function toggleTradingMode(){const canReal=userCanSeeRealTrade();const isReal=tradingModeEl.value==='real'&&canReal;document.getElementById('real-key-box').classList.toggle('hidden',!isReal);document.getElementById('binance-planned-box').classList.toggle('hidden',tradingModeEl.value!=='binance_planned');btnToggle.disabled=tradingModeEl.value==='binance_planned';btnToggle.innerText=isReal?'업비트 실거래 시작':tradingModeEl.value==='binance_planned'?'바이낸스 연결 준비중':'전략 체험 시작';btnToggle.style.opacity=tradingModeEl.value==='binance_planned'?'.55':'1'}

@@ -23,10 +23,8 @@
     .hero-mark img { width:min(72vw,760px); height:auto; filter:drop-shadow(0 40px 90px rgba(0,230,195,.10)); }
     .hero-content { position:relative; z-index:2; width:min(840px, calc(100% - 32px)); padding:74px 0; }
     .eyebrow { display:inline-flex; color:#d7defe; border:1px solid rgba(145,167,255,.28); background:rgba(145,167,255,.08); padding:8px 11px; border-radius:999px; font-size:11px; font-weight:900; letter-spacing:1.4px; text-transform:uppercase; }
-    .eyebrow.owner { color:#ffe1a1; border-color:rgba(246,198,106,.40); background:rgba(246,198,106,.08); }
-    .eyebrow.paid { color:#b7fff2; border-color:rgba(0,230,195,.40); background:rgba(0,230,195,.08); }
     h1 { margin:22px 0 18px; font-size:72px; line-height:.92; letter-spacing:0; }
-    .lead { color:#d4d4d8; line-height:1.75; font-size:18px; margin:0 auto 26px; max-width:700px; }
+    .lead { color:#d4d4d8; line-height:1.75; font-size:18px; margin:0 auto 26px; max-width:720px; }
     .actions { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:28px; justify-content:center; }
     .cta { min-height:46px; display:inline-flex; align-items:center; justify-content:center; padding:0 18px; border-radius:8px; text-decoration:none; font-size:14px; font-weight:900; border:0; cursor:pointer; }
     .cta.main { background:white; color:#050507; }
@@ -38,7 +36,7 @@
     .trust span, .price-card p, .member-card span { color:var(--muted); font-size:12px; line-height:1.5; margin:0; }
     .member-card.owner { border-color:rgba(246,198,106,.45); background:rgba(246,198,106,.065); }
     .member-card.paid { border-color:rgba(0,230,195,.38); background:rgba(0,230,195,.055); }
-    .price-card .price { color:var(--mint); font-size:17px; font-weight:900; margin:7px 0 7px; }
+    .price-card .price { color:var(--mint); font-size:17px; font-weight:900; margin:7px 0; }
     .products { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:28px; }
     .product { border:1px solid var(--line); background:rgba(255,255,255,.035); border-radius:10px; padding:20px; }
     .product .kicker { color:#cbd5e1; font-size:11px; font-weight:900; letter-spacing:1.4px; text-transform:uppercase; }
@@ -90,16 +88,16 @@
       <div class="hero-content">
         <span id="hero-eyebrow" class="eyebrow">AI Studio + Signal Guard SaaS</span>
         <h1 id="hero-title">Zenthex</h1>
-        <p id="hero-lead" class="lead">AI 3D 제작과 자동매매 전략 검증을 하나의 계정, 하나의 구독, 하나의 운영 시스템으로 제공하는 SaaS 플랫폼입니다.</p>
+        <p id="hero-lead" class="lead">Zenthex는 프롬프트와 2D 도면을 3D 공간으로 변환하는 AI 스튜디오와, 사용자 설정 기반 자동매매 엔진을 제공하는 구독형 SaaS 플랫폼입니다.</p>
         <div id="hero-actions" class="actions">
-          <a class="cta main" href="studio.html?trial=1">Studio 1회 체험</a>
+          <a class="cta main" href="studio.html?trial=1">Studio 체험하기</a>
           <a class="cta trade" href="finance.html?trial=1">Trading 구조 보기</a>
-          <button class="cta sub" onclick="openModal('platform-modal')">플랫폼 설명</button>
+          <button class="cta sub" onclick="openModal('platform-modal')">Zenthex란?</button>
         </div>
         <div id="status-grid" class="trust">
-          <div><strong>체험 보호</strong><span>Studio는 하루 1회 보기 전용 체험 후 구독 전환</span></div>
-          <div><strong>실거래 잠금</strong><span>Trading API 키는 로그인과 구독 권한 뒤에서만 표시</span></div>
-          <div><strong>운영 통제</strong><span>대표 대시보드, 사용량, 결제내역, 긴급 정지 구조</span></div>
+          <div><strong>Studio 체험</strong><span>비로그인도 하루 1회 보기 전용 체험 후 구독을 선택할 수 있습니다.</span></div>
+          <div><strong>Trading 보호</strong><span>체험 화면에서는 API 키를 받지 않고, 실거래는 구독 권한 뒤에만 열립니다.</span></div>
+          <div><strong>SaaS 운영</strong><span>계정, 구독, 결제내역, 영수증과 운영 검토를 한 흐름으로 관리합니다.</span></div>
         </div>
       </div>
     </section>
@@ -108,15 +106,15 @@
       <article class="product">
         <span class="kicker">Zenthex Studio</span>
         <h3>프롬프트와 도면을 3D로</h3>
-        <p>문장 또는 2D 도면을 기반으로 3D 공간을 미리보고, 구독 후 GLB 다운로드와 저장 기능을 제공합니다.</p>
-        <div class="chips"><span>프롬프트 → 3D</span><span>2D 도면 분석</span><span>보기 전용 체험</span></div>
+        <p>문장 또는 2D 도면을 기반으로 3D 공간을 미리보고, Studio Pro 또는 Ultimate 구독 후 GLB 다운로드와 작업 보관을 사용할 수 있습니다.</p>
+        <div class="chips"><span>Prompt to 3D</span><span>2D 도면 분석</span><span>GLB 다운로드</span></div>
         <a class="cta main" href="studio.html?trial=1">Studio 열기</a>
       </article>
       <article class="product">
         <span class="kicker">Zenthex Trading</span>
-        <h3>강한 신호 구조를 확인</h3>
-        <p>24시간 강한 후보를 거르고 1분·3분·5분 단타 신호를 점수화합니다. 실거래는 구독 권한 후에만 열립니다.</p>
-        <div class="chips"><span>Signal Guard</span><span>API 키 보호</span><span>Upbit 우선</span><span>Binance 확장</span></div>
+        <h3>자동매매 구조를 먼저 확인</h3>
+        <p>업비트 KRW 마켓의 강한 후보를 필터링하고 단기 신호를 점수화합니다. 실제 주문은 Trading Pro 또는 Ultimate 권한과 위험 동의 후에만 실행됩니다.</p>
+        <div class="chips"><span>Signal Guard</span><span>Upbit 우선</span><span>API 키 보호</span><span>Binance 확장 예정</span></div>
         <a class="cta trade" href="finance.html?trial=1">Trading 열기</a>
       </article>
     </section>
@@ -128,17 +126,17 @@
       <article class="price-card"><strong>Zenthex Ultimate</strong><div class="price">월 149,000원</div><p>Studio + Trading 통합 권한, 우선 처리, 모바일 알림</p></article>
     </section>
 
-    <p class="policy">Zenthex Trading은 자동매매 보조 도구이며 투자 자문 또는 수익 보장 서비스가 아닙니다. 모든 투자 판단과 손익 책임은 사용자 본인에게 있습니다.</p>
+    <p class="policy">Zenthex Trading은 자동매매 도구이며 투자 자문 또는 수익 보장 서비스가 아닙니다. 모든 투자 판단과 손익 책임은 사용자 본인에게 있습니다.</p>
   </main>
 
   <div class="modal" id="platform-modal">
     <div class="modal-card">
-      <div class="modal-head"><h2>Zenthex 플랫폼</h2><button class="close" onclick="closeModal('platform-modal')">X</button></div>
-      <p>Zenthex는 Studio와 Trading을 하나의 SaaS 계정 안에서 체험, 구독, 사용량, 결제, 운영까지 관리하는 플랫폼입니다.</p>
+      <div class="modal-head"><h2>Zenthex란?</h2><button class="close" onclick="closeModal('platform-modal')">X</button></div>
+      <p>Zenthex는 AI 3D 제작과 자동매매 실행 구조를 하나의 웹 계정, 구독, 모바일 대응 흐름으로 제공하는 SaaS 플랫폼입니다.</p>
       <ul>
         <li>Studio 체험은 보기 전용이며 다운로드는 구독 후 제공됩니다.</li>
-        <li>Trading 체험판에는 API 키 입력이 노출되지 않습니다.</li>
-        <li>실거래는 로그인, 구독 권한, 위험 동의 뒤에서만 실행됩니다.</li>
+        <li>Trading 체험은 구조 확인용이며 API 키 입력을 요구하지 않습니다.</li>
+        <li>실거래는 로그인, 구독 권한, 위험 동의, API 키 확인 후에만 실행됩니다.</li>
       </ul>
     </div>
   </div>
@@ -152,17 +150,22 @@
     const authBtn = document.getElementById('nav-auth-btn');
     const ownerLink = document.getElementById('owner-link');
     const accountLink = document.getElementById('account-link');
-    const heroEyebrow = document.getElementById('hero-eyebrow');
-    const heroTitle = document.getElementById('hero-title');
-    const heroLead = document.getElementById('hero-lead');
     const heroActions = document.getElementById('hero-actions');
     const statusGrid = document.getElementById('status-grid');
 
     function isPaid(u){ return u && ['studio_pro','trading_pro','ultimate'].includes(u.plan); }
-    function isOwner(u){ return u && ['owner','admin'].includes(u.role); }
+    function isOwner(u){ return u && u.role === 'owner'; }
+
+    function baseActions(){
+      return '<a class="cta main" href="studio.html?trial=1">Studio 체험하기</a><a class="cta trade" href="finance.html?trial=1">Trading 구조 보기</a><button class="cta sub" onclick="openModal(\\'platform-modal\\')">Zenthex란?</button>';
+    }
 
     function renderHome(u){
-      if(!u) return;
+      if(!u){
+        heroActions.innerHTML = baseActions();
+        return;
+      }
+
       accountLink.style.display='inline-flex';
       authBtn.innerText='로그아웃';
       authBtn.href='#';
@@ -170,31 +173,20 @@
 
       if(isOwner(u)){
         ownerLink.style.display='inline-flex';
-        heroEyebrow.innerText='Operations Workspace';
-        heroEyebrow.className='eyebrow owner';
-        heroTitle.innerText='Zenthex Control';
-        heroLead.innerText='Zenthex 운영 워크스페이스입니다. Studio, Trading, 시스템 검토, 운영 제어 기능으로 바로 이동할 수 있습니다.';
-        heroActions.innerHTML='<a class="cta main" href="admin.html">CEO 대시보드</a><a class="cta trade" href="studio.html">Studio 작업실</a><a class="cta sub" href="finance.html">Trading 엔진</a><a class="cta sub" href="account.html">계정 확인</a>';
+        heroActions.innerHTML='<a class="cta main" href="studio.html">Studio 작업실</a><a class="cta trade" href="finance.html">Trading 엔진</a><a class="cta sub" href="admin.html">CEO 대시보드</a><a class="cta sub" href="account.html">계정 확인</a>';
         statusGrid.className='member-grid';
-        statusGrid.innerHTML='<div class="member-card owner"><strong>운영 권한</strong><span>Studio, Trading, 관리자 기능에 접근할 수 있습니다.</span></div><div class="member-card owner"><strong>시스템 검토</strong><span>기능, 보안, 구독 상태를 점검합니다.</span></div><div class="member-card owner"><strong>운영 제어</strong><span>사용량, 결제내역, 긴급 정지 구조를 관리합니다.</span></div>';
+        statusGrid.innerHTML='<div class="member-card owner"><strong>대표 운영 권한</strong><span>Studio, Trading, 가입자 관리와 출시 전 검토에 접근할 수 있습니다.</span></div><div class="member-card owner"><strong>시스템 검토</strong><span>권한, 구독, 실거래 안전장치와 운영 상태를 점검합니다.</span></div><div class="member-card owner"><strong>긴급 제어</strong><span>필요 시 Trading 전체 정지와 사용자 관리를 수행합니다.</span></div>';
         return;
       }
 
       if(isPaid(u)){
-        heroEyebrow.innerText='Zenthex Workspace';
-        heroEyebrow.className='eyebrow paid';
-        heroTitle.innerText='Zenthex Workspace';
-        heroLead.innerText='작업을 이어갈 수 있는 Zenthex 워크스페이스입니다. 플랜 권한에 따라 Studio 다운로드와 Trading 실거래 기능이 열립니다.';
-        heroActions.innerHTML='<a class="cta main" href="studio.html">Studio 작업실</a><a class="cta trade" href="finance.html">Trading 엔진</a><a class="cta sub" href="account.html">구독/영수증</a>';
+        heroActions.innerHTML='<a class="cta main" href="studio.html">Studio 열기</a><a class="cta trade" href="finance.html">Trading 열기</a><a class="cta sub" href="account.html">구독/영수증</a>';
         statusGrid.className='member-grid';
-        statusGrid.innerHTML=`<div class="member-card paid"><strong>현재 플랜</strong><span>${u.plan}</span></div><div class="member-card paid"><strong>Studio 작업</strong><span>생성, 미리보기, 다운로드 권한을 확인합니다.</span></div><div class="member-card paid"><strong>Trading 작업</strong><span>전략 확인과 실거래 권한을 확인합니다.</span></div>`;
+        statusGrid.innerHTML=`<div class="member-card paid"><strong>현재 플랜</strong><span>${u.plan}</span></div><div class="member-card paid"><strong>Studio 권한</strong><span>Studio Pro 또는 Ultimate에서 다운로드가 열립니다.</span></div><div class="member-card paid"><strong>Trading 권한</strong><span>Trading Pro 또는 Ultimate에서 실거래가 열립니다.</span></div>`;
         return;
       }
 
-      heroEyebrow.innerText='Free Account';
-      heroTitle.innerText='Zenthex Trial';
-      heroLead.innerText='무료 계정입니다. Studio 1일 1회 보기 전용 체험과 Trading 구조 확인 후 필요한 플랜을 구독할 수 있습니다.';
-      heroActions.innerHTML='<a class="cta main" href="studio.html?trial=1">Studio 체험</a><a class="cta trade" href="finance.html?trial=1">Trading 구조 보기</a><a class="cta sub" href="account.html">구독하기</a>';
+      heroActions.innerHTML='<a class="cta main" href="studio.html?trial=1">Studio 체험하기</a><a class="cta trade" href="finance.html?trial=1">Trading 구조 보기</a><a class="cta sub" href="account.html">구독하기</a>';
     }
 
     async function refreshUser(){
