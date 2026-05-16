@@ -65,18 +65,17 @@ def check_upbit_key(access_key: str, secret_key: str):
             break
     return upbit, krw_balance, None
 
-@router.post("/check-key")
-async def check_key(config: UpbitKeyCheck, Authorization: str = Header(None), db: Session = Depends(get_db)):
+def run_upbit_key_validation(config: UpbitKeyCheck, Authorization: str, db: Session, purpose: str):
     if not Authorization:
-        return {"status": "error", "message": "키 진단은 로그인 후 사용할 수 있습니다."}
+        return {"status": "error", "message": f"키 {purpose}은 로그인 후 사용할 수 있습니다.", "verified": False}
     user = get_current_user(Authorization.replace("Bearer ", ""), db)
     if not user_can_real_trade(user):
-        return {"status": "error", "message": "키 진단과 실거래는 Trading Pro 또는 Ultimate 구독 권한이 필요합니다."}
+        return {"status": "error", "message": f"키 {purpose}과 실거래는 Trading Pro 또는 Ultimate 구독 권한이 필요합니다.", "verified": False}
 
     access_key = clean_api_key(config.accessKey)
     secret_key = clean_api_key(config.secretKey)
     if not access_key or not secret_key:
-        return {"status": "error", "message": "업비트 Access Key와 Secret Key를 모두 입력해야 합니다."}
+        return {"status": "error", "message": "업비트 Access Key와 Secret Key를 모두 입력해야 합니다.", "verified": False}
 
     try:
         _, krw_balance, auth_error = check_upbit_key(access_key, secret_key)
@@ -84,6 +83,7 @@ async def check_key(config: UpbitKeyCheck, Authorization: str = Header(None), db
             return {
                 "status": "error",
                 "message": auth_error,
+                "verified": False,
                 "checklist": [
                     "업비트 Open API 권한에서 자산조회와 주문하기가 켜져 있는지 확인",
                     "출금 권한은 꺼져 있어야 함",
@@ -93,12 +93,14 @@ async def check_key(config: UpbitKeyCheck, Authorization: str = Header(None), db
             }
         return {
             "status": "success",
-            "message": f"업비트 키 확인 성공. 조회 가능한 KRW 잔고는 약 {float(krw_balance or 0):,.0f}원입니다.",
+            "message": f"업비트 키 {purpose} 성공. 조회 가능한 KRW 잔고는 약 {float(krw_balance or 0):,.0f}원입니다. 이제 실거래 시작을 누를 수 있습니다.",
+            "verified": True,
         }
     except Exception as e:
         return {
             "status": "error",
             "message": explain_upbit_auth_error(e),
+            "verified": False,
             "checklist": [
                 "Access Key가 새로 발급한 키와 같은지 확인",
                 "Secret Key 앞뒤 공백과 줄바꿈이 없는지 확인",
@@ -106,6 +108,14 @@ async def check_key(config: UpbitKeyCheck, Authorization: str = Header(None), db
                 "자산조회/주문하기 권한 확인",
             ],
         }
+
+@router.post("/check-key")
+async def check_key(config: UpbitKeyCheck, Authorization: str = Header(None), db: Session = Depends(get_db)):
+    return run_upbit_key_validation(config, Authorization, db, "진단")
+
+@router.post("/verify-key")
+async def verify_key(config: UpbitKeyCheck, Authorization: str = Header(None), db: Session = Depends(get_db)):
+    return run_upbit_key_validation(config, Authorization, db, "인증")
 
 @router.post("/start")
 async def start_bot(config: StartConfig, Authorization: str = Header(None), db: Session = Depends(get_db)):

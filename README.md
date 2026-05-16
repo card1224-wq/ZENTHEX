@@ -64,7 +64,7 @@ Current production test target is Upbit because KRW markets and all listed coin 
 - Required safety: order-only API key, withdrawal permission disabled, risk agreement, owner kill switch
 - First Binance scope: spot trading only, small order tests, no futures until risk controls are proven
 
-Upbit real-trading keys require asset lookup and order permissions, and the public IP address of the running Zenthex server must be registered on the Upbit Open API key. If authentication fails, the UI returns a more specific diagnostic for likely IP, permission, Access Key, or Secret Key problems. The Trading screen also includes an "업비트 키 진단하기" button so the key can be checked before starting the real engine.
+Upbit real-trading keys require asset lookup and order permissions, and the public IP address of the running Zenthex server must be registered on the Upbit Open API key. If authentication fails, the UI returns a more specific diagnostic for likely IP, permission, Access Key, or Secret Key problems. The Trading screen includes "업비트 키 진단하기" for troubleshooting and "업비트 키 인증하기" for the live-trading gate. The backend re-checks the key again when the real engine starts.
 
 ## Signal Guard Formula
 

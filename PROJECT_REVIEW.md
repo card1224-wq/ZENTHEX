@@ -24,6 +24,8 @@ This checklist is the master review gate before uploading or publishing Zenthex.
 - Studio must show the Zenthex mark, not old HL/Habilab branding.
 - Trading trial does not show API key inputs.
 - Real trading is shown only to owner or Trading Pro/Ultimate users.
+- Real trading must show an Upbit key verification button, not only a diagnostic button.
+- Real trading start should require key verification and then re-check the key on the backend before placing live orders.
 - Trading owner and Trading Pro/Ultimate users must land on the real-trade permission view, not a trial-only view.
 - Real trading key check must explain likely Upbit failures: allowed IP mismatch, missing asset/order permission, wrong Access Key, wrong Secret Key.
 - Trading includes short scalping targets and high-risk target options: +10%, +30%, +50%.

@@ -1,4 +1,4 @@
-ZENTHEX_UPLOAD_VERSION=2026-05-16-0345
+ZENTHEX_UPLOAD_VERSION=2026-05-16-0410
 Homepage: Zenthex brand mark, Studio one-day trial, Trading structure view
 Login: signup has name, birth date, phone, password confirm, password hint question
 Trading: trial hides API keys, real trading is visible only after owner/subscription permission
@@ -63,3 +63,6 @@ Docs: PRODUCTION_DATABASE.md added to explain why GitHub updates must not own us
 Docs: ZENTHEX_MASTER_PLAN.md added as the current integrated CEO master plan
 Review: CEO launch review now checks operating cost review and the master plan document
 Review: PROJECT_REVIEW now includes persistent DB, auto-renewal, and operating cost gates
+Trading: Upbit key verification button added beside diagnostics before real trading
+Trading: real engine start now requires a verified key fingerprint in the UI and still re-checks on the backend
+Review: launch checklist now verifies the Upbit key authentication step
