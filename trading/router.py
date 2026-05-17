@@ -16,6 +16,9 @@ class StartConfig(BaseModel):
     accessKey: str = ""
     secretKey: str = ""
     targetYield: float
+    exitMode: str = "fixed"
+    trailingStartYield: float = 1.005
+    trailingDropPct: float = 0.004
     investmentMode: str = "all_krw"
     investmentAmount: float = 50000.0
     investmentRatio: float = 0.5
@@ -92,6 +95,68 @@ def check_upbit_key(access_key: str, secret_key: str):
             break
     return upbit, krw_balance, None
 
+def build_upbit_account_summary(upbit):
+    balances = upbit.get_balances()
+    if balances is None or isinstance(balances, dict) or not isinstance(balances, list):
+        return None, explain_upbit_auth_error(balances)
+
+    cash_balance = 0.0
+    coin_value = 0.0
+    invested_value = 0.0
+    positions = []
+    for row in balances:
+        currency = row.get("currency")
+        qty = float(row.get("balance") or 0)
+        locked = float(row.get("locked") or 0)
+        total_qty = qty + locked
+        if currency == "KRW":
+            cash_balance = qty
+            continue
+        if not currency or total_qty <= 0:
+            continue
+        ticker = f"KRW-{currency}"
+        price = pyupbit.get_current_price(ticker) or 0
+        if not price:
+            continue
+        avg_price = float(row.get("avg_buy_price") or 0)
+        valuation = total_qty * float(price)
+        if valuation < 1:
+            continue
+        entry_value = avg_price * total_qty if avg_price else 0
+        pnl = valuation - entry_value if entry_value else 0
+        pnl_pct = pnl / entry_value if entry_value else 0
+        invested_value += entry_value
+        coin_value += valuation
+        positions.append({
+            "ticker": ticker,
+            "qty": total_qty,
+            "availableQty": qty,
+            "lockedQty": locked,
+            "avgBuyPrice": avg_price,
+            "entryKrw": entry_value,
+            "currentPrice": float(price),
+            "valuation": valuation,
+            "pnl": pnl,
+            "pnlPct": pnl_pct,
+            "targetPrice": 0,
+            "stopPrice": 0,
+            "status": "UPBIT HOLDING",
+        })
+
+    positions.sort(key=lambda item: item["valuation"], reverse=True)
+    est_balance = cash_balance + coin_value
+    total_pnl = coin_value - invested_value if invested_value else 0
+    total_pnl_pct = total_pnl / invested_value if invested_value else 0
+    return {
+        "cashBalance": cash_balance,
+        "coinValue": coin_value,
+        "estBalance": est_balance,
+        "investedValue": invested_value,
+        "totalPnl": total_pnl,
+        "totalPnlPct": total_pnl_pct,
+        "positions": positions,
+    }, None
+
 def run_upbit_key_validation(config: UpbitKeyCheck, Authorization: str, db: Session, purpose: str):
     if not Authorization:
         return {"status": "error", "message": f"키 {purpose}은 로그인 후 사용할 수 있습니다.", "verified": False}
@@ -144,12 +209,38 @@ async def check_key(config: UpbitKeyCheck, Authorization: str = Header(None), db
 async def verify_key(config: UpbitKeyCheck, Authorization: str = Header(None), db: Session = Depends(get_db)):
     return run_upbit_key_validation(config, Authorization, db, "인증")
 
+@router.post("/account-summary")
+async def account_summary(config: UpbitKeyCheck, Authorization: str = Header(None), db: Session = Depends(get_db)):
+    if not Authorization:
+        return {"status": "error", "message": "업비트 잔고 조회는 로그인 후 사용할 수 있습니다."}
+    user = get_current_user(Authorization.replace("Bearer ", ""), db)
+    if not user_can_real_trade(user):
+        return {"status": "error", "message": "업비트 잔고 조회는 Trading Pro 또는 Ultimate 구독 권한이 필요합니다."}
+
+    access_key = clean_api_key(config.accessKey)
+    secret_key = clean_api_key(config.secretKey)
+    if not access_key or not secret_key:
+        return {"status": "error", "message": "업비트 Access Key와 Secret Key를 모두 입력해야 합니다."}
+
+    try:
+        upbit = pyupbit.Upbit(access_key, secret_key)
+        summary, error = await asyncio.to_thread(build_upbit_account_summary, upbit)
+        if error:
+            return {"status": "error", "message": error}
+        return {"status": "success", "message": "업비트 잔고와 수익률을 불러왔습니다.", **summary}
+    except Exception as e:
+        return {"status": "error", "message": explain_upbit_auth_error(e)}
+
 @router.post("/start")
 async def start_bot(config: StartConfig, Authorization: str = Header(None), db: Session = Depends(get_db)):
     if bot_state.state not in [TradingState.STOPPED, TradingState.ERROR]:
         return {"status": "error", "message": "Bot is already running"}
 
     bot_state.target_yield = config.targetYield
+    bot_state.exit_mode = config.exitMode if config.exitMode in ["fixed", "trailing"] else "fixed"
+    bot_state.trailing_start_yield = max(config.trailingStartYield, 1.001)
+    bot_state.trailing_drop_pct = min(max(config.trailingDropPct, 0.001), 0.05)
+    bot_state.peak_yield = 1.0
     bot_state.investment_mode = config.investmentMode if config.investmentMode in ["all_krw", "fixed", "ratio", "rotate_holdings"] else "all_krw"
     bot_state.investment_amount = config.investmentAmount
     bot_state.investment_ratio = config.investmentRatio
@@ -159,6 +250,7 @@ async def start_bot(config: StartConfig, Authorization: str = Header(None), db: 
     bot_state.consecutive_loss_count = 0
     bot_state.held_btc = 0
     bot_state.avg_buy_price = 0
+    bot_state.entry_krw = 0
     bot_state.upbit = None
     bot_state.is_real_key = False
     bot_state.last_order_uuid = ""
@@ -221,19 +313,70 @@ async def manual_trade(trade: ManualTrade):
         log_trade("[Manual Trade] 주문 조건이 맞지 않습니다.")
     return {"status": "success"}
 
+def require_real_status_permission(Authorization: str | None, db: Session):
+    if bot_state.trading_mode != "real" and not bot_state.is_real_key:
+        return None
+    if not Authorization:
+        raise HTTPException(status_code=401, detail="실거래 상태 조회는 로그인이 필요합니다.")
+    user = get_current_user(Authorization.replace("Bearer ", ""), db)
+    if not user_can_real_trade(user):
+        raise HTTPException(status_code=403, detail="실거래 상태 조회는 Trading Pro 또는 Ultimate 권한이 필요합니다.")
+    return user
+
 @router.post("/stop")
-async def stop_bot():
+async def stop_bot(Authorization: str = Header(None), db: Session = Depends(get_db)):
+    require_real_status_permission(Authorization, db)
     bot_state.state = TradingState.STOPPED
     log_trade("[User Stop] 사용자 요청으로 엔진을 중지합니다.")
     return {"status": "success", "message": "Bot Engine Stopped"}
 
 @router.get("/status")
-async def status():
+async def status(Authorization: str = Header(None), db: Session = Depends(get_db)):
+    require_real_status_permission(Authorization, db)
     current_price = pyupbit.get_current_price(bot_state.active_ticker) or 80000000
-    est_balance = bot_state.balance + (bot_state.held_btc * current_price if bot_state.held_btc > 0 else 0)
+    coin_value = bot_state.held_btc * current_price if bot_state.held_btc > 0 else 0
+    est_balance = bot_state.balance + coin_value
     current_yield = ((current_price / bot_state.avg_buy_price) - 1.0) if bot_state.avg_buy_price else 0
     target_price = bot_state.avg_buy_price * bot_state.target_yield if bot_state.avg_buy_price else 0
     stop_price = bot_state.avg_buy_price * bot_state.stop_loss_yield if bot_state.avg_buy_price else 0
+    initial_balance = bot_state.initial_daily_balance or bot_state.balance or 0
+    total_pnl = est_balance - initial_balance if initial_balance else 0
+    total_pnl_pct = (total_pnl / initial_balance) if initial_balance else 0
+    position_pnl = coin_value - bot_state.entry_krw if bot_state.entry_krw and coin_value else 0
+    position_pnl_pct = (position_pnl / bot_state.entry_krw) if bot_state.entry_krw else current_yield
+    positions = []
+    if bot_state.trading_mode == "real" and bot_state.upbit:
+        try:
+            summary, _ = await asyncio.to_thread(build_upbit_account_summary, bot_state.upbit)
+            if summary:
+                positions = summary["positions"]
+                for item in positions:
+                    if item["ticker"] == bot_state.active_ticker:
+                        item["targetPrice"] = target_price
+                        item["stopPrice"] = stop_price
+                        item["status"] = bot_state.state
+                bot_state.balance = summary["cashBalance"]
+                coin_value = summary["coinValue"]
+                est_balance = summary["estBalance"]
+                total_pnl = summary["totalPnl"]
+                total_pnl_pct = summary["totalPnlPct"]
+        except Exception:
+            pass
+    if not positions and (bot_state.held_btc > 0 or bot_state.avg_buy_price > 0):
+        positions.append({
+            "ticker": bot_state.active_ticker,
+            "qty": bot_state.held_btc,
+            "avgBuyPrice": bot_state.avg_buy_price,
+            "entryKrw": bot_state.entry_krw,
+            "currentPrice": current_price,
+            "valuation": coin_value,
+            "pnl": position_pnl,
+            "pnlPct": position_pnl_pct,
+            "targetPrice": target_price,
+            "stopPrice": stop_price,
+            "peakYield": bot_state.peak_yield,
+            "status": bot_state.state,
+        })
     return {
         "isRunning": bot_state.state not in [TradingState.STOPPED, TradingState.ERROR],
         "state": bot_state.state,
@@ -247,10 +390,23 @@ async def status():
         "currentPrice": current_price,
         "balance": bot_state.balance,
         "estBalance": est_balance,
+        "cashBalance": bot_state.balance,
+        "coinValue": coin_value,
+        "initialBalance": initial_balance,
+        "totalPnl": total_pnl,
+        "totalPnlPct": total_pnl_pct,
         "heldBtc": bot_state.held_btc,
         "avgBuyPrice": bot_state.avg_buy_price,
+        "entryKrw": bot_state.entry_krw,
+        "positionPnl": position_pnl,
+        "positionPnlPct": position_pnl_pct,
+        "positions": positions,
         "currentYield": current_yield,
         "targetYield": bot_state.target_yield,
+        "exitMode": bot_state.exit_mode,
+        "trailingStartYield": bot_state.trailing_start_yield,
+        "trailingDropPct": bot_state.trailing_drop_pct,
+        "peakYield": bot_state.peak_yield,
         "investmentMode": bot_state.investment_mode,
         "rotateExistingAccepted": bot_state.rotate_existing_accepted,
         "targetPrice": target_price,
@@ -259,6 +415,11 @@ async def status():
         "lastOrderUuid": bot_state.last_order_uuid,
         "lastOrderSide": bot_state.last_order_side,
         "lastOrderStatus": bot_state.last_order_status,
+        "decisionNote": bot_state.decision_note,
+        "entryRule": bot_state.entry_rule,
+        "exitRule": bot_state.exit_rule,
+        "riskRule": bot_state.risk_rule,
+        "currentScore": bot_state.current_score,
         "pollIntervalSeconds": 2,
         "logs": bot_state.logs[-20:],
     }

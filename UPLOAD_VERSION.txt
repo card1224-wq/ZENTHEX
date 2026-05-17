@@ -1,4 +1,19 @@
-ZENTHEX_UPLOAD_VERSION=2026-05-17-0735
+ZENTHEX_UPLOAD_VERSION=2026-05-17-0940
+Mobile: real trading status and stop actions now require login/Trading permission, so PC-to-phone monitoring is safer
+Docs: master plan now states that server-running Trading can be monitored from mobile after browser close
+Trading: Upbit balance and return view added so users can load cash balance, holdings, PnL, and return rate before starting the engine
+Review: CEO checklist now verifies the Upbit balance/return view and no-key-storage account summary flow
+Review: CEO launch checklist updated to match the stable homepage principle and trailing take-profit trading mode
+Trading: trailing take-profit mode added so profitable positions can keep running until they pull back from the peak
+Trading: UI now lets users choose fixed target exit or trailing profit tracking, with configurable pullback width
+Trading: portfolio monitor added with total return, total PnL, cash balance, coin valuation, entry amount, average buy price, current price, per-coin PnL, and per-coin return
+Trading: status API now returns portfolio totals, active position details, and real Upbit account holdings while the real key is connected
+Homepage: restored stable brand-home behavior. Login, owner, and subscription state now change only the top navigation, not the main brand hero/content
+Homepage: Korean copy rebuilt cleanly so public brand, product preview, pricing, and risk notice remain consistent
+Docs: master plan rebuilt in clean Korean and now defines the stable homepage principle
+Trading: start-state monitor added so current decision, buy/sell rules, risk rules, candidate score, 1m/3m momentum, and volume surge are visible while running
+Trading: fixed engine runtime issue by importing time for timestamped logs
+Trading: risk notice, exchange/formula, and quick-use guide moved into full-width horizontal info cards to prevent vertical text wrapping
 Trading: investment modes clarified as KRW cash all-in, KRW cash ratio, fixed amount, and existing-holdings rotation
 Trading: existing-holdings rotation can sell already-held KRW market coins only after a separate checkbox and confirmation
 Trading: review now checks explicit rotation opt-in and investment mode explanations

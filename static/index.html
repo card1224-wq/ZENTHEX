@@ -6,46 +6,37 @@
   <title>Zenthex SaaS Platform</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
-    :root { --bg:#06070a; --line:rgba(255,255,255,.12); --muted:#a1a1aa; --text:#f8fafc; --mint:#00e6c3; --steel:#91a7ff; --gold:#f6c66a; }
+    :root { --bg:#06070a; --panel:#0b0d12; --line:rgba(255,255,255,.12); --muted:#a1a1aa; --text:#f8fafc; --mint:#00e6c3; --steel:#91a7ff; --gold:#f6c66a; }
     * { box-sizing:border-box; }
-    body { margin:0; min-height:100vh; background:var(--bg); color:var(--text); font-family:Inter,system-ui,sans-serif; }
-    body::before { content:""; position:fixed; inset:0; pointer-events:none; background:linear-gradient(180deg, rgba(255,255,255,.035), transparent 260px), radial-gradient(circle at 50% -10%, rgba(145,167,255,.20), transparent 32%), radial-gradient(circle at 82% 18%, rgba(0,230,195,.10), transparent 22%); }
-    body::after { content:"Z"; position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:0; pointer-events:none; color:rgba(255,255,255,.028); font-size:min(58vw,720px); font-weight:900; line-height:.8; text-shadow:0 0 120px rgba(0,230,195,.10); }
+    body { margin:0; min-height:100vh; background:var(--bg); color:var(--text); font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    body::before { content:""; position:fixed; inset:0; pointer-events:none; background:linear-gradient(180deg, rgba(255,255,255,.035), transparent 260px), radial-gradient(circle at 50% -12%, rgba(145,167,255,.18), transparent 34%), radial-gradient(circle at 82% 18%, rgba(0,230,195,.10), transparent 24%); }
+    body::after { content:"Z"; position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:0; pointer-events:none; color:rgba(255,255,255,.026); font-size:min(58vw,720px); font-weight:900; line-height:.8; text-shadow:0 0 120px rgba(0,230,195,.10); }
+    a { color:inherit; }
     .nav { position:sticky; top:0; z-index:20; min-height:74px; padding:12px 32px; display:flex; align-items:center; justify-content:space-between; gap:18px; border-bottom:1px solid var(--line); background:rgba(6,7,10,.86); backdrop-filter:blur(18px); }
     .brand { display:flex; align-items:center; gap:12px; font-weight:900; letter-spacing:3px; }
     .mark-small { width:34px; height:34px; flex:0 0 auto; }
     .nav-actions { display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
     .nav a, .nav button { color:white; text-decoration:none; border:1px solid var(--line); background:rgba(255,255,255,.04); padding:10px 14px; border-radius:8px; font-size:13px; font-weight:800; cursor:pointer; font-family:inherit; }
+    .nav a:hover, .nav button:hover { border-color:rgba(0,230,195,.42); }
     .owner-pill { color:#ffe1a1 !important; border-color:rgba(246,198,106,.45) !important; }
-    .shell { position:relative; z-index:1; width:min(1180px, calc(100% - 40px)); margin:0 auto; padding:28px 0 34px; }
+    .shell { position:relative; z-index:1; width:min(1180px, calc(100% - 40px)); margin:0 auto; padding:28px 0 38px; }
     .hero { position:relative; min-height:58vh; display:flex; align-items:center; justify-content:center; text-align:center; overflow:hidden; border:1px solid rgba(255,255,255,.08); border-radius:18px; background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.018)); }
     .hero-mark { position:absolute; inset:0; display:grid; place-items:center; opacity:.30; pointer-events:none; }
     .hero-mark img { width:min(72vw,760px); height:auto; filter:drop-shadow(0 40px 90px rgba(0,230,195,.10)); }
-    .hero-content { position:relative; z-index:2; width:min(840px, calc(100% - 32px)); padding:52px 0; }
+    .hero-content { position:relative; z-index:2; width:min(850px, calc(100% - 32px)); padding:52px 0; }
     .eyebrow { display:inline-flex; color:#d7defe; border:1px solid rgba(145,167,255,.28); background:rgba(145,167,255,.08); padding:8px 11px; border-radius:999px; font-size:11px; font-weight:900; letter-spacing:1.4px; text-transform:uppercase; }
     h1 { margin:18px 0 14px; font-size:64px; line-height:.92; letter-spacing:0; }
-    .lead { color:#d4d4d8; line-height:1.68; font-size:17px; margin:0 auto 20px; max-width:720px; }
+    .lead { color:#d4d4d8; line-height:1.68; font-size:17px; margin:0 auto 20px; max-width:720px; word-break:keep-all; }
     .actions { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:28px; justify-content:center; }
-    .cta { min-height:46px; display:inline-flex; align-items:center; justify-content:center; padding:0 18px; border-radius:8px; text-decoration:none; font-size:14px; font-weight:900; border:0; cursor:pointer; }
+    .cta { min-height:46px; display:inline-flex; align-items:center; justify-content:center; padding:0 18px; border-radius:8px; text-decoration:none; font-size:14px; font-weight:900; border:0; cursor:pointer; font-family:inherit; }
     .cta.main { background:white; color:#050507; }
     .cta.trade { background:var(--mint); color:#03100d; }
     .cta.sub { color:white; background:rgba(255,255,255,.04); border:1px solid var(--line); }
-    .trust, .pricing, .member-grid { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:10px; max-width:860px; margin:0 auto; text-align:left; }
-    .trust div, .price-card, .member-card { border:1px solid var(--line); background:rgba(255,255,255,.035); border-radius:8px; padding:13px; }
-    .trust strong, .price-card strong, .member-card strong { display:block; font-size:13px; margin-bottom:5px; }
-    .trust span, .price-card p, .member-card span { color:var(--muted); font-size:12px; line-height:1.5; margin:0; }
-    .member-card.owner { border-color:rgba(246,198,106,.45); background:rgba(246,198,106,.065); }
-    .member-card.paid { border-color:rgba(0,230,195,.38); background:rgba(0,230,195,.055); }
+    .trust, .pricing { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:10px; max-width:880px; margin:0 auto; text-align:left; }
+    .trust div, .price-card { border:1px solid var(--line); background:rgba(255,255,255,.035); border-radius:8px; padding:13px; }
+    .trust strong, .price-card strong { display:block; font-size:13px; margin-bottom:5px; }
+    .trust span, .price-card p { color:var(--muted); font-size:12px; line-height:1.5; margin:0; }
     .price-card .price { color:var(--mint); font-size:17px; font-weight:900; margin:7px 0; }
-    .products { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:28px; }
-    .product { border:1px solid var(--line); background:rgba(255,255,255,.035); border-radius:10px; padding:20px; }
-    .product .kicker { color:#cbd5e1; font-size:11px; font-weight:900; letter-spacing:1.4px; text-transform:uppercase; }
-    .product h3 { margin:10px 0 8px; font-size:24px; letter-spacing:0; }
-    .product p { margin:0 0 16px; color:#b8bcc7; line-height:1.65; font-size:14px; }
-    .chips { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:16px; }
-    .chips span { color:#e5e7eb; border:1px solid rgba(255,255,255,.10); background:rgba(255,255,255,.04); padding:7px 9px; border-radius:7px; font-size:12px; font-weight:800; }
-    .policy { margin:20px 0; color:#8f96a3; font-size:12px; line-height:1.65; }
-    .section-title { margin:30px 0 12px; font-size:18px; font-weight:900; }
     .preview-band { margin-top:14px; display:grid; grid-template-columns:1fr 1fr; gap:14px; }
     .visual-panel { min-height:220px; border:1px solid var(--line); border-radius:10px; padding:16px; background:#090b10; position:relative; overflow:hidden; }
     .floor { position:absolute; inset:58px 24px 24px; border:2px solid rgba(0,230,195,.65); transform:perspective(720px) rotateX(58deg) rotateZ(-8deg); transform-origin:center; }
@@ -58,14 +49,23 @@
     .signal-row { display:grid; grid-template-columns:1fr auto; gap:12px; padding:10px; border-radius:8px; background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.08); font-size:13px; }
     .signal-row b { color:#99f6e4; }
     .visual-panel h3 { margin:0; position:relative; z-index:2; }
-    .visual-panel p { color:#a1a1aa; position:relative; z-index:2; font-size:13px; line-height:1.55; max-width:420px; }
+    .visual-panel p { color:#a1a1aa; position:relative; z-index:2; font-size:13px; line-height:1.55; max-width:420px; word-break:keep-all; }
+    .products { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:28px; }
+    .product { border:1px solid var(--line); background:rgba(255,255,255,.035); border-radius:10px; padding:20px; }
+    .product .kicker { color:#cbd5e1; font-size:11px; font-weight:900; letter-spacing:1.4px; text-transform:uppercase; }
+    .product h3 { margin:10px 0 8px; font-size:24px; letter-spacing:0; }
+    .product p { margin:0 0 16px; color:#b8bcc7; line-height:1.65; font-size:14px; word-break:keep-all; }
+    .chips { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:16px; }
+    .chips span { color:#e5e7eb; border:1px solid rgba(255,255,255,.10); background:rgba(255,255,255,.04); padding:7px 9px; border-radius:7px; font-size:12px; font-weight:800; }
+    .section-title { margin:30px 0 12px; font-size:18px; font-weight:900; }
+    .policy { margin:20px 0; color:#8f96a3; font-size:12px; line-height:1.65; word-break:keep-all; }
     .modal { display:none; position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.72); align-items:center; justify-content:center; padding:24px; }
     .modal.open { display:flex; }
     .modal-card { width:min(760px,100%); background:#101014; border:1px solid var(--line); border-radius:10px; padding:28px; box-shadow:0 30px 80px rgba(0,0,0,.45); }
     .modal-head { display:flex; justify-content:space-between; gap:16px; align-items:start; margin-bottom:16px; }
     .modal h2 { margin:0; font-size:28px; }
     .close { width:36px; height:36px; border:1px solid var(--line); background:#17171d; color:white; border-radius:8px; cursor:pointer; font-weight:900; }
-    .modal p, .modal li { color:#d4d4d8; line-height:1.8; }
+    .modal p, .modal li { color:#d4d4d8; line-height:1.8; word-break:keep-all; }
     @media (max-width:900px) {
       .nav { padding:12px 18px; }
       .brand span { display:none; }
@@ -73,7 +73,7 @@
       .hero { min-height:auto; }
       .hero-content { padding:52px 0; }
       h1 { font-size:46px; }
-      .trust, .products, .pricing, .member-grid, .preview-band { grid-template-columns:1fr; }
+      .trust, .products, .pricing, .preview-band { grid-template-columns:1fr; }
       .hero-mark img { width:120vw; }
     }
   </style>
@@ -101,20 +101,29 @@
         <span class="eyebrow">AI Studio + Signal Guard SaaS</span>
         <h1>Zenthex</h1>
         <p class="lead">Zenthex는 프롬프트와 2D 도면을 3D 공간으로 변환하는 AI 스튜디오와, 사용자 설정 기반 자동매매 엔진을 제공하는 구독형 SaaS 플랫폼입니다.</p>
-        <div id="hero-actions" class="actions"></div>
-        <div id="status-grid" class="trust"></div>
+        <div class="actions">
+          <a class="cta main" href="studio.html">Studio 열기</a>
+          <a class="cta trade" href="finance.html">Trading 열기</a>
+          <a class="cta sub" href="#pricing">구독 가격</a>
+          <button class="cta sub" type="button" onclick="openModal('platform-modal')">Zenthex란?</button>
+        </div>
+        <div class="trust">
+          <div><strong>Studio 체험</strong><span>비로그인도 하루 1회 보기 전용 체험 후 구독을 선택할 수 있습니다.</span></div>
+          <div><strong>Trading 보호</strong><span>체험 화면에서는 API 키를 받지 않고, 실거래는 구독 권한 뒤에만 열립니다.</span></div>
+          <div><strong>SaaS 운영</strong><span>계정, 구독, 결제내역, 영수증과 고객 지원을 한 흐름으로 관리합니다.</span></div>
+        </div>
       </div>
     </section>
 
     <section class="preview-band">
       <article class="visual-panel">
         <h3>Zenthex Studio Preview</h3>
-        <p>프롬프트와 도면을 3D 공간으로 바꾸는 흐름을 첫 화면에서 바로 상상할 수 있게 보여줍니다.</p>
+        <p>프롬프트와 도면을 3D 공간으로 바꾸는 흐름을 첫 화면에서 바로 이해할 수 있게 보여줍니다.</p>
         <div class="floor" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
       </article>
       <article class="visual-panel">
         <h3>Zenthex Trading Signals</h3>
-        <p>실거래는 구독과 키 인증 후 열리고, 후보 코인은 서버에서 점수화합니다.</p>
+        <p>실거래는 로그인, 구독, 키 인증 후 열리고 후보 코인은 서버에서 점수화합니다.</p>
         <div class="signal-list" aria-hidden="true">
           <div class="signal-row"><span>KRW-BTC</span><b>+0.42%</b></div>
           <div class="signal-row"><span>KRW-ETH</span><b>+0.36%</b></div>
@@ -127,8 +136,8 @@
       <article class="product">
         <span class="kicker">Zenthex Studio</span>
         <h3>프롬프트와 도면을 3D로</h3>
-        <p>문장 또는 2D 도면을 기반으로 3D 공간을 미리보고, Studio Pro 또는 Ultimate 구독 후 GLB 다운로드와 작업 보관을 사용할 수 있습니다.</p>
-        <div class="chips"><span>Prompt to 3D</span><span>2D 도면 분석</span><span>GLB 다운로드</span></div>
+        <p>문장 또는 2D 도면을 기반으로 3D 공간을 미리보고, Studio Pro 또는 Ultimate 구독 후 JPG 저장, GLB 다운로드와 작업 보관을 사용할 수 있습니다.</p>
+        <div class="chips"><span>Prompt to 3D</span><span>2D 도면 분석</span><span>JPG 저장</span><span>GLB 3D 모델</span></div>
         <a class="cta main" href="studio.html">Studio 열기</a>
       </article>
       <article class="product">
@@ -140,9 +149,9 @@
       </article>
     </section>
 
-    <h2 class="section-title">구독 가격</h2>
+    <h2 class="section-title" id="pricing">구독 가격</h2>
     <section class="pricing">
-      <article class="price-card"><strong>Studio Pro</strong><div class="price">월 49,000원</div><p>Studio 생성, GLB 다운로드, 작업 히스토리</p></article>
+      <article class="price-card"><strong>Studio Pro</strong><div class="price">월 49,000원</div><p>Studio 생성, JPG 저장, GLB 다운로드, 작업 히스토리</p></article>
       <article class="price-card"><strong>Trading Pro</strong><div class="price">월 99,000원</div><p>Trading 실거래 권한, Signal Guard, 목표 수익률 자동 종료</p></article>
       <article class="price-card"><strong>Zenthex Ultimate</strong><div class="price">월 149,000원</div><p>Studio + Trading 통합 권한, 우선 처리, 모바일 알림</p></article>
     </section>
@@ -169,10 +178,7 @@
     let token = localStorage.getItem('zx_token');
     let user = JSON.parse(localStorage.getItem('zx_user') || 'null');
     const navActions = document.getElementById('nav-actions');
-    const heroActions = document.getElementById('hero-actions');
-    const statusGrid = document.getElementById('status-grid');
 
-    function isPaid(u){ return u && ['studio_pro','trading_pro','ultimate'].includes(u.plan); }
     function isOwner(u){ return u && u.role === 'owner'; }
 
     function clearSession(){
@@ -193,55 +199,23 @@
 
     function logout(){
       clearSession();
-      renderHome(null);
-    }
-
-    function guestCards(){
-      return '<div><strong>Studio 체험</strong><span>비로그인도 하루 1회 보기 전용 체험 후 구독을 선택할 수 있습니다.</span></div><div><strong>Trading 보호</strong><span>체험 화면에서는 API 키를 받지 않고, 실거래는 구독 권한 뒤에만 열립니다.</span></div><div><strong>SaaS 운영</strong><span>계정, 구독, 결제내역, 영수증과 운영 검토를 한 흐름으로 관리합니다.</span></div>';
-    }
-
-    function renderHome(u){
-      renderNav(u);
-      if(!u){
-        heroActions.innerHTML=`<a class="cta main" href="studio.html?trial=1">Studio 체험하기</a><a class="cta trade" href="finance.html?trial=1">Trading 구조 보기</a><button class="cta sub" onclick="openModal('platform-modal')">Zenthex란?</button>`;
-        statusGrid.className='trust';
-        statusGrid.innerHTML=guestCards();
-        return;
-      }
-
-      if(isOwner(u)){
-        heroActions.innerHTML='<a class="cta main" href="studio.html">Studio 작업실</a><a class="cta trade" href="finance.html">Trading 엔진</a><a class="cta sub" href="admin.html">CEO 대시보드</a><a class="cta sub" href="account.html">마이페이지</a>';
-        statusGrid.className='member-grid';
-        statusGrid.innerHTML='<div class="member-card owner"><strong>대표 운영 권한</strong><span>Studio, Trading, 가입자 관리와 출시 전 검토에 접근할 수 있습니다.</span></div><div class="member-card owner"><strong>시스템 검토</strong><span>권한, 구독, 실거래 안전장치와 운영 상태를 점검합니다.</span></div><div class="member-card owner"><strong>고객 지원</strong><span>고객센터와 계정 관리 흐름을 함께 확인할 수 있습니다.</span></div>';
-        return;
-      }
-
-      if(isPaid(u)){
-        heroActions.innerHTML='<a class="cta main" href="studio.html">Studio 열기</a><a class="cta trade" href="finance.html">Trading 열기</a><a class="cta sub" href="account.html">구독/영수증</a>';
-        statusGrid.className='member-grid';
-        statusGrid.innerHTML=`<div class="member-card paid"><strong>현재 플랜</strong><span>${u.plan}</span></div><div class="member-card paid"><strong>Studio 권한</strong><span>Studio Pro 또는 Ultimate에서 다운로드가 열립니다.</span></div><div class="member-card paid"><strong>Trading 권한</strong><span>Trading Pro 또는 Ultimate에서 실거래가 열립니다.</span></div>`;
-        return;
-      }
-
-      heroActions.innerHTML='<a class="cta main" href="studio.html">Studio 열기</a><a class="cta trade" href="finance.html">Trading 보기</a><a class="cta sub" href="account.html">구독하기</a>';
-      statusGrid.className='member-grid';
-      statusGrid.innerHTML='<div class="member-card"><strong>로그인 완료</strong><span>계정은 확인되었습니다. 구독 전에는 제한된 체험만 사용할 수 있습니다.</span></div><div class="member-card"><strong>Studio</strong><span>하루 1회 보기 전용 체험 후 Studio Pro에서 다운로드가 열립니다.</span></div><div class="member-card"><strong>Trading</strong><span>실거래는 Trading Pro 또는 Ultimate 구독 후 열립니다.</span></div>';
+      renderNav(null);
     }
 
     async function refreshUser(){
-      if(!token){ renderHome(null); return; }
-      if(user){ renderHome(user); }
+      if(!token){ renderNav(null); return; }
+      if(user){ renderNav(user); }
       try{
         const res=await fetch('/api/auth/me',{headers:{'Authorization':`Bearer ${token}`}});
         if(res.ok){
           user=await res.json();
           localStorage.setItem('zx_user',JSON.stringify(user));
-          renderHome(user);
+          renderNav(user);
           return;
         }
         if(res.status===401){ clearSession(); }
       }catch(e){ console.error(e); }
-      renderHome(user);
+      renderNav(user);
     }
 
     refreshUser();

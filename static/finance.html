@@ -24,7 +24,8 @@
     button { cursor: pointer; border: 0; }
     #btn-toggle { width: 100%; margin-top: 14px; padding: 14px; border-radius: 10px; background: #00ffcc; color: #03100d; font-weight: 900; }
     #log-container { height: 210px; overflow-y: auto; background: #000; border-radius: 10px; padding: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
-    #candidate-list button { color: white; text-align: left; border: 1px solid rgba(255,255,255,.10); background: rgba(0,0,0,.35); border-radius: 10px; padding: 12px; }
+    #candidate-list { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+    #candidate-list button { color: white; text-align: left; border: 1px solid rgba(255,255,255,.10); background: rgba(0,0,0,.35); border-radius: 10px; padding: 12px; min-width:0; }
     .hidden { display: none !important; }
     .text-\[\#00ffcc\], #yield-display { color: #00ffcc; }
     .text-red-400 { color: #f87171; }
@@ -40,7 +41,9 @@
     .access-chip.locked { color:#fcd34d; border-color:rgba(252,211,77,.30); background:rgba(252,211,77,.07); }
     .compact-note { font-size:11px; line-height:1.55; color:#a1a1aa; }
     .compact-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-    .trade-card strong { font-size:22px; display:block; margin-top:4px; overflow-wrap:anywhere; }
+    .metric-grid { display:grid; grid-template-columns:repeat(3, minmax(190px, 1fr)); gap:12px; }
+    .trade-card { min-width:0; }
+    .trade-card strong { font-size:22px; display:block; margin-top:4px; overflow-wrap:anywhere; line-height:1.15; }
     .side-summary { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
     .side-summary > div { border:1px solid rgba(255,255,255,.10); background:rgba(0,0,0,.22); border-radius:10px; padding:10px; }
     .sticky-monitor { position:sticky; top:12px; z-index:2; }
@@ -48,7 +51,32 @@
     .trade-header { margin-bottom:10px !important; padding:12px !important; }
     .trade-layout { gap:12px !important; }
     .control-stack { display:grid; gap:10px; }
-    .compact-strip { display:grid; grid-template-columns:1fr 1fr 1.2fr; gap:10px; }
+    .info-strip { display:grid; grid-template-columns:1.05fr 1.4fr 1fr; gap:10px; margin-bottom:12px; }
+    .info-card { border:1px solid rgba(255,255,255,.10); background:rgba(255,255,255,.035); border-radius:12px; padding:12px 14px; min-width:0; }
+    .info-card h2 { margin:0 0 6px; font-size:13px; font-weight:900; }
+    .info-card p { margin:0; font-size:12px; line-height:1.55; color:#b8bcc7; word-break:keep-all; overflow-wrap:normal; }
+    .decision-panel { display:grid; grid-template-columns:1.35fr 1fr; gap:10px; align-items:stretch; }
+    .decision-panel > div { border:1px solid rgba(255,255,255,.10); background:rgba(0,0,0,.22); border-radius:12px; padding:12px; min-width:0; }
+    .decision-panel h2 { margin:0 0 8px; font-size:13px; font-weight:900; color:#00ffcc; }
+    .decision-panel p { margin:0; color:#d4d4d8; font-size:12px; line-height:1.55; word-break:keep-all; }
+    .rule-list { display:grid; gap:6px; }
+    .rule-list p { padding-left:10px; border-left:2px solid rgba(0,255,204,.32); }
+    .portfolio-grid { display:grid; grid-template-columns:repeat(4, minmax(140px, 1fr)); gap:10px; }
+    .portfolio-grid > div { border:1px solid rgba(255,255,255,.10); background:rgba(0,0,0,.22); border-radius:12px; padding:12px; min-width:0; }
+    .portfolio-grid p, .position-panel p { margin:0; color:#8f96a3; font-size:11px; font-weight:900; text-transform:uppercase; }
+    .portfolio-grid strong { display:block; margin-top:6px; color:#f8fafc; font-size:18px; line-height:1.2; overflow-wrap:anywhere; }
+    .positive { color:#00ffcc !important; }
+    .negative { color:#f87171 !important; }
+    .position-panel { border:1px solid rgba(255,255,255,.10); background:rgba(255,255,255,.035); border-radius:12px; padding:14px; overflow:hidden; }
+    .position-panel h2 { margin:0 0 10px; font-size:13px; color:#00ffcc; font-weight:900; }
+    .position-table { width:100%; border-collapse:collapse; font-size:12px; min-width:760px; }
+    .position-table th, .position-table td { text-align:left; padding:10px 8px; border-bottom:1px solid rgba(255,255,255,.08); white-space:nowrap; }
+    .position-table th { color:#8f96a3; font-size:11px; text-transform:uppercase; }
+    .position-scroll { overflow-x:auto; }
+    .exchange-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:7px; }
+    .exchange-pill { display:inline-flex; align-items:center; justify-content:space-between; gap:8px; min-width:160px; border-radius:8px; padding:8px 10px; font-size:12px; font-weight:900; border:1px solid rgba(255,255,255,.10); background:rgba(0,0,0,.22); }
+    .exchange-pill.upbit { color:#86efac; border-color:rgba(74,222,128,.25); background:rgba(74,222,128,.06); }
+    .exchange-pill.binance { color:#fcd34d; border-color:rgba(252,211,77,.25); background:rgba(252,211,77,.06); }
     details.trade-secret { border:1px solid rgba(239,68,68,.30); background:rgba(239,68,68,.06); border-radius:12px; padding:0; overflow:hidden; }
     details.trade-secret summary { list-style:none; cursor:pointer; padding:12px; font-size:13px; font-weight:900; color:#fecaca; display:flex; justify-content:space-between; gap:10px; align-items:center; }
     details.trade-secret summary::-webkit-details-marker { display:none; }
@@ -57,7 +85,7 @@
     details.trade-secret .secret-inner { padding:0 12px 12px; }
     @media (max-width: 900px) {
       body { padding: 16px; }
-      body > div > div.grid, .md\:grid-cols-3, .md\:grid-cols-5, .compact-form-grid, .side-summary, .compact-strip { grid-template-columns: 1fr; }
+      body > div > div.grid, .md\:grid-cols-3, .md\:grid-cols-5, .compact-form-grid, .side-summary, .info-strip, .metric-grid, .decision-panel, .portfolio-grid { grid-template-columns: 1fr; }
       header h1 { font-size: 22px; }
     }
   </style>
@@ -86,34 +114,27 @@
       <div class="text-sm font-bold flex items-center gap-2 flex-wrap"><span id="finance-access-chip" class="access-chip locked">권한 확인 중</span>상태 <span id="status-indicator" class="text-red-400 ml-2">IDLE</span></div>
     </header>
 
+    <section class="info-strip">
+      <article class="info-card">
+        <h2 class="text-yellow-300">투자 위험 고지</h2>
+        <p>Zenthex Trading은 자동매매 도구이며 투자 자문 또는 수익 보장 서비스가 아닙니다. 실거래는 실제 업비트 주문이며, 출금 권한이 없는 API 키만 사용하세요.</p>
+      </article>
+      <article class="info-card">
+        <h2 class="text-[#00ffcc]">연결 상태 / 공식</h2>
+        <div class="exchange-row">
+          <span class="exchange-pill upbit">Upbit <small>체험/실거래 연결</small></span>
+          <span class="exchange-pill binance">Binance <small>다음 실거래 연결 대상</small></span>
+        </div>
+        <p id="finance-access-note">전체 KRW 코인을 스캔하고 1분·3분·5분 모멘텀과 거래량 급증을 점수화합니다. 직접 선택 모드는 전체 스캔 없이 빠르게 진입합니다.</p>
+      </article>
+      <article class="info-card">
+        <h2 class="text-[#00ffcc]">빠른 사용 순서</h2>
+        <p>1. 실거래 모드 선택 → 2. API 설정 열기 → 3. 키 인증 완료 → 4. 직접 선택 빠른 진입 또는 자동 선정 시작</p>
+      </article>
+    </section>
+
     <div class="trade-layout grid grid-cols-1 lg:grid-cols-3 gap-6">
       <section class="control-stack space-y-6">
-        <div class="compact-strip">
-          <div class="bg-yellow-500/[.06] border border-yellow-500/30 rounded-xl p-5">
-          <h2 class="text-yellow-300 text-sm font-black mb-3">투자 위험 고지</h2>
-          <p class="compact-note">Zenthex Trading은 자동매매 도구이며 투자 자문 또는 수익 보장 서비스가 아닙니다. 실거래는 실제 업비트 주문입니다. 출금 권한이 없는 API 키만 사용하세요.</p>
-          </div>
-          <div class="bg-white/[.03] border border-white/10 rounded-xl p-5">
-          <h2 class="text-[#00ffcc] text-sm font-black mb-3">연결 상태 / 공식</h2>
-          <div class="compact-form-grid text-xs leading-5">
-            <div class="flex items-center justify-between gap-3 border border-emerald-400/20 bg-emerald-400/[.06] rounded-lg p-3">
-              <span class="font-black text-white">Upbit</span>
-              <span class="text-emerald-300 font-bold">체험/실거래 연결</span>
-            </div>
-            <div class="flex items-center justify-between gap-3 border border-amber-400/20 bg-amber-400/[.06] rounded-lg p-3">
-              <span class="font-black text-white">Binance</span>
-              <span class="text-amber-300 font-bold">다음 실거래 연결 대상</span>
-            </div>
-            <p id="finance-access-note" class="text-gray-400 compact-note">권한을 확인하고 있습니다.</p>
-            <p class="compact-note">전체 KRW 코인을 스캔하고, 1분·3분·5분 모멘텀과 거래량 급증을 점수화합니다. 직접 선택 모드는 전체 스캔 없이 빠르게 진입합니다.</p>
-          </div>
-          </div>
-          <div class="bg-white/[.03] border border-white/10 rounded-xl p-5">
-            <h2 class="text-[#00ffcc] text-sm font-black mb-3">빠른 사용 순서</h2>
-            <p class="compact-note">1. 실거래 모드 선택<br>2. API 설정 열기<br>3. 키 인증 완료<br>4. 직접 선택 빠른 진입 또는 자동 선정 시작</p>
-          </div>
-        </div>
-
         <div class="bg-white/[.03] border border-white/10 rounded-xl p-5">
           <h2 class="text-[#00ffcc] text-sm font-black mb-4">전략 설정</h2>
 
@@ -151,6 +172,7 @@
             <div class="grid grid-cols-1 gap-2 mt-3">
               <button type="button" onclick="checkUpbitKey()" class="w-full py-3 rounded-lg bg-white/10 border border-white/10 text-white font-black">업비트 키 진단하기</button>
               <button type="button" id="btn-key-verify" onclick="verifyUpbitKey()" class="w-full py-3 rounded-lg bg-white text-black font-black">업비트 키 인증하기</button>
+              <button type="button" onclick="loadUpbitAccountSummary()" class="w-full py-3 rounded-lg bg-[#00ffcc] text-black font-black">업비트 잔고/수익률 불러오기</button>
             </div>
             <p id="key-check-result" class="mt-3 text-xs text-gray-300 leading-5"></p>
             <div class="mt-3 p-3 rounded-lg bg-black/30 border border-white/10 text-xs text-gray-300 leading-5">
@@ -179,9 +201,22 @@
               </select>
             </div>
             <div>
-              <label class="text-xs text-gray-400 font-bold">목표 수익률</label>
+              <label class="text-xs text-gray-400 font-bold">매도 방식</label>
+              <select id="exit-mode" class="w-full mt-2 mb-2 bg-black border border-white/10 rounded-lg p-3" onchange="toggleExitMode()">
+                <option value="fixed" selected>목표 수익률 도달 시 종료</option>
+                <option value="trailing">수익 계속 추적 후 꺾이면 익절</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs text-gray-400 font-bold">목표 수익률 / 추적 시작</label>
               <select id="target-yield" class="w-full mt-2 mb-2 bg-black border border-white/10 rounded-lg p-3">
                 <option value="1.003">+0.3% 빠른 단타</option><option value="1.005" selected>+0.5% 기본 단타</option><option value="1.008">+0.8%</option><option value="1.01">+1.0%</option><option value="1.10">+10% 고위험 목표</option><option value="1.30">+30% 고위험 목표</option><option value="1.50">+50% 고위험 목표</option>
+              </select>
+            </div>
+            <div id="trailing-drop-box" class="hidden">
+              <label class="text-xs text-gray-400 font-bold">고점 대비 하락폭</label>
+              <select id="trailing-drop" class="w-full mt-2 mb-2 bg-black border border-white/10 rounded-lg p-3">
+                <option value="0.002">0.2%p 민감</option><option value="0.004" selected>0.4%p 기본</option><option value="0.007">0.7%p 여유</option><option value="0.01">1.0%p 넓게</option>
               </select>
             </div>
             <div>
@@ -191,7 +226,7 @@
               </select>
             </div>
           </div>
-          <p class="compact-note text-amber-300 mb-2">10%, 30%, 50%는 단타가 아니라 장기·고위험 목표입니다.</p>
+          <p id="exit-mode-note" class="compact-note text-amber-300 mb-2">고정 목표는 선택한 수익률에 도달하면 바로 매도 후 종료합니다. 10%, 30%, 50%는 단타가 아니라 장기·고위험 목표입니다.</p>
           <div id="all-input-box"><p class="compact-note">KRW 현금 전액은 업비트에 남아 있는 원화 잔고만 사용합니다. 이미 코인을 사서 KRW가 거의 없으면 주문 가능 금액 부족으로 진행되지 않습니다.</p></div>
           <div id="fixed-input-box" class="hidden"><input id="investment-amount" type="number" value="50000" class="w-full bg-black border border-white/10 rounded-lg p-3" /></div>
           <div id="ratio-input-box" class="hidden"><input id="investment-ratio" type="number" value="50" class="w-full bg-black border border-white/10 rounded-lg p-3" /><p class="compact-note mt-2">비율은 KRW 현금 잔고 중 일부만 쓰는 방식입니다. 예: KRW 100만원에서 50%면 약 50만원만 투자합니다.</p></div>
@@ -205,10 +240,30 @@
       </section>
 
       <section class="lg:col-span-2 space-y-6 sticky-monitor">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="metric-grid">
           <div class="trade-card bg-white/[.03] border border-white/10 rounded-xl p-5"><p class="text-xs text-gray-500 font-black uppercase">선정 코인</p><strong id="active-ticker" class="text-2xl mt-2 block">KRW-BTC</strong></div>
           <div class="trade-card bg-white/[.03] border border-white/10 rounded-xl p-5"><p class="text-xs text-gray-500 font-black uppercase">현재가</p><strong id="current-price" class="text-2xl mt-2 block">연결 중</strong></div>
           <div class="trade-card bg-white/[.03] border border-white/10 rounded-xl p-5"><p class="text-xs text-gray-500 font-black uppercase">수익률</p><strong id="yield-display" class="text-2xl mt-2 block text-[#00ffcc]">0.00%</strong></div>
+        </div>
+        <div class="portfolio-grid">
+          <div><p>전체 수익률</p><strong id="total-yield-display">대기 중</strong></div>
+          <div><p>전체 평가손익</p><strong id="total-pnl-display">대기 중</strong></div>
+          <div><p>현금 잔고</p><strong id="cash-balance-display">대기 중</strong></div>
+          <div><p>보유 코인 평가</p><strong id="coin-value-display">대기 중</strong></div>
+        </div>
+        <div class="decision-panel">
+          <div>
+            <h2>현재 판단</h2>
+            <p id="decision-note">대기 중입니다. 시작하면 전체 KRW 마켓을 스캔합니다.</p>
+          </div>
+          <div>
+            <h2>매수·매도 기준</h2>
+            <div class="rule-list">
+              <p id="entry-rule">매수: 24시간 상승, 6시간 상승, 1분/3분 단기 상승, 거래량 급증 확인</p>
+              <p id="exit-rule">매도: 목표 수익률 도달 시 자동 매도, 손절선 이탈 시 자동 방어</p>
+              <p id="risk-rule">리스크: 일일 손실 제한과 연속 손절 제한 적용</p>
+            </div>
+          </div>
         </div>
         <div class="side-summary text-xs">
           <div><p class="text-gray-500 font-black uppercase">평균 매수가</p><strong id="avg-buy-display">대기 중</strong></div>
@@ -220,13 +275,22 @@
           <div><p class="text-gray-500 font-black uppercase">주문 UUID</p><strong id="last-order-uuid-display">-</strong></div>
           <div><p class="text-gray-500 font-black uppercase">확인 주기</p><strong id="poll-display">2초</strong></div>
         </div>
+        <div class="position-panel">
+          <h2>실시간 보유 코인 상태</h2>
+          <div class="position-scroll">
+            <table class="position-table">
+              <thead><tr><th>코인</th><th>상태</th><th>매수금액</th><th>평균 매수가</th><th>현재가</th><th>보유수량</th><th>평가금액</th><th>평가손익</th><th>코인 수익률</th></tr></thead>
+              <tbody id="position-body"><tr><td colspan="9" class="text-gray-400">아직 보유 중인 코인이 없습니다. 시작하면 매수 후 이곳에 표시됩니다.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
         <div class="bg-white/[.03] border border-white/10 rounded-xl p-5"><h2 class="text-sm text-gray-400 font-black mb-4">업비트 전체 코인 상승 후보</h2><div id="candidate-list" class="grid grid-cols-1 md:grid-cols-5 gap-3 text-sm"></div></div>
         <div class="bg-white/[.03] border border-white/10 rounded-xl p-5 h-80 flex flex-col"><h2 class="text-sm text-gray-400 font-black mb-4">System Log</h2><div id="log-container" class="flex-1 overflow-y-auto bg-black rounded-lg p-4 font-mono text-xs space-y-2"><div class="text-gray-500">시작 버튼을 눌러 전체 코인 스캔을 시작하세요.</div></div></div>
       </section>
     </div>
   </div>
 <script>
-const btnToggle=document.getElementById('btn-toggle'), statusIndicator=document.getElementById('status-indicator'), priceEl=document.getElementById('current-price'), yieldEl=document.getElementById('yield-display'), logBox=document.getElementById('log-container'), targetYieldEl=document.getElementById('target-yield'), modeEl=document.getElementById('investment-mode'), amountEl=document.getElementById('investment-amount'), ratioEl=document.getElementById('investment-ratio'), rotateAcceptedEl=document.getElementById('rotate-existing-accepted'), tickerModeEl=document.getElementById('ticker-mode'), selectedTickerEl=document.getElementById('selected-ticker'), tradingModeEl=document.getElementById('trading-mode'), accessKeyEl=document.getElementById('access-key'), secretKeyEl=document.getElementById('secret-key'), realAcceptedEl=document.getElementById('real-accepted'), keyVerifyBtn=document.getElementById('btn-key-verify');
+const btnToggle=document.getElementById('btn-toggle'), statusIndicator=document.getElementById('status-indicator'), priceEl=document.getElementById('current-price'), yieldEl=document.getElementById('yield-display'), logBox=document.getElementById('log-container'), targetYieldEl=document.getElementById('target-yield'), exitModeEl=document.getElementById('exit-mode'), trailingDropEl=document.getElementById('trailing-drop'), modeEl=document.getElementById('investment-mode'), amountEl=document.getElementById('investment-amount'), ratioEl=document.getElementById('investment-ratio'), rotateAcceptedEl=document.getElementById('rotate-existing-accepted'), tickerModeEl=document.getElementById('ticker-mode'), selectedTickerEl=document.getElementById('selected-ticker'), tradingModeEl=document.getElementById('trading-mode'), accessKeyEl=document.getElementById('access-key'), secretKeyEl=document.getElementById('secret-key'), realAcceptedEl=document.getElementById('real-accepted'), keyVerifyBtn=document.getElementById('btn-key-verify');
 let isRunning=false;
 let token=localStorage.getItem('zx_token');
 let user=JSON.parse(localStorage.getItem('zx_user')||'null');
@@ -242,19 +306,28 @@ async function refreshCurrentUser(){token=localStorage.getItem('zx_token');if(!t
 function userCanSeeRealTrade(){if(!token||!user)return false;if(user.role==='owner')return true;return ['trading_pro','ultimate'].includes(user.plan)}
 function setupTradingModes(){const previous=tradingModeEl.value||'practice';const loginBox=document.getElementById('login-required-box');const action=document.getElementById('login-required-action');const chip=document.getElementById('finance-access-chip');const note=document.getElementById('finance-access-note');tradingModeEl.innerHTML='<option value="practice">전략 체험 모드</option>';if(userCanSeeRealTrade()){tradingModeEl.insertAdjacentHTML('beforeend','<option value="real">업비트 실거래 모드</option><option value="binance_planned">바이낸스 실거래 모드 준비중</option>');loginBox.classList.add('hidden');tradingModeEl.value=['practice','real','binance_planned'].includes(previous)?previous:'real';if(previous==='practice'||!previous)tradingModeEl.value='real';chip.className='access-chip full';chip.innerText=user&&user.role==='owner'?'대표 실거래 권한':'구독 실거래 권한';note.innerText='실거래 권한이 확인되었습니다. 업비트 API 키와 위험 동의 후 실거래 엔진을 시작할 수 있습니다.'}else{loginBox.classList.remove('hidden');loginBox.querySelector('p').innerText=token?'실거래 모드는 Trading Pro 또는 Ultimate 구독 후 표시됩니다.':'실거래 모드는 로그인 후 Trading Pro 또는 Ultimate 구독 상태에서만 표시됩니다.';action.innerText=token?'구독 정보 확인하기':'로그인하고 실거래 보기';action.onclick=()=>{location.href=token?'account.html':'login.html'};tradingModeEl.value='practice';chip.className='access-chip locked';chip.innerText=token?'구독 필요':'구조 체험';note.innerText='체험 화면에서는 API 키를 받지 않고 구조만 확인합니다. 실거래는 로그인과 Trading Pro 또는 Ultimate 권한이 필요합니다.'}toggleTradingMode()}
 function toggleInvestmentInput(){document.getElementById('all-input-box').classList.toggle('hidden',modeEl.value!=='all_krw');document.getElementById('fixed-input-box').classList.toggle('hidden',modeEl.value!=='fixed');document.getElementById('ratio-input-box').classList.toggle('hidden',modeEl.value!=='ratio');document.getElementById('rotate-input-box').classList.toggle('hidden',modeEl.value!=='rotate_holdings')}
+function toggleExitMode(){const trailing=exitModeEl.value==='trailing';document.getElementById('trailing-drop-box').classList.toggle('hidden',!trailing);document.getElementById('exit-mode-note').innerText=trailing?'추적 익절은 선택한 수익률을 넘긴 뒤 계속 보유하다가, 최고 수익률에서 설정한 폭만큼 밀리면 매도합니다. 계속 오르면 바로 멈추지 않습니다.':'고정 목표는 선택한 수익률에 도달하면 바로 매도 후 종료합니다. 10%, 30%, 50%는 단타가 아니라 장기·고위험 목표입니다.'}
 function toggleTickerMode(){document.getElementById('manual-ticker-box').classList.toggle('hidden',tickerModeEl.value!=='manual')}
 function toggleTradingMode(){const canReal=userCanSeeRealTrade();const isReal=tradingModeEl.value==='real'&&canReal;const keyBox=document.getElementById('real-key-box');keyBox.classList.toggle('hidden',!isReal);if(isReal&&!upbitKeyVerified)keyBox.open=true;document.getElementById('binance-planned-box').classList.toggle('hidden',tradingModeEl.value!=='binance_planned');btnToggle.disabled=tradingModeEl.value==='binance_planned';btnToggle.innerText=isReal?'업비트 실거래 시작':tradingModeEl.value==='binance_planned'?'바이낸스 연결 준비중':'전략 체험 시작';btnToggle.style.opacity=tradingModeEl.value==='binance_planned'?'.55':'1'}
 function useCandidate(ticker){tickerModeEl.value='manual';toggleTickerMode();selectedTickerEl.value=ticker}
 function renderLogs(logs){logBox.innerHTML='';logs.forEach(msg=>{const div=document.createElement('div');div.className=msg.includes('Real')?'text-amber-300 font-bold':msg.includes('Take Profit')?'text-[#00ffcc] font-bold':msg.includes('Risk')||msg.includes('Stop Loss')||msg.includes('Error')?'text-red-300 font-bold':'text-gray-300';div.innerText=msg;logBox.appendChild(div)});logBox.scrollTop=logBox.scrollHeight}
-function renderCandidates(candidates){const box=document.getElementById('candidate-list');box.innerHTML='';(candidates||[]).forEach(c=>{const item=document.createElement('button');item.type='button';item.className='text-left bg-black/40 border border-white/10 rounded-lg p-3 hover:border-[#00ffcc]/50 transition-colors';item.onclick=()=>useCandidate(c.ticker);item.innerHTML=`<div class="font-black">${c.ticker}</div><div class="text-[#00ffcc] text-xs mt-1">+${(c.momentum*100).toFixed(2)}%</div>`;box.appendChild(item)})}
+function renderCandidates(candidates){const box=document.getElementById('candidate-list');box.innerHTML='';(candidates||[]).forEach(c=>{const item=document.createElement('button');item.type='button';item.className='text-left bg-black/40 border border-white/10 rounded-lg p-3 hover:border-[#00ffcc]/50 transition-colors';item.onclick=()=>useCandidate(c.ticker);const m24=((c.momentum||0)*100).toFixed(2);const m1=((c.minute1Momentum||0)*100).toFixed(2);const m3=((c.minute3Momentum||0)*100).toFixed(2);const vol=(c.tickVolumeSurge||c.volumeSurge||0).toFixed(1);const score=(c.score||0).toFixed(2);item.innerHTML=`<div class="font-black">${c.ticker}</div><div class="text-[#00ffcc] text-xs mt-1">24h +${m24}%</div><div class="text-gray-400 text-xs mt-1">1m ${m1}% · 3m ${m3}%</div><div class="text-gray-400 text-xs mt-1">거래량 ${vol}x · 점수 ${score}</div>`;box.appendChild(item)})}
 async function checkUpbitKey(){const box=document.getElementById('key-check-result');box.innerText='키를 확인하는 중입니다.';await refreshCurrentUser();if(!userCanSeeRealTrade()){box.innerText='키 진단은 로그인과 Trading Pro 또는 Ultimate 권한이 필요합니다.';return}if(!accessKeyEl.value.trim()||!secretKeyEl.value.trim()){box.innerText='Access Key와 Secret Key를 모두 입력해주세요.';return}try{const res=await fetch('/api/finance/check-key',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token||''}`},body:JSON.stringify({accessKey:accessKeyEl.value.trim(),secretKey:secretKeyEl.value.trim()})});const data=await res.json().catch(()=>({message:'서버 응답을 읽지 못했습니다.'}));const checklist=data.checklist&&data.checklist.length?'\n\n확인할 것:\n- '+data.checklist.join('\n- '):'';box.innerText=(data.message||data.detail||'키 진단 실패')+checklist;box.className=data.status==='success'?'mt-3 text-xs text-[#00ffcc] leading-5':'mt-3 text-xs text-amber-300 leading-5'}catch(e){box.innerText='서버 연결에 실패했습니다. 배포 서버가 실행 중인지 확인해주세요.'}}
 async function verifyUpbitKey(){const box=document.getElementById('key-check-result');upbitKeyVerified=false;verifiedKeyFingerprint='';box.innerText='업비트 키를 인증하는 중입니다.';await refreshCurrentUser();if(!userCanSeeRealTrade()){box.innerText='키 인증은 로그인과 Trading Pro 또는 Ultimate 권한이 필요합니다.';return false}if(!accessKeyEl.value.trim()||!secretKeyEl.value.trim()){box.innerText='Access Key와 Secret Key를 모두 입력해주세요.';return false}try{const res=await fetch('/api/finance/verify-key',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token||''}`},body:JSON.stringify({accessKey:accessKeyEl.value.trim(),secretKey:secretKeyEl.value.trim()})});const data=await res.json().catch(()=>({message:'서버 응답을 읽지 못했습니다.'}));const checklist=data.checklist&&data.checklist.length?'\n\n확인할 것:\n- '+data.checklist.join('\n- '):'';if(res.ok&&data.verified){upbitKeyVerified=true;verifiedKeyFingerprint=keyFingerprint();box.innerText=data.message||'업비트 키 인증 완료. 실거래 시작을 누를 수 있습니다.';box.className='mt-3 text-xs text-[#00ffcc] leading-5';keyVerifyBtn.innerText='업비트 키 인증 완료';keyVerifyBtn.className='w-full py-3 rounded-lg bg-[#00ffcc] text-black font-black';return true}box.innerText=(data.message||data.detail||'키 인증 실패')+checklist;box.className='mt-3 text-xs text-amber-300 leading-5';keyVerifyBtn.innerText='업비트 키 인증 다시하기';return false}catch(e){box.innerText='서버 연결에 실패했습니다. 배포 서버가 실행 중인지 확인해주세요.';return false}}
 function money(value){return value>0?Math.floor(value).toLocaleString()+'원':'대기 중'}
-async function fetchStatus(){try{const res=await fetch('/api/finance/status');const data=await res.json();isRunning=data.isRunning;document.getElementById('active-ticker').innerText=data.activeTicker||'KRW-BTC';priceEl.innerText=money(data.currentPrice||data.currentBtcPrice||0);yieldEl.innerText=data.avgBuyPrice>0?((data.currentYield||0)*100).toFixed(3)+'%':'대기 중';document.getElementById('avg-buy-display').innerText=money(data.avgBuyPrice||0);document.getElementById('held-qty-display').innerText=(data.heldBtc||0).toFixed(8);document.getElementById('target-price-display').innerText=money(data.targetPrice||0);document.getElementById('stop-price-display').innerText=money(data.stopPrice||0);document.getElementById('est-balance-display').innerText=money(data.estBalance||0);document.getElementById('last-order-display').innerText=data.lastOrderSide?`${data.lastOrderSide} / ${data.lastOrderStatus||'requested'}`:'대기';document.getElementById('last-order-uuid-display').innerText=data.lastOrderUuid||'-';document.getElementById('poll-display').innerText=(data.pollIntervalSeconds||2)+'초';renderLogs(data.logs||[]);renderCandidates(data.signalCandidates||[]);statusIndicator.innerText=data.state+(data.tradingMode==='real'?' / REAL':'');statusIndicator.className=isRunning?'text-green-400 ml-2':'text-red-400 ml-2';btnToggle.innerText=isRunning?'엔진 중지':tradingModeEl.value==='real'?'실거래 시작':'전략 체험 시작';btnToggle.className=isRunning?'w-full mt-5 py-4 rounded-xl bg-white/10 border border-white/20 text-white font-black':'w-full mt-5 py-4 rounded-xl bg-[#00ffcc] text-black font-black'}catch(e){console.error(e)}}
-btnToggle.addEventListener('click',async()=>{if(tradingModeEl.value==='binance_planned'){alert('바이낸스 실거래는 다음 연결 단계입니다. 현재는 전략 체험 또는 업비트 실거래만 사용할 수 있습니다.');return}if(!isRunning){await refreshCurrentUser();setupTradingModes();if(tradingModeEl.value==='real'&&!userCanSeeRealTrade()){alert('실거래는 로그인과 Trading Pro 또는 Ultimate 구독이 필요합니다.');location.href=token?'account.html':'login.html';return}if(tradingModeEl.value==='real'&&!realAcceptedEl.checked){alert('실거래 위험 확인 체크가 필요합니다.');return}if(tradingModeEl.value==='real'&&modeEl.value==='rotate_holdings'&&!rotateAcceptedEl.checked){alert('보유 코인 정리 후 재진입은 기존 코인 시장가 매도 동의가 필요합니다.');return}if(tradingModeEl.value==='real'&&(!upbitKeyVerified||verifiedKeyFingerprint!==keyFingerprint())){const ok=await verifyUpbitKey();if(!ok){alert('업비트 키 인증이 먼저 완료되어야 실거래를 시작할 수 있습니다.');return}}const confirmMessage=modeEl.value==='rotate_holdings'?'기존 보유 코인을 시장가로 매도한 뒤 새 후보에 재진입할 수 있습니다. 실제 업비트 주문을 계속할까요?':'실제 업비트 주문이 실행됩니다. 계속할까요?';if(tradingModeEl.value==='real'&&!confirm(confirmMessage))return;btnToggle.disabled=true;btnToggle.innerText='엔진 시작 확인 중';try{const res=await fetch('/api/finance/start',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token||''}`},body:JSON.stringify({targetYield:parseFloat(targetYieldEl.value),investmentMode:modeEl.value,investmentAmount:parseFloat(amountEl.value||50000),investmentRatio:parseFloat(ratioEl.value||50)/100,rotateExistingAccepted:rotateAcceptedEl.checked,tickerMode:tickerModeEl.value,selectedTicker:selectedTickerEl.value,tradingMode:tradingModeEl.value==='real'?'real':'practice',realAccepted:realAcceptedEl.checked,accessKey:accessKeyEl.value.trim(),secretKey:secretKeyEl.value.trim()})});const data=await res.json().catch(()=>({status:'error',message:'서버 응답을 읽지 못했습니다.'}));if(!res.ok||data.status==='error'){alert(data.message||data.detail||'엔진 시작에 실패했습니다.');btnToggle.disabled=false;return}}catch(e){alert('서버 연결에 실패했습니다. 다시 시도해주세요.');btnToggle.disabled=false;return}}else{await fetch('/api/finance/stop',{method:'POST'})}btnToggle.disabled=false;fetchStatus()});
+function signedMoney(value){const n=Number(value||0);if(Math.abs(n)<1)return '0원';return `${n>0?'+':'-'}${Math.floor(Math.abs(n)).toLocaleString()}원`}
+function pct(value){const n=Number(value||0);return `${n>0?'+':''}${(n*100).toFixed(3)}%`}
+function trendClass(el,value){el.classList.remove('positive','negative');const n=Number(value||0);if(n>0)el.classList.add('positive');if(n<0)el.classList.add('negative')}
+function setText(id,value,trendValue=null){const el=document.getElementById(id);if(!el)return;el.innerText=value;if(trendValue!==null)trendClass(el,trendValue)}
+function renderPositions(positions){const body=document.getElementById('position-body');body.innerHTML='';if(!positions||!positions.length){body.innerHTML='<tr><td colspan="9" class="text-gray-400">아직 보유 중인 코인이 없습니다. 시작하면 매수 후 이곳에 표시됩니다.</td></tr>';return}positions.forEach(p=>{const tr=document.createElement('tr');const pnl=Number(p.pnl||0);const pnlPct=Number(p.pnlPct||0);tr.innerHTML=`<td class="font-black">${p.ticker||'-'}</td><td>${p.status||'-'}</td><td>${money(p.entryKrw||0)}</td><td>${money(p.avgBuyPrice||0)}</td><td>${money(p.currentPrice||0)}</td><td>${Number(p.qty||0).toFixed(8)}</td><td>${money(p.valuation||0)}</td><td class="${pnl>=0?'positive':'negative'}">${signedMoney(pnl)}</td><td class="${pnlPct>=0?'positive':'negative'}">${pct(pnlPct)}</td>`;body.appendChild(tr)})}
+function renderAccountSummary(data){setText('total-yield-display',pct(data.totalPnlPct||0),data.totalPnlPct||0);setText('total-pnl-display',signedMoney(data.totalPnl||0),data.totalPnl||0);setText('cash-balance-display',money(data.cashBalance||0));setText('coin-value-display',money(data.coinValue||0));document.getElementById('est-balance-display').innerText=money(data.estBalance||0);renderPositions(data.positions||[])}
+async function loadUpbitAccountSummary(){const box=document.getElementById('key-check-result');box.innerText='업비트 잔고와 수익률을 불러오는 중입니다.';await refreshCurrentUser();if(!userCanSeeRealTrade()){box.innerText='업비트 잔고 조회는 로그인과 Trading Pro 또는 Ultimate 권한이 필요합니다.';return}if(!accessKeyEl.value.trim()||!secretKeyEl.value.trim()){box.innerText='Access Key와 Secret Key를 모두 입력해주세요.';return}try{const res=await fetch('/api/finance/account-summary',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token||''}`},body:JSON.stringify({accessKey:accessKeyEl.value.trim(),secretKey:secretKeyEl.value.trim()})});const data=await res.json().catch(()=>({message:'서버 응답을 읽지 못했습니다.'}));if(!res.ok||data.status!=='success'){box.innerText=data.message||data.detail||'업비트 잔고 조회에 실패했습니다.';box.className='mt-3 text-xs text-amber-300 leading-5';return}renderAccountSummary(data);box.innerText=data.message||'업비트 잔고와 수익률을 불러왔습니다.';box.className='mt-3 text-xs text-[#00ffcc] leading-5'}catch(e){box.innerText='서버 연결에 실패했습니다. 배포 서버가 실행 중인지 확인해주세요.'}}
+async function fetchStatus(){try{const headers=token?{'Authorization':`Bearer ${token}`}:{};
+const res=await fetch('/api/finance/status',{headers});if(res.status===401||res.status===403){statusIndicator.innerText='로그인 필요';statusIndicator.className='text-amber-300 ml-2';return}const data=await res.json();isRunning=data.isRunning;document.getElementById('active-ticker').innerText=data.activeTicker||'KRW-BTC';priceEl.innerText=money(data.currentPrice||data.currentBtcPrice||0);yieldEl.innerText=data.avgBuyPrice>0?pct(data.currentYield||0):'대기 중';trendClass(yieldEl,data.currentYield||0);setText('total-yield-display',data.initialBalance>0?pct(data.totalPnlPct||0):'대기 중',data.totalPnlPct||0);setText('total-pnl-display',data.initialBalance>0?signedMoney(data.totalPnl||0):'대기 중',data.totalPnl||0);setText('cash-balance-display',money(data.cashBalance||data.balance||0));setText('coin-value-display',money(data.coinValue||0));document.getElementById('avg-buy-display').innerText=money(data.avgBuyPrice||0);document.getElementById('held-qty-display').innerText=(data.heldBtc||0).toFixed(8);document.getElementById('target-price-display').innerText=money(data.targetPrice||0);document.getElementById('stop-price-display').innerText=money(data.stopPrice||0);document.getElementById('est-balance-display').innerText=money(data.estBalance||0);document.getElementById('last-order-display').innerText=data.lastOrderSide?`${data.lastOrderSide} / ${data.lastOrderStatus||'requested'}`:'대기';document.getElementById('last-order-uuid-display').innerText=data.lastOrderUuid||'-';document.getElementById('poll-display').innerText=(data.pollIntervalSeconds||2)+'초';document.getElementById('decision-note').innerText=data.decisionNote||'현재 판단 정보를 기다리는 중입니다.';document.getElementById('entry-rule').innerText=data.entryRule||'매수 기준을 불러오는 중입니다.';document.getElementById('exit-rule').innerText=data.exitRule||'매도 기준을 불러오는 중입니다.';document.getElementById('risk-rule').innerText=data.riskRule||'리스크 기준을 불러오는 중입니다.';renderPositions(data.positions||[]);renderLogs(data.logs||[]);renderCandidates(data.signalCandidates||[]);statusIndicator.innerText=data.state+(data.tradingMode==='real'?' / REAL':'');statusIndicator.className=isRunning?'text-green-400 ml-2':'text-red-400 ml-2';btnToggle.innerText=isRunning?'엔진 중지':tradingModeEl.value==='real'?'실거래 시작':'전략 체험 시작';btnToggle.className=isRunning?'w-full mt-5 py-4 rounded-xl bg-white/10 border border-white/20 text-white font-black':'w-full mt-5 py-4 rounded-xl bg-[#00ffcc] text-black font-black'}catch(e){console.error(e)}}
+btnToggle.addEventListener('click',async()=>{if(tradingModeEl.value==='binance_planned'){alert('바이낸스 실거래는 다음 연결 단계입니다. 현재는 전략 체험 또는 업비트 실거래만 사용할 수 있습니다.');return}if(!isRunning){await refreshCurrentUser();setupTradingModes();if(tradingModeEl.value==='real'&&!userCanSeeRealTrade()){alert('실거래는 로그인과 Trading Pro 또는 Ultimate 구독이 필요합니다.');location.href=token?'account.html':'login.html';return}if(tradingModeEl.value==='real'&&!realAcceptedEl.checked){alert('실거래 위험 확인 체크가 필요합니다.');return}if(tradingModeEl.value==='real'&&modeEl.value==='rotate_holdings'&&!rotateAcceptedEl.checked){alert('보유 코인 정리 후 재진입은 기존 코인 시장가 매도 동의가 필요합니다.');return}if(tradingModeEl.value==='real'&&(!upbitKeyVerified||verifiedKeyFingerprint!==keyFingerprint())){const ok=await verifyUpbitKey();if(!ok){alert('업비트 키 인증이 먼저 완료되어야 실거래를 시작할 수 있습니다.');return}}const confirmMessage=modeEl.value==='rotate_holdings'?'기존 보유 코인을 시장가로 매도한 뒤 새 후보에 재진입할 수 있습니다. 실제 업비트 주문을 계속할까요?':'실제 업비트 주문이 실행됩니다. 계속할까요?';if(tradingModeEl.value==='real'&&!confirm(confirmMessage))return;btnToggle.disabled=true;btnToggle.innerText='엔진 시작 확인 중';try{const res=await fetch('/api/finance/start',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token||''}`},body:JSON.stringify({targetYield:parseFloat(targetYieldEl.value),exitMode:exitModeEl.value,trailingStartYield:parseFloat(targetYieldEl.value),trailingDropPct:parseFloat(trailingDropEl.value||0.004),investmentMode:modeEl.value,investmentAmount:parseFloat(amountEl.value||50000),investmentRatio:parseFloat(ratioEl.value||50)/100,rotateExistingAccepted:rotateAcceptedEl.checked,tickerMode:tickerModeEl.value,selectedTicker:selectedTickerEl.value,tradingMode:tradingModeEl.value==='real'?'real':'practice',realAccepted:realAcceptedEl.checked,accessKey:accessKeyEl.value.trim(),secretKey:secretKeyEl.value.trim()})});const data=await res.json().catch(()=>({status:'error',message:'서버 응답을 읽지 못했습니다.'}));if(!res.ok||data.status==='error'){alert(data.message||data.detail||'엔진 시작에 실패했습니다.');btnToggle.disabled=false;return}}catch(e){alert('서버 연결에 실패했습니다. 다시 시도해주세요.');btnToggle.disabled=false;return}}else{await fetch('/api/finance/stop',{method:'POST',headers:{'Authorization':`Bearer ${token||''}`}})}btnToggle.disabled=false;fetchStatus()});
 accessKeyEl.addEventListener('input',resetKeyVerification);
 secretKeyEl.addEventListener('input',resetKeyVerification);
-async function init(){await refreshCurrentUser();setupTradingModes();toggleInvestmentInput();toggleTickerMode();toggleTradingMode();loadServerIp();fetchStatus();setInterval(fetchStatus,1000)}
+async function init(){await refreshCurrentUser();setupTradingModes();toggleInvestmentInput();toggleTickerMode();toggleExitMode();toggleTradingMode();loadServerIp();fetchStatus();setInterval(fetchStatus,1000)}
 init();
 </script>
 </body>
