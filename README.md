@@ -75,11 +75,13 @@ Current production test target is Upbit because KRW markets and all listed coin 
 
 Upbit real-trading keys require asset lookup and order permissions, and the public IP address of the running Zenthex FastAPI server must be registered on the Upbit Open API key. GitHub Pages is not the trading server; it only serves static files. If authentication fails, the UI returns a more specific diagnostic for likely IP, permission, Access Key, or Secret Key problems. The Trading screen shows the configured Zenthex server IP from `ZENTHEX_SERVER_PUBLIC_IP`, or auto-detects the FastAPI server outbound IP through `api.ipify.org` when the environment value is empty. It includes "업비트 키 진단하기" for troubleshooting and "업비트 키 인증하기" for the live-trading gate. Secret Key is hidden by default, with a temporary view button for paste checks. The backend re-checks the key again when the real engine starts.
 
-For real paid trading, the outbound IP should be fixed. If the displayed IP keeps changing, the deployment likely has no fixed outbound IP or `ZENTHEX_SERVER_PUBLIC_IP` is empty and the app is auto-detecting the current egress IP. Auto-detected IP is shown as a warning/reference only. Use a fixed-IP server/NAT/Elastic IP and set `ZENTHEX_SERVER_PUBLIC_IP` before relying on Upbit allowed-IP registration.
+For real paid trading, the outbound IP should be fixed. Zenthex currently uses `74.220.52.254` as the intended fixed server IP value. The production server must actually route outbound Upbit requests through this same IP, and `ZENTHEX_SERVER_PUBLIC_IP=74.220.52.254` must be set in the server environment. If the displayed IP keeps changing, the deployment likely has no fixed outbound IP or the app is auto-detecting the current egress IP. Auto-detected IP is shown as a warning/reference only.
 
 The Trading page keeps the long strategy form readable with a compact top summary for exit mode, target yield, capital mode, and coin selection. It also plots the latest Upbit balance/status `totalPnlPct` as a return-rate chart, so the user can watch profit movement instead of only reading current holdings.
 
 Studio exports use two formats: GLB is the real 3D model file for 3D viewers/tools, while JPG is a flat image of the current preview screen. Owner, Studio Pro, and Ultimate users can use both export paths.
+
+Studio prompt previews can use Gemini NanoBanana when `GEMINI_API_KEY` is configured. The immediate image preview uses `gemini-2.5-flash-image` by default through `ZENTHEX_NANOBANANA_MODEL`, then the local Three.js preview and optional GLB worker continue as the 3D layer. If no key is configured, the app falls back to the built-in visual preview instead of failing.
 
 ## Signal Guard Formula
 
@@ -131,7 +133,9 @@ For production, set `ZENTHEX_OWNER_EMAILS` in the server environment to the CEO 
 ```env
 ZENTHEX_OWNER_EMAILS=7foliath@naver.com
 ZENTHEX_DATABASE_URL=sqlite:///./zenthex.db
-ZENTHEX_SERVER_PUBLIC_IP=
+ZENTHEX_SERVER_PUBLIC_IP=74.220.52.254
+GEMINI_API_KEY=
+ZENTHEX_NANOBANANA_MODEL=gemini-2.5-flash-image
 ZENTHEX_SMTP_HOST=smtp.example.com
 ZENTHEX_SMTP_PORT=587
 ZENTHEX_SMTP_SSL=false

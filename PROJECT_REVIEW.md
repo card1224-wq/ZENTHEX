@@ -28,6 +28,7 @@ This checklist is the master review gate before uploading or publishing Zenthex.
 - Studio owner and Studio Pro/Ultimate users must see full-access wording, no trial-only wording, and GLB download access when the backend returns a model URL.
 - Studio owner and Studio Pro/Ultimate users should also be able to save the current preview as JPG.
 - Studio prompt generation must visibly change the preview according to the prompt, including a dedicated apartment-style preview for "32평 아파트" prompts.
+- Studio should call NanoBanana for immediate prompt image previews when `GEMINI_API_KEY` is configured, and clearly fall back when it is not.
 - Studio must remain usable as a visual preview even if OpenCV/3D Worker dependencies are missing; GLB export should be clearly marked as requiring the worker.
 - Trading Pro must not unlock Studio export. Studio Pro must not unlock real trading.
 - Studio must show the Zenthex mark, not old HL/Habilab branding.
@@ -39,9 +40,10 @@ This checklist is the master review gate before uploading or publishing Zenthex.
 - Trading owner and Trading Pro/Ultimate users must land on the real-trade permission view, not a trial-only view.
 - Real trading key check must explain likely Upbit failures: allowed IP mismatch, missing asset/order permission, wrong Access Key, wrong Secret Key.
 - Trading screen must show the Zenthex FastAPI server public IP from `ZENTHEX_SERVER_PUBLIC_IP` with a copy button for Upbit allowed IP registration.
-- Paid real trading must use a fixed outbound server IP. Auto-detected IP is a warning/reference only; production readiness requires a fixed IP server/NAT and `ZENTHEX_SERVER_PUBLIC_IP`.
+- Paid real trading must use a fixed outbound server IP. Current intended Zenthex fixed IP is `74.220.52.254`; auto-detected IP is a warning/reference only, and the server must actually route outbound Upbit requests through the same IP.
 - Public docs must explain that GitHub Pages is not the trading server and cannot provide the Upbit outbound IP.
 - Trading settings must show a compact summary for exit mode, target yield, capital mode, and coin selection so the strategy is readable at a glance.
+- Trading's default screen should expose only the essential strategy controls; advanced controls such as trailing exit and existing-holdings rotation should be collapsed but automatically opened when selected.
 - Trading must show a return-rate chart from the latest Upbit balance/status `totalPnlPct`, so users can monitor profit movement, not only coin holdings.
 - Trading includes short scalping targets and high-risk target options: +10%, +30%, +50%.
 - Trading investment mode supports KRW cash all-in, KRW cash ratio, fixed amount, and an explicit high-risk existing-holdings rotation mode.

@@ -1,4 +1,15 @@
-ZENTHEX_UPLOAD_VERSION=2026-05-17-1145
+ZENTHEX_UPLOAD_VERSION=2026-05-17-1230
+Trading: strategy panel redesigned so only essential controls are visible by default
+Trading: trailing exit, pullback width, existing-holdings rotation, and risk explanations moved into a collapsed Advanced Strategy panel
+Trading: Advanced Strategy opens automatically when trailing exit or existing-holdings rotation is selected, so risk consent is not hidden
+Review: CEO checklist now verifies collapsed advanced Trading controls
+Trading: intended fixed Upbit server IP set to 74.220.52.254 in env example, README, review checklist, and master plan
+Docs: clarified that displaying 74.220.52.254 is not enough; the production server outbound route must actually use the same fixed IP
+Studio: NanoBanana provider added for immediate Gemini image previews when GEMINI_API_KEY is configured
+Studio: prompt generate API now returns image_url/image_provider/provider_message from NanoBanana or a clear fallback reason
+Studio: viewer now shows a NanoBanana immediate image panel above the Three.js preview when image_url is available
+Env: GEMINI_API_KEY and ZENTHEX_NANOBANANA_MODEL added; requirements now include google-genai
+Review: CEO checklist now verifies NanoBanana provider wiring
 Studio: prompt generation now returns a preview profile immediately, so "대한민국 32평 아파트" changes the 3D preview into an apartment-style layout instead of showing the same sample building
 Studio: result summary card added inside the viewer with generated title, summary, and room/area chips
 Studio: backend now stays usable even when OpenCV/3D Worker dependencies are missing; it returns the visual preview and clearly explains that GLB export needs the worker

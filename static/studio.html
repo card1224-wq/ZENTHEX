@@ -34,6 +34,13 @@
         .preview-result-card strong { color:#f8fafc; font-size:14px; display:block; margin-bottom:7px; }
         .preview-result-card p { color:#a1a1aa; font-size:12px; line-height:1.55; margin:0; }
         .preview-result-card span { display:inline-flex; margin:8px 6px 0 0; border:1px solid rgba(255,255,255,.10); border-radius:999px; padding:5px 8px; color:#99f6e4; font-size:11px; font-weight:800; }
+        .nanobanana-preview {
+            position:absolute; left:18px; top:18px; z-index:23; width:min(420px, calc(100% - 36px));
+            border:1px solid rgba(255,255,255,.14); background:rgba(0,0,0,.62); backdrop-filter:blur(16px);
+            border-radius:16px; padding:10px; box-shadow:0 18px 60px rgba(0,0,0,.34);
+        }
+        .nanobanana-preview img { width:100%; display:block; border-radius:12px; aspect-ratio:16/10; object-fit:cover; }
+        .nanobanana-preview p { margin:8px 2px 0; color:#99f6e4; font-size:11px; font-weight:900; }
         .hidden { display: none !important; }
         .glass-panel { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.1); }
         #viewer-container { width: 100%; height: 100%; position: relative; }
@@ -241,6 +248,21 @@
             const rooms = (preview?.rooms || []).map(room => `<span>${room}</span>`).join("");
             card.innerHTML = `<strong>${preview?.title || "Zenthex 3D Preview"}</strong><p>${preview?.summary || "생성된 공간 미리보기입니다."}</p><div>${rooms}</div>`;
         }
+        function zxRenderNanoBananaImage(result) {
+            let panel = document.getElementById("nanobanana-preview");
+            if (!result?.image_url) {
+                if (panel) panel.remove();
+                return;
+            }
+            if (!panel) {
+                panel = document.createElement("div");
+                panel.id = "nanobanana-preview";
+                panel.className = "nanobanana-preview";
+                document.getElementById("viewer-container").appendChild(panel);
+            }
+            panel.innerHTML = `<img src="${result.image_url}" alt="NanoBanana generated Studio preview"><p>NanoBanana 즉시 생성 이미지</p>`;
+        }
+        window.zxRenderNanoBananaImage = zxRenderNanoBananaImage;
         function zxShowFallbackPreview(profile) {
             const placeholder = document.getElementById('placeholder');
             if (placeholder) placeholder.classList.add('hidden');
@@ -265,6 +287,7 @@
             if (!response.ok || result.status !== "success") throw new Error(result.detail || result.message || "업로드 체험에 실패했습니다.");
             await zxRefreshUser();
             zxShowFallbackPreview(result.preview);
+            zxRenderNanoBananaImage(result);
             const exportMsg = zxExportMessage(result);
             zxShowStatus(`3D 생성 요청이 완료되었습니다.${exportMsg}`);
         }
@@ -278,6 +301,7 @@
             if (!response.ok || result.status !== "success") throw new Error(result.detail || result.message || "프롬프트 체험에 실패했습니다.");
             await zxRefreshUser();
             zxShowFallbackPreview(result.preview);
+            zxRenderNanoBananaImage(result);
             const exportMsg = zxExportMessage(result);
             zxShowStatus(`프롬프트 기반 3D 생성 요청이 완료되었습니다.${exportMsg}`);
         }
@@ -516,12 +540,14 @@
                     currentModel = generateProceduralBuilding(result.preview || {});
                     scene.add(currentModel);
                     window.zxRenderResultCard(result.preview);
+                    window.zxRenderNanoBananaImage(result);
                     
                     loader.classList.remove('active');
                     const exportLinks = result.model_url ? `<br><button class="export-button" onclick="window.zxDownloadJpg()">JPG 저장</button><a class="download-link" href="${result.model_url}" download>GLB 3D 모델 다운로드</a><div class="studio-format-note">JPG는 현재 보이는 화면 이미지이고, GLB는 Blender/Three.js에서 여는 실제 3D 모델 파일입니다.</div>` : '';
+                    const providerMsg = result.provider_message ? `<br><span class="text-gray-400">${result.provider_message}</span>` : '';
                     const workerMsg = !result.worker_ready ? '<br><span class="text-amber-300">서버 3D Worker 의존성이 없어 GLB 파일은 준비되지 않았습니다. 화면 미리보기와 JPG 저장을 우선 제공합니다.</span>' : '';
                     const lockedMsg = result.preview_only ? '<br><span class="text-amber-300">체험 미리보기는 보기 전용입니다. JPG/GLB 저장은 구독 후 제공됩니다.</span>' : `<br><span class="text-[#00ffcc]">구독 권한으로 JPG 저장과 GLB 3D 모델 다운로드가 가능합니다.</span>${exportLinks}${workerMsg}`;
-                    document.getElementById('status-box').innerHTML = `3D 생성이 완료되었습니다.<br><span class="text-white">${result.preview?.title || '생성된 공간'}을 마우스로 둘러보세요.</span>${lockedMsg}`;
+                    document.getElementById('status-box').innerHTML = `3D 생성이 완료되었습니다.<br><span class="text-white">${result.preview?.title || '생성된 공간'}을 마우스로 둘러보세요.</span>${providerMsg}${lockedMsg}`;
                     
                     // Fly-in Camera Animation
                     camera.position.set(60, 50, 60);
@@ -584,12 +610,14 @@
                     currentModel = generateProceduralBuilding(result.preview || {});
                     scene.add(currentModel);
                     window.zxRenderResultCard(result.preview);
+                    window.zxRenderNanoBananaImage(result);
                     
                     loader.classList.remove('active');
                     const exportLinks = result.model_url ? `<br><button class="export-button" onclick="window.zxDownloadJpg()">JPG 저장</button><a class="download-link" href="${result.model_url}" download>GLB 3D 모델 다운로드</a><div class="studio-format-note">JPG는 현재 보이는 화면 이미지이고, GLB는 Blender/Three.js에서 여는 실제 3D 모델 파일입니다.</div>` : '';
+                    const providerMsg = result.provider_message ? `<br><span class="text-gray-400">${result.provider_message}</span>` : '';
                     const workerMsg = !result.worker_ready ? '<br><span class="text-amber-300">서버 3D Worker 의존성이 없어 GLB 파일은 준비되지 않았습니다. 화면 미리보기와 JPG 저장을 우선 제공합니다.</span>' : '';
                     const lockedMsg = result.preview_only ? '<br><span class="text-amber-300">체험 미리보기는 보기 전용입니다. JPG/GLB 저장은 구독 후 제공됩니다.</span>' : `<br><span class="text-[#00ffcc]">구독 권한으로 JPG 저장과 GLB 3D 모델 다운로드가 가능합니다.</span>${exportLinks}${workerMsg}`;
-                    document.getElementById('status-box').innerHTML = `<span class="text-purple-400">프롬프트 기반 3D 생성이 완료되었습니다.<br>${result.preview?.title || '생성된 공간'}을 둘러보세요.</span>${lockedMsg}`;
+                    document.getElementById('status-box').innerHTML = `<span class="text-purple-400">프롬프트 기반 3D 생성이 완료되었습니다.<br>${result.preview?.title || '생성된 공간'}을 둘러보세요.</span>${providerMsg}${lockedMsg}`;
                     
                     camera.position.set(60, 50, 60);
                     controls.target.set(0, 5, 0);

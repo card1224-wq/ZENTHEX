@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from auth.router import get_current_user
 from database.session import get_db
+from studio.providers.nanobanana import generate_preview_image, is_configured as nanobanana_is_configured
 try:
     import cv2
     import numpy as np
@@ -145,6 +146,11 @@ def describe_prompt_preview(prompt: str, source: str = "prompt"):
         "rooms": ["메인 공간", "보조 공간", "동선"],
     }
 
+def build_nanobanana_result(prompt: str):
+    if not nanobanana_is_configured():
+        return {"status": "skipped", "message": "GEMINI_API_KEY가 없어 NanoBanana를 건너뛰고 Studio 3D 미리보기를 사용합니다."}
+    return generate_preview_image(prompt)
+
 @router.post("/upload")
 async def upload_floorplan(
     background_tasks: BackgroundTasks,
@@ -181,6 +187,9 @@ async def upload_floorplan(
         "status": "success",
         "message": "3D 미리보기를 준비했습니다." if not STUDIO_WORKER_READY else "3D 생성 작업을 시작했습니다.",
         "preview": describe_prompt_preview(file.filename or "업로드 도면", "upload"),
+        "image_url": None,
+        "image_provider": None,
+        "provider_message": "업로드 도면은 현재 3D 미리보기와 GLB Worker로 처리합니다.",
         "preview_only": not can_export,
         "export_locked": not can_export,
         "model_url": f"/static/models/{model_filename}" if can_export and STUDIO_WORKER_READY else None,
@@ -213,11 +222,15 @@ async def generate_floorplan(
     if STUDIO_WORKER_READY and img is not None:
         background_tasks.add_task(generate_3d_task, img_path, model_path, bg_path, style, wall_height)
 
+    nano = build_nanobanana_result(prompt)
     can_export = user_can_export(user)
     return {
         "status": "success",
-        "message": "프롬프트 기반 3D 미리보기를 준비했습니다." if not STUDIO_WORKER_READY else "프롬프트 기반 3D 생성 작업을 시작했습니다.",
+        "message": "NanoBanana 이미지와 3D 미리보기를 준비했습니다." if nano.get("status") == "success" else ("프롬프트 기반 3D 미리보기를 준비했습니다." if not STUDIO_WORKER_READY else "프롬프트 기반 3D 생성 작업을 시작했습니다."),
         "preview": describe_prompt_preview(prompt),
+        "image_url": nano.get("image_url"),
+        "image_provider": nano.get("provider"),
+        "provider_message": nano.get("message"),
         "preview_only": not can_export,
         "export_locked": not can_export,
         "model_url": f"/static/models/{filename}.glb" if can_export and STUDIO_WORKER_READY else None,

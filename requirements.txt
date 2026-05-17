@@ -7,6 +7,7 @@ pydantic[email]
 passlib
 pyupbit
 google-generativeai
+google-genai
 opencv-python
 numpy
 cryptography
