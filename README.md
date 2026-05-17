@@ -75,7 +75,9 @@ Current production test target is Upbit because KRW markets and all listed coin 
 
 Upbit real-trading keys require asset lookup and order permissions, and the public IP address of the running Zenthex FastAPI server must be registered on the Upbit Open API key. GitHub Pages is not the trading server; it only serves static files. If authentication fails, the UI returns a more specific diagnostic for likely IP, permission, Access Key, or Secret Key problems. The Trading screen shows the configured Zenthex server IP from `ZENTHEX_SERVER_PUBLIC_IP`, or auto-detects the FastAPI server outbound IP through `api.ipify.org` when the environment value is empty. It includes "업비트 키 진단하기" for troubleshooting and "업비트 키 인증하기" for the live-trading gate. Secret Key is hidden by default, with a temporary view button for paste checks. The backend re-checks the key again when the real engine starts.
 
-For real paid trading, the outbound IP should be fixed. If the displayed IP keeps changing, the deployment likely has no fixed outbound IP or `ZENTHEX_SERVER_PUBLIC_IP` is empty and the app is auto-detecting the current egress IP. Use a fixed-IP server/NAT/Elastic IP and set `ZENTHEX_SERVER_PUBLIC_IP` before relying on Upbit allowed-IP registration.
+For real paid trading, the outbound IP should be fixed. If the displayed IP keeps changing, the deployment likely has no fixed outbound IP or `ZENTHEX_SERVER_PUBLIC_IP` is empty and the app is auto-detecting the current egress IP. Auto-detected IP is shown as a warning/reference only. Use a fixed-IP server/NAT/Elastic IP and set `ZENTHEX_SERVER_PUBLIC_IP` before relying on Upbit allowed-IP registration.
+
+The Trading page keeps the long strategy form readable with a compact top summary for exit mode, target yield, capital mode, and coin selection. It also plots the latest Upbit balance/status `totalPnlPct` as a return-rate chart, so the user can watch profit movement instead of only reading current holdings.
 
 Studio exports use two formats: GLB is the real 3D model file for 3D viewers/tools, while JPG is a flat image of the current preview screen. Owner, Studio Pro, and Ultimate users can use both export paths.
 

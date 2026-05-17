@@ -57,12 +57,22 @@ async def server_ip():
         return {
             "status": "missing",
             "server_ip": "",
+            "is_fixed": False,
             "message": "Zenthex 서버 공인 IP가 아직 설정되지 않았습니다. 실거래 서버에서 확인한 고정 IP를 ZENTHEX_SERVER_PUBLIC_IP 환경변수에 넣어야 합니다.",
+        }
+    if source != "env":
+        return {
+            "status": "warning",
+            "server_ip": public_ip,
+            "source": source,
+            "is_fixed": False,
+            "message": "현재 IP는 자동 감지값입니다. 운영 실거래에서는 바뀌면 안 되므로 고정 서버 IP를 ZENTHEX_SERVER_PUBLIC_IP에 설정해야 합니다.",
         }
     return {
         "status": "success",
         "server_ip": public_ip,
         "source": source,
+        "is_fixed": True,
         "message": "이 IP를 Upbit Open API 허용 IP에 등록하세요.",
     }
 

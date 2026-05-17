@@ -1,4 +1,13 @@
-ZENTHEX_UPLOAD_VERSION=2026-05-17-0940
+ZENTHEX_UPLOAD_VERSION=2026-05-17-1145
+Studio: prompt generation now returns a preview profile immediately, so "대한민국 32평 아파트" changes the 3D preview into an apartment-style layout instead of showing the same sample building
+Studio: result summary card added inside the viewer with generated title, summary, and room/area chips
+Studio: backend now stays usable even when OpenCV/3D Worker dependencies are missing; it returns the visual preview and clearly explains that GLB export needs the worker
+Studio: upload and prompt flows now pass the backend preview profile into the Three.js renderer
+Trading: fixed-IP guard strengthened. Auto-detected Upbit server IP is now shown as a warning, while only ZENTHEX_SERVER_PUBLIC_IP counts as production fixed IP
+Trading: strategy settings now show a compact top summary for exit mode, target yield, capital mode, and coin selection so the page is easier to read at a glance
+Trading: return-rate chart added. Upbit balance/status totalPnlPct is accumulated locally so the user can watch profit movement instead of only reading holdings
+Review: CEO launch checklist now verifies fixed-IP protection, compact Trading strategy summary, and the Trading return-rate chart
+Docs: master plan rebuilt in clean Korean and updated with fixed outbound IP, compact Trading UI, and return graph operating principles
 Mobile: real trading status and stop actions now require login/Trading permission, so PC-to-phone monitoring is safer
 Docs: master plan now states that server-running Trading can be monitored from mobile after browser close
 Trading: Upbit balance and return view added so users can load cash balance, holdings, PnL, and return rate before starting the engine
