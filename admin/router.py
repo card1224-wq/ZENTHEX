@@ -199,6 +199,7 @@ REVIEW_KOREAN_COPY = {
     "mobile_real_status_protection": ("모바일 실거래 상태 보호", "휴대폰에서도 상태 확인은 가능하지만 실거래 상태와 중지는 로그인과 Trading 권한이 필요해야 합니다."),
     "upbit_server_ip_notice": ("Upbit 허용 IP 안내", "Upbit에 등록할 Zenthex FastAPI 서버 IP를 화면에 보여줘야 합니다."),
     "upbit_fixed_ip_guard": ("Upbit 고정 IP 보호", "운영 실거래에서는 자동 감지 IP가 아니라 고정 서버 IP가 설정되어야 합니다."),
+    "upbit_outbound_ip_verify": ("Upbit outbound IP 검증", "표시 IP와 실제 outbound IP가 같은지 실거래 전 검증할 수 있어야 합니다."),
     "trading_compact_summary": ("Trading 전략 한눈 요약", "전략 설정이 길어도 매도방식, 목표, 투자금, 코인 선택이 상단에서 한눈에 보여야 합니다."),
     "trading_advanced_collapse": ("Trading 고급 설정 접기", "추적익절과 보유코인 정리 같은 고급/위험 설정은 기본 화면에서 접혀 있어야 합니다."),
     "trading_return_chart": ("Trading 수익률 그래프", "업비트 잔고/상태 조회 기준의 최근 수익률 흐름을 그래프로 확인할 수 있어야 합니다."),
@@ -207,8 +208,10 @@ REVIEW_KOREAN_COPY = {
     "support_tickets": ("고객 문의 접수 시스템", "사용자가 문의를 남기고 대표가 대시보드에서 처리할 수 있어야 합니다."),
     "trading_access_ui": ("Trading 대표/구독자 화면", "대표와 구독자가 실거래 권한 화면으로 진입해야 합니다."),
     "role_separation": ("대표와 구독자 권한 분리", "CEO 운영 기능은 대표 계정만 사용할 수 있어야 합니다."),
+    "account_role_workspace": ("마이페이지 역할별 작업 공간", "마이페이지는 대표에게 CEO 운영 진입을, 구독자에게 본인 서비스 작업을 분리해서 보여줘야 합니다."),
     "plan_separation": ("플랜별 서비스 권한", "Studio Pro, Trading Pro, Ultimate 권한이 서로 섞이지 않아야 합니다."),
     "trading_targets": ("Trading 목표수익률과 투자금", "+10%, +30%, +50% 목표와 KRW 현금 전액, 비율, 고정금액, 보유 코인 정리 후 재진입 모드가 있는지 확인합니다."),
+    "real_stop_loss_halts": ("실거래 손절 후 완전 정지", "실거래 손절 후 자동으로 다시 스캔하거나 재진입하면 안 됩니다."),
     "trading_engine_scan": ("Trading 스캐너 안정성", "시장 스캔 코드에 깨진 변수 참조가 없는지 확인합니다."),
     "mock_payment_guard": ("Mock 결제 보호", "테스트 결제가 허용된 경우에만 유료 플랜을 열 수 있어야 합니다."),
     "persistent_database": ("영구 데이터베이스", "유료 사용자 데이터는 GitHub 파일이 아니라 영구 DB에 저장되어야 합니다."),
@@ -247,6 +250,7 @@ def get_launch_review(Authorization: str = Header(None), db: Session = Depends(g
     login_html = _read_text("static/login.html")
     studio_html = _read_text("static/studio.html")
     finance_html = _read_text("static/finance.html")
+    account_html = _read_text("static/account.html")
     customer_html = _read_text("static/customer.html")
     admin_html = _read_text("static/admin.html")
     auth_router = _read_text("auth/router.py")
@@ -294,6 +298,7 @@ def get_launch_review(Authorization: str = Header(None), db: Session = Depends(g
         _review_item("mobile_real_status_protection", "Mobile real-status protection", all(text in finance_html + trading_router for text in ["require_real_status_permission", "headers=token", "/api/finance/stop", "실거래 상태 조회는 로그인이 필요합니다"]), "PC/mobile status viewing is supported, but real trading status and stop actions require login and Trading permission."),
         _review_item("upbit_server_ip_notice", "Upbit server IP notice", all(text in finance_html + trading_router + _read_text(".env.example") for text in ["ZENTHEX_SERVER_PUBLIC_IP", "server-ip", "Upbit 허용 IP", "복사", "api.ipify.org"]), "Trading screen exposes the Zenthex FastAPI server IP for Upbit allowed-IP registration."),
         _review_item("upbit_fixed_ip_guard", "Upbit fixed IP guard", all(text in trading_router + finance_html for text in ["is_fixed", "자동 감지값", "고정 서버 IP", "text-red-300"]), "Auto-detected IP is marked as unsafe for production; fixed env IP is required for live Upbit trading."),
+        _review_item("upbit_outbound_ip_verify", "Upbit outbound IP verification", all(text in trading_router + finance_html for text in ["server-ip/verify", "configured_ip", "outbound_ip", "matches", "표시 IP와 실제 outbound IP"]), "Trading screen can compare configured IP against actual outbound IP before live trading."),
         _review_item("trading_compact_summary", "Trading compact strategy summary", all(text in finance_html for text in ["strategy-summary", "summary-exit", "summary-target", "summary-capital", "summary-coin", "updateStrategySummary"]), "Trading settings show a compact top summary for exit mode, target, capital, and coin selection."),
         _review_item("trading_advanced_collapse", "Trading advanced settings collapse", all(text in finance_html for text in ["advanced-strategy-box", "고급 전략 설정", "advanced.open=true", "rotate_holdings", "trailing-drop-box"]), "Advanced and risky trading controls are collapsed by default and opened automatically when selected."),
         _review_item("trading_return_chart", "Trading return chart", all(text in finance_html for text in ["return-chart", "returnHistory", "pushReturnPoint", "renderReturnChart", "totalPnlPct"]), "Trading screen plots recent account/status return rate so the user can watch profit movement, not only holdings."),
@@ -302,8 +307,10 @@ def get_launch_review(Authorization: str = Header(None), db: Session = Depends(g
         _review_item("support_tickets", "Customer inquiry system", all(text in customer_html + admin_html + support_router + models_py + migrations_py for text in ["문의 접수하기", "support_tickets", "/api/support/tickets", "/api/support/admin/tickets", "fetchSupportTickets"]), "Customers can submit inquiries and the owner can manage them from the CEO dashboard."),
         _review_item("trading_access_ui", "Trading owner/subscriber UI", all(text in finance_html for text in ["finance-access-chip", "대표 실거래 권한", "구독 실거래 권한", "zenthex-mark"]), "Trading refreshes account permission and opens real-mode UI for owner/subscribers."),
         _review_item("role_separation", "Owner and subscriber separation", all(text in admin_router + admin_html + index_html + login_html for text in ["require_owner", "user.role==='owner'", "role==='owner'"]) and "['owner','admin'].includes" not in index_html + login_html + admin_html, "Only the owner account can access CEO operations screens."),
+        _review_item("account_role_workspace", "Account role workspace", all(text in account_html for text in ["role-workspace", "renderRoleWorkspace", "CEO 운영 대시보드", "내 Studio 작업", "내 Trading 엔진"]), "My Page separates owner operations entry from subscriber product workspace."),
         _review_item("plan_separation", "Plan-specific product access", all(text in studio_router + trading_router + billing_router for text in ["studio_pro", "trading_pro", "studio_limit\": 0", "user.role == \"owner\""]), "Studio Pro unlocks Studio, Trading Pro unlocks Trading, and owner unlocks all."),
         _review_item("trading_targets", "Trading target and capital options", all(text in finance_html + trading_router + engine_py for text in ["+10%", "+30%", "+50%", "all_krw", "ratio", "fixed", "rotate_holdings", "rotateExistingAccepted", "trailing", "peak_yield"]), "Short scalping targets, KRW cash modes, explicit existing-holdings rotation, and trailing take-profit are available."),
+        _review_item("real_stop_loss_halts", "Real stop-loss halts engine", all(text in engine_py for text in ["손절 매도 후 실거래 엔진을 완전 정지", "TradingState.STOPPED", "Zenthex Trading 손절 정지"]), "Real trading stops after stop-loss sell instead of returning to scan/re-entry."),
         _review_item("trading_engine_scan", "Trading scanner stability", "ohlcv[\"" not in engine_py and "hourly[\"high\"]" in engine_py, "Undefined scanner variable is not present."),
         _review_item("mock_payment_guard", "Mock payment guard", "ZENTHEX_ENABLE_MOCK_PAYMENT" in billing_router, "Mock payment cannot unlock paid plans unless explicitly enabled."),
         _review_item("persistent_database", "Persistent production database", "ZENTHEX_DATABASE_URL" in session_py and "ZENTHEX_DATABASE_URL" in _read_text(".env.example") and "postgres://" in session_py and "psycopg2-binary" in _read_text("requirements.txt"), "Paid user data must live in a persistent DB outside GitHub deploy files."),

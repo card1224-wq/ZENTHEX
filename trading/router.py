@@ -42,15 +42,18 @@ def clean_api_key(value: str) -> str:
 def user_can_real_trade(user) -> bool:
     return user.role == "owner" or user.plan in ["trading_pro", "ultimate"]
 
+def detect_outbound_ip() -> str:
+    with urllib.request.urlopen("https://api.ipify.org", timeout=4) as response:
+        return response.read().decode("utf-8").strip()
+
 @router.get("/server-ip")
 async def server_ip():
     public_ip = (os.getenv("ZENTHEX_SERVER_PUBLIC_IP") or "").strip()
     source = "env"
     if not public_ip:
         try:
-            with urllib.request.urlopen("https://api.ipify.org", timeout=4) as response:
-                public_ip = response.read().decode("utf-8").strip()
-                source = "auto_detected"
+            public_ip = detect_outbound_ip()
+            source = "auto_detected"
         except Exception:
             public_ip = ""
     if not public_ip:
@@ -74,6 +77,36 @@ async def server_ip():
         "source": source,
         "is_fixed": True,
         "message": "이 IP를 Upbit Open API 허용 IP에 등록하세요.",
+    }
+
+@router.get("/server-ip/verify")
+async def verify_server_ip():
+    configured_ip = (os.getenv("ZENTHEX_SERVER_PUBLIC_IP") or "").strip()
+    try:
+        outbound_ip = detect_outbound_ip()
+    except Exception as exc:
+        return {
+            "status": "error",
+            "configured_ip": configured_ip,
+            "outbound_ip": "",
+            "matches": False,
+            "message": f"실제 outbound IP를 확인하지 못했습니다: {exc}",
+        }
+    if not configured_ip:
+        return {
+            "status": "missing",
+            "configured_ip": "",
+            "outbound_ip": outbound_ip,
+            "matches": False,
+            "message": "ZENTHEX_SERVER_PUBLIC_IP가 비어 있습니다. 표시 IP가 아니라 실제 고정 IP를 서버 환경변수에 설정해야 합니다.",
+        }
+    matches = configured_ip == outbound_ip
+    return {
+        "status": "success" if matches else "mismatch",
+        "configured_ip": configured_ip,
+        "outbound_ip": outbound_ip,
+        "matches": matches,
+        "message": "표시 IP와 실제 outbound IP가 일치합니다." if matches else "표시 IP와 실제 outbound IP가 다릅니다. Upbit 허용 IP에는 실제 outbound IP가 필요하며, 실거래 전 고정 IP 라우팅을 확인해야 합니다.",
     }
 
 def explain_upbit_auth_error(raw_error) -> str:

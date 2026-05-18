@@ -1,4 +1,17 @@
-ZENTHEX_UPLOAD_VERSION=2026-05-17-1230
+ZENTHEX_UPLOAD_VERSION=2026-05-18-0950
+Trading Safety: outbound IP verification API added to compare ZENTHEX_SERVER_PUBLIC_IP against actual server outbound IP
+Trading UI: Upbit IP panel now has a button to verify displayed IP versus actual outbound IP
+Review: CEO checklist now verifies configured/outbound IP comparison before live trading readiness
+Docs: master plan and README now state that mismatched configured/outbound IP is not live-trading ready
+Account: My Page now separates owner operations entry from subscriber product workspace
+Owner: account page shows CEO Dashboard, Studio review, and Trading review cards without exposing owner operations inside subscriber workspace
+Subscriber: account page shows only personal Studio, Trading, and Customer Center actions
+Review: CEO checklist now verifies account role workspace separation
+Docs: master plan now defines owner/subscriber UI separation and API access principles
+Trading Safety: real stop-loss now sells and fully stops the engine instead of returning to IDLE/scanning
+Trading Safety: after real stop-loss, the user must explicitly press real-trading start again; no surprise overnight re-entry
+Review: CEO checklist now verifies that real stop-loss halts the engine completely
+Docs: master plan now separates real stop-loss halt from practice-mode re-scan
 Trading: strategy panel redesigned so only essential controls are visible by default
 Trading: trailing exit, pullback width, existing-holdings rotation, and risk explanations moved into a collapsed Advanced Strategy panel
 Trading: Advanced Strategy opens automatically when trailing exit or existing-holdings rotation is selected, so risk consent is not hidden

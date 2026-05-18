@@ -181,6 +181,7 @@
                 <input id="server-ip-box" readonly value="확인 중" class="bg-black border border-white/10 rounded-lg p-3" />
                 <button type="button" onclick="copyServerIp()" class="px-4 rounded-lg bg-white/10 border border-white/10 text-white font-black">복사</button>
               </div>
+              <button type="button" onclick="verifyServerIp()" class="mt-2 w-full py-3 rounded-lg bg-white/10 border border-white/10 text-white font-black">표시 IP와 실제 outbound IP 검증</button>
               <p id="server-ip-note" class="mt-2 text-amber-300"></p>
             </div>
             <label class="text-xs text-gray-400 font-bold">Upbit Access Key</label>
@@ -343,6 +344,7 @@ function resetKeyVerification(){upbitKeyVerified=false;verifiedKeyFingerprint=''
 function toggleSecretKey(){secretKeyEl.type=secretKeyEl.type==='password'?'text':'password'}
 function goBackHome(){location.href='index.html'}
 async function loadServerIp(){const box=document.getElementById('server-ip-box');const note=document.getElementById('server-ip-note');try{const res=await fetch('/api/finance/server-ip');const data=await res.json();box.value=data.server_ip||'서버 IP 미설정';note.innerText=data.message||'Zenthex 서버 IP를 확인할 수 없습니다.';note.className=data.is_fixed?'mt-2 text-[#00ffcc]':'mt-2 text-red-300';if(!data.server_ip){note.innerText+=' GitHub Pages만 사용 중이면 FastAPI 서버가 아니므로 Upbit 실거래를 실행할 수 없습니다.'}}catch(e){box.value='확인 실패';note.className='mt-2 text-red-300';note.innerText='서버 IP 확인 API에 연결하지 못했습니다. FastAPI 서버가 실제로 실행 중인지 확인하세요.'}}
+async function verifyServerIp(){const note=document.getElementById('server-ip-note');note.className='mt-2 text-amber-300';note.innerText='표시 IP와 실제 outbound IP를 비교하는 중입니다.';try{const res=await fetch('/api/finance/server-ip/verify');const data=await res.json();const configured=data.configured_ip||'미설정';const outbound=data.outbound_ip||'확인 실패';note.className=data.matches?'mt-2 text-[#00ffcc]':'mt-2 text-red-300';note.innerText=`${data.message} 설정 IP: ${configured} / 실제 outbound IP: ${outbound}`;}catch(e){note.className='mt-2 text-red-300';note.innerText='IP 검증 API에 연결하지 못했습니다. FastAPI 서버가 실제로 실행 중인지 확인하세요.'}}
 async function copyServerIp(){const value=document.getElementById('server-ip-box').value.trim();if(!value||value==='서버 IP 미설정'||value==='확인 실패'){alert('복사할 Zenthex 서버 IP가 아직 없습니다.');return}try{await navigator.clipboard.writeText(value);alert('Zenthex 서버 IP를 복사했습니다. Upbit Open API 허용 IP에 등록하세요.')}catch(e){alert(value)}}
 async function refreshCurrentUser(){token=localStorage.getItem('zx_token');if(!token)return;try{const res=await fetch('/api/auth/me',{headers:{'Authorization':`Bearer ${token}`}});if(res.ok){user=await res.json();localStorage.setItem('zx_user',JSON.stringify(user));return}if(res.status===401){localStorage.removeItem('zx_token');localStorage.removeItem('zx_user');token=null;user=null;alert('로그인 시간이 만료되었습니다. 다시 로그인 후 실거래를 시작해주세요.')}}catch(e){console.error(e)}}
 function userCanSeeRealTrade(){if(!token||!user)return false;if(user.role==='owner')return true;return ['trading_pro','ultimate'].includes(user.plan)}

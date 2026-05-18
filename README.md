@@ -36,6 +36,8 @@ Studio and Trading refresh the current account on page load. Owner and paid user
 
 The homepage hero stays as a public Zenthex brand introduction for every visitor, including the owner account. Owner operations are exposed through dashboard links and owner-only cards, not by replacing the main brand headline.
 
+Owner and subscriber workspaces are separated. Subscribers use My Page for their own subscription, receipts, Studio, Trading, and support. The owner uses CEO Dashboard for user approval, plan changes, support management, launch review, emergency stop, and operational checks. Owner-only metrics or controls must not appear in subscriber screens.
+
 Logged-in users see My Page, Customer Center, and Logout in the homepage navigation. The owner also sees CEO Dashboard. Logged-in users should not see only the anonymous Login/Trial navigation.
 
 Role separation:
@@ -76,6 +78,8 @@ Current production test target is Upbit because KRW markets and all listed coin 
 Upbit real-trading keys require asset lookup and order permissions, and the public IP address of the running Zenthex FastAPI server must be registered on the Upbit Open API key. GitHub Pages is not the trading server; it only serves static files. If authentication fails, the UI returns a more specific diagnostic for likely IP, permission, Access Key, or Secret Key problems. The Trading screen shows the configured Zenthex server IP from `ZENTHEX_SERVER_PUBLIC_IP`, or auto-detects the FastAPI server outbound IP through `api.ipify.org` when the environment value is empty. It includes "업비트 키 진단하기" for troubleshooting and "업비트 키 인증하기" for the live-trading gate. Secret Key is hidden by default, with a temporary view button for paste checks. The backend re-checks the key again when the real engine starts.
 
 For real paid trading, the outbound IP should be fixed. Zenthex currently uses `74.220.52.254` as the intended fixed server IP value. The production server must actually route outbound Upbit requests through this same IP, and `ZENTHEX_SERVER_PUBLIC_IP=74.220.52.254` must be set in the server environment. If the displayed IP keeps changing, the deployment likely has no fixed outbound IP or the app is auto-detecting the current egress IP. Auto-detected IP is shown as a warning/reference only.
+
+The Trading screen includes an outbound-IP verification check. It compares `ZENTHEX_SERVER_PUBLIC_IP` with the actual public IP seen from the FastAPI server. If the two values differ, do not treat the deployment as ready for Upbit live trading.
 
 The Trading page keeps the long strategy form readable with a compact top summary for exit mode, target yield, capital mode, and coin selection. It also plots the latest Upbit balance/status `totalPnlPct` as a return-rate chart, so the user can watch profit movement instead of only reading current holdings.
 

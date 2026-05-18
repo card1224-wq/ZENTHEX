@@ -485,7 +485,7 @@ async def scalping_loop():
                         await asyncio.sleep(1)
                         await refresh_real_balances()
                         bot_state.held_btc = 0
-                        log_trade(f"[Real Stop Loss] {bot_state.active_ticker} -{loss_pct:.2f}%. 실매도 후 대기 상태로 복귀.")
+                        log_trade(f"[Real Stop Loss] {bot_state.active_ticker} -{loss_pct:.2f}%. 실매도 후 엔진을 완전 정지합니다.")
                     else:
                         sell_amount = (bot_state.held_btc * price) * 0.9995
                         bot_state.balance += sell_amount
@@ -495,7 +495,12 @@ async def scalping_loop():
                     bot_state.entry_krw = 0
                     bot_state.peak_yield = 1.0
                     bot_state.consecutive_loss_count += 1
-                    bot_state.state = TradingState.IDLE
+                    if bot_state.trading_mode == "real":
+                        bot_state.state = TradingState.STOPPED
+                        bot_state.decision_note = "손절 매도 후 실거래 엔진을 완전 정지했습니다. 다시 시작하려면 사용자가 직접 실거래 시작을 눌러야 합니다."
+                        send_push_notification("Zenthex Trading 손절 정지", f"{bot_state.active_ticker} -{loss_pct:.2f}% 손절 후 엔진을 정지했습니다.")
+                    else:
+                        bot_state.state = TradingState.IDLE
 
         except Exception as e:
             bot_state.decision_note = f"시스템 오류로 엔진이 멈췄습니다: {e}"

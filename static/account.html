@@ -25,6 +25,8 @@
       <div class="p-5 rounded-xl bg-white/[.03] border border-white/10"><p class="text-gray-500 text-xs font-black uppercase">이메일 인증</p><strong id="user-verified" class="text-xl mt-2 block">-</strong></div>
     </section>
 
+    <section id="role-workspace" class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6"></section>
+
     <section class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
       <div class="p-6 rounded-xl bg-white/[.03] border border-white/10">
         <h2 class="font-black text-xl mb-4">이메일 인증</h2>
@@ -74,6 +76,25 @@ function renderPlans(){
   }
   box.innerHTML=planCatalog.map(plan=>`<div class="p-4 rounded-lg bg-black/30 border border-white/10"><div class="flex justify-between gap-3 items-start"><div><strong class="text-white">${plan.name}</strong><p class="text-xs text-gray-400 mt-1 leading-5">${plan.desc}</p></div><span class="text-[#00ffcc] font-black whitespace-nowrap">${plan.price}</span></div><button onclick="startCheckout('${plan.id}')" class="mt-3 w-full py-3 rounded-lg bg-white text-black font-black">${plan.name} 구독 신청</button></div>`).join('');
 }
+function roleCard(title,body,href,label,accent=false){
+  return `<div class="p-5 rounded-xl bg-white/[.03] border ${accent?'border-[#00ffcc]/30':'border-white/10'}"><h3 class="font-black text-white">${title}</h3><p class="text-sm text-gray-400 leading-6 mt-2">${body}</p><a href="${href}" class="inline-flex mt-4 px-4 py-3 rounded-lg ${accent?'bg-[#00ffcc] text-black':'bg-white/10 text-white border border-white/10'} font-black text-sm">${label}</a></div>`;
+}
+function renderRoleWorkspace(){
+  const box=document.getElementById('role-workspace');
+  if(isOwner()){
+    box.innerHTML=[
+      roleCard('CEO 운영 대시보드','가입 승인, 구독 권한, 고객 문의, 출시 검토, 긴급 정지는 대표 전용 화면에서 관리합니다.','admin.html','CEO Dashboard 열기',true),
+      roleCard('Studio 전체 권한','대표 계정은 결제 없이 Studio 생성, JPG 저장, GLB 다운로드를 검토할 수 있습니다.','studio.html','Studio 검토'),
+      roleCard('Trading 전체 권한','실거래 검증, 서버 IP, 위험제어, 모바일 상태 확인은 Trading 화면에서 테스트합니다.','finance.html','Trading 검토')
+    ].join('');
+    return;
+  }
+  box.innerHTML=[
+    roleCard('내 Studio 작업','구독자는 본인 프롬프트, 도면 변환, JPG 저장, GLB 다운로드만 사용합니다.','studio.html','Studio 열기',currentUser.plan==='studio_pro'||currentUser.plan==='ultimate'),
+    roleCard('내 Trading 엔진','구독자는 본인 API 키와 본인 잔고 기준으로 실거래 엔진을 실행하고 상태를 확인합니다.','finance.html','Trading 열기',currentUser.plan==='trading_pro'||currentUser.plan==='ultimate'),
+    roleCard('고객센터','계정, 결제, Studio, Trading 문의는 고객센터에서 접수하고 답변을 확인합니다.','customer.html','문의하기')
+  ].join('');
+}
 function renderUser(){
   document.getElementById('user-email').innerText=currentUser.email;
   document.getElementById('user-plan').innerText=isOwner()?'Owner Ultimate':currentUser.plan;
@@ -85,6 +106,7 @@ function renderUser(){
   }else{
     document.getElementById('subscription-note').innerText='구독 전 금액과 권한을 확인하세요. Studio 다운로드는 Studio Pro 또는 Ultimate, Trading 실거래는 Trading Pro 또는 Ultimate 구독 후 열립니다.';
   }
+  renderRoleWorkspace();
   renderPlans();
 }
 async function resendCode(){ const res=await fetch('/api/auth/email/resend',{method:'POST',headers:headers()}); const data=await res.json(); document.getElementById('verify-msg').innerText=data.dev_code?`${data.message} 테스트 인증코드: ${data.dev_code}`:(data.detail||data.message); if(res.ok) loadMe(); }

@@ -16,6 +16,7 @@ This checklist is the master review gate before uploading or publishing Zenthex.
 - Owner email is controlled by `ZENTHEX_OWNER_EMAILS`, with `7foliath@naver.com` kept as the built-in owner fallback.
 - Owner account has Ultimate access without payment, but email verification still requires a code.
 - Only the owner account can access CEO operations, user management, launch review, and emergency stop.
+- My Page must separate owner operations entry from subscriber product workspace. Subscribers must not see owner metrics, launch review, user management, or emergency stop controls.
 - Paid subscribers can run only the product their plan unlocks: Studio Pro for Studio, Trading Pro for Trading, Ultimate for both.
 - Signup includes name, email, password confirmation, birth date, phone number, phone code, and password hint question/answer.
 - Normal user signup must enter an owner-approval pending state before login/service use.
@@ -41,6 +42,7 @@ This checklist is the master review gate before uploading or publishing Zenthex.
 - Real trading key check must explain likely Upbit failures: allowed IP mismatch, missing asset/order permission, wrong Access Key, wrong Secret Key.
 - Trading screen must show the Zenthex FastAPI server public IP from `ZENTHEX_SERVER_PUBLIC_IP` with a copy button for Upbit allowed IP registration.
 - Paid real trading must use a fixed outbound server IP. Current intended Zenthex fixed IP is `74.220.52.254`; auto-detected IP is a warning/reference only, and the server must actually route outbound Upbit requests through the same IP.
+- Trading screen must verify configured IP versus actual outbound IP. If they differ, the deployment is not ready for Upbit live trading.
 - Public docs must explain that GitHub Pages is not the trading server and cannot provide the Upbit outbound IP.
 - Trading settings must show a compact summary for exit mode, target yield, capital mode, and coin selection so the strategy is readable at a glance.
 - Trading's default screen should expose only the essential strategy controls; advanced controls such as trailing exit and existing-holdings rotation should be collapsed but automatically opened when selected.
@@ -49,6 +51,7 @@ This checklist is the master review gate before uploading or publishing Zenthex.
 - Trading investment mode supports KRW cash all-in, KRW cash ratio, fixed amount, and an explicit high-risk existing-holdings rotation mode.
 - Real trading scanner must not freeze the API while it scans the market.
 - Real trading may sell only the quantity bought by the current Zenthex engine run unless the user explicitly opts into rotating existing holdings.
+- Real trading must stop completely after a stop-loss sell. It must not return to scanning or re-enter automatically unless a separate future auto-reentry option is explicitly enabled by the user.
 - Existing-holdings rotation must require a separate checkbox and confirmation because it can sell coins already held in the Upbit account.
 - Owner dashboard includes subscriber management: list users, change plan/role, and delete duplicate or withdrawn accounts.
 - Owner dashboard includes customer inquiry management: list tickets, update status, and save replies or internal notes.
