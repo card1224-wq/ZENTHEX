@@ -1,5 +1,6 @@
 ﻿from fastapi import APIRouter, Depends, Header
 from pydantic import BaseModel
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 import asyncio
 import os
@@ -22,6 +23,9 @@ class StartConfig(BaseModel):
     investmentMode: str = "all_krw"
     investmentAmount: float = 50000.0
     investmentRatio: float = 0.5
+    entryMode: str = "single"
+    entrySlices: int = 1
+    addEntryDropPct: float = 0.005
     rotateExistingAccepted: bool = False
     tickerMode: str = "auto"
     selectedTicker: str = "KRW-BTC"
@@ -287,6 +291,9 @@ async def start_bot(config: StartConfig, Authorization: str = Header(None), db: 
     bot_state.investment_mode = config.investmentMode if config.investmentMode in ["all_krw", "fixed", "ratio", "rotate_holdings"] else "all_krw"
     bot_state.investment_amount = config.investmentAmount
     bot_state.investment_ratio = config.investmentRatio
+    bot_state.entry_mode = config.entryMode if config.entryMode in ["single", "split"] else "single"
+    bot_state.entry_slices = min(max(int(config.entrySlices or 1), 1), 10) if bot_state.entry_mode == "split" else 1
+    bot_state.add_entry_drop_pct = min(max(float(config.addEntryDropPct or 0.005), 0.001), 0.05)
     bot_state.ticker_mode = config.tickerMode if config.tickerMode in ["auto", "manual"] else "auto"
     bot_state.selected_ticker = config.selectedTicker if config.selectedTicker.startswith("KRW-") else "KRW-BTC"
     bot_state.trading_mode = config.tradingMode if config.tradingMode in ["practice", "real"] else "practice"
@@ -294,6 +301,8 @@ async def start_bot(config: StartConfig, Authorization: str = Header(None), db: 
     bot_state.held_btc = 0
     bot_state.avg_buy_price = 0
     bot_state.entry_krw = 0
+    bot_state.entry_count = 0
+    bot_state.planned_total_krw = 0
     bot_state.upbit = None
     bot_state.is_real_key = False
     bot_state.last_order_uuid = ""
@@ -301,6 +310,10 @@ async def start_bot(config: StartConfig, Authorization: str = Header(None), db: 
     bot_state.last_order_status = "대기"
     bot_state.rotate_existing_accepted = config.rotateExistingAccepted
     bot_state.rotated_holdings = False
+    if bot_state.entry_mode == "split":
+        bot_state.risk_rule = f"리스크: 총 투자금을 {bot_state.entry_slices}회로 나누어 진입, 평균가 대비 {bot_state.add_entry_drop_pct * 100:.1f}% 구간마다 추가 진입, 전체 손절선과 일일 손실 제한 적용"
+    else:
+        bot_state.risk_rule = "리스크: 최소 주문 5,000원, 일일 최대 손실 5%, 연속 손절 3회 제한"
 
     if bot_state.trading_mode == "real":
         if not Authorization:
@@ -370,8 +383,54 @@ def require_real_status_permission(Authorization: str | None, db: Session):
 async def stop_bot(Authorization: str = Header(None), db: Session = Depends(get_db)):
     require_real_status_permission(Authorization, db)
     bot_state.state = TradingState.STOPPED
-    log_trade("[User Stop] 사용자 요청으로 엔진을 중지합니다.")
-    return {"status": "success", "message": "Bot Engine Stopped"}
+    bot_state.decision_note = "사용자가 엔진을 일시정지했습니다. 보유 코인은 매도하지 않고 유지합니다."
+    log_trade("[User Pause] 사용자 요청으로 엔진을 일시정지합니다. 보유 코인은 매도하지 않습니다.")
+    return {"status": "success", "message": "Bot Engine Paused. Holdings were not sold."}
+
+@router.post("/sell-and-stop")
+async def sell_and_stop_bot(Authorization: str = Header(None), db: Session = Depends(get_db)):
+    require_real_status_permission(Authorization, db)
+    current_price = pyupbit.get_current_price(bot_state.active_ticker) or 0
+    sell_qty = float(bot_state.held_btc or 0)
+
+    if sell_qty <= 0:
+        bot_state.state = TradingState.STOPPED
+        bot_state.decision_note = "매도할 Zenthex 보유 수량이 없어 엔진만 종료했습니다."
+        log_trade("[User Sell Exit] 매도할 Zenthex 보유 수량이 없어 엔진만 종료합니다.")
+        return {"status": "success", "message": "매도할 Zenthex 보유 수량이 없어 엔진만 종료했습니다."}
+
+    bot_state.state = TradingState.SELLING
+    bot_state.decision_note = "사용자 요청으로 현재 Zenthex 보유 수량을 시장가 매도한 뒤 엔진을 종료합니다."
+    try:
+        if bot_state.trading_mode == "real":
+            if not bot_state.upbit:
+                bot_state.state = TradingState.ERROR
+                return {"status": "error", "message": "실거래 연결 정보가 없어 시장가 매도를 실행할 수 없습니다. 업비트에서 직접 보유 수량을 확인하세요."}
+            result = await asyncio.to_thread(bot_state.upbit.sell_market_order, bot_state.active_ticker, sell_qty)
+            if not result or (isinstance(result, dict) and result.get("error")):
+                bot_state.state = TradingState.ERROR
+                log_trade(f"[User Sell Exit Error] 매도 주문 실패: {result}")
+                return {"status": "error", "message": f"매도 주문 실패: {result}"}
+            from trading.engine import remember_order, reset_position_tracking, refresh_real_balances
+            remember_order(result, "USER SELL EXIT")
+            await asyncio.sleep(1)
+            await refresh_real_balances()
+            reset_position_tracking()
+            bot_state.state = TradingState.STOPPED
+            log_trade(f"[User Sell Exit] {bot_state.active_ticker} {sell_qty:.8f}개 시장가 매도 후 엔진 종료.")
+            return {"status": "success", "message": "현재 Zenthex 보유 수량을 시장가 매도하고 엔진을 종료했습니다."}
+
+        sell_amount = (sell_qty * current_price) * 0.9995
+        bot_state.balance += sell_amount
+        from trading.engine import reset_position_tracking
+        reset_position_tracking()
+        bot_state.state = TradingState.STOPPED
+        log_trade(f"[User Sell Exit] 체험 보유 수량 전량 매도 후 엔진 종료. 회수금 {sell_amount:,.0f}원")
+        return {"status": "success", "message": "체험 보유 수량을 전량 매도하고 엔진을 종료했습니다."}
+    except Exception as exc:
+        bot_state.state = TradingState.ERROR
+        log_trade(f"[User Sell Exit Error] {exc}")
+        return {"status": "error", "message": f"전량 매도 후 종료 중 오류가 발생했습니다: {exc}"}
 
 @router.get("/status")
 async def status(Authorization: str = Header(None), db: Session = Depends(get_db)):
@@ -451,6 +510,11 @@ async def status(Authorization: str = Header(None), db: Session = Depends(get_db
         "trailingDropPct": bot_state.trailing_drop_pct,
         "peakYield": bot_state.peak_yield,
         "investmentMode": bot_state.investment_mode,
+        "entryMode": bot_state.entry_mode,
+        "entrySlices": bot_state.entry_slices,
+        "entryCount": bot_state.entry_count,
+        "plannedTotalKrw": bot_state.planned_total_krw,
+        "addEntryDropPct": bot_state.add_entry_drop_pct,
         "rotateExistingAccepted": bot_state.rotate_existing_accepted,
         "targetPrice": target_price,
         "stopLossYield": bot_state.stop_loss_yield,

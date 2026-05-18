@@ -5,9 +5,12 @@ Zenthex is an AI SaaS platform with Zenthex Studio and Zenthex Trading.
 ## Features
 
 - Zenthex Studio: prompt and 2D drawing to AI 3D workspace
+- Studio NanoBanana/Gemini image generation appears as the main result; true GLB/OBJ output is the later 3D Worker server stage
 - Studio trial: anonymous users get 1 generation per IP per day
 - Studio preview protection: trial/free users receive view-only previews without download URLs
 - Zenthex Trading: risk-managed strategy experience and Signal Guard
+- Trading split entry: divide a configured total budget into multiple entries and calculate take-profit/stop-loss from the average buy price
+- Trading stop controls: pause keeps holdings, while sell-and-stop market-sells the current Zenthex position before ending the engine
 - Upbit: live market scan, strategy experience, and gated real trading
 - Binance: next exchange integration target, gated the same way as Upbit for real orders
 - Owner dashboard for the email configured in `ZENTHEX_OWNER_EMAILS`

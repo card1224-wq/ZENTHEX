@@ -1,4 +1,12 @@
-ZENTHEX_UPLOAD_VERSION=2026-05-18-0950
+ZENTHEX_UPLOAD_VERSION=2026-05-18-1045
+Trading Safety: stop controls now separate pause/hold from sell-and-stop
+Trading Safety: pause stops the engine without selling current holdings
+Trading Safety: sell-and-stop market-sells the current Zenthex engine position and then stops
+Studio: NanoBanana/Gemini generated image is now the central main result, with JPG image save for owner/Studio subscribers
+Studio Docs: master plan now explains why true GLB/OBJ and drawing-to-3D need the later 3D Worker, Queue, and validation server
+Trading: split-entry mode added so total budget can be divided into 2/4/5/10 entries with average-price based exit logic
+Trading UI: entry mode, split count, add-entry trigger, and live entry-count monitor added
+Trading Safety: split entry is documented as risk-limited averaging, not a guaranteed-profit formula
 Trading Safety: outbound IP verification API added to compare ZENTHEX_SERVER_PUBLIC_IP against actual server outbound IP
 Trading UI: Upbit IP panel now has a button to verify displayed IP versus actual outbound IP
 Review: CEO checklist now verifies configured/outbound IP comparison before live trading readiness

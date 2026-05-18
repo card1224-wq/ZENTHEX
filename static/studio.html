@@ -35,12 +35,17 @@
         .preview-result-card p { color:#a1a1aa; font-size:12px; line-height:1.55; margin:0; }
         .preview-result-card span { display:inline-flex; margin:8px 6px 0 0; border:1px solid rgba(255,255,255,.10); border-radius:999px; padding:5px 8px; color:#99f6e4; font-size:11px; font-weight:800; }
         .nanobanana-preview {
-            position:absolute; left:18px; top:18px; z-index:23; width:min(420px, calc(100% - 36px));
-            border:1px solid rgba(255,255,255,.14); background:rgba(0,0,0,.62); backdrop-filter:blur(16px);
-            border-radius:16px; padding:10px; box-shadow:0 18px 60px rgba(0,0,0,.34);
+            position:absolute; left:50%; top:50%; transform:translate(-50%, -50%); z-index:23;
+            width:min(860px, calc(100% - 56px)); max-height:calc(100% - 56px);
+            border:1px solid rgba(0,230,195,.22); background:rgba(0,0,0,.72); backdrop-filter:blur(18px);
+            border-radius:18px; padding:12px; box-shadow:0 28px 90px rgba(0,0,0,.50);
         }
-        .nanobanana-preview img { width:100%; display:block; border-radius:12px; aspect-ratio:16/10; object-fit:cover; }
-        .nanobanana-preview p { margin:8px 2px 0; color:#99f6e4; font-size:11px; font-weight:900; }
+        .nanobanana-preview img { width:100%; display:block; border-radius:14px; aspect-ratio:16/10; object-fit:cover; max-height:calc(100vh - 210px); }
+        .nanobanana-preview p { margin:10px 2px 0; color:#99f6e4; font-size:12px; font-weight:900; line-height:1.55; }
+        .nanobanana-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+        .nanobanana-actions a, .nanobanana-actions button { border:0; border-radius:8px; padding:9px 12px; font-weight:900; font-size:12px; text-decoration:none; }
+        .nanobanana-actions a { background:#00e6c3; color:#050507; }
+        .nanobanana-actions button { background:rgba(255,255,255,.10); color:#f8fafc; border:1px solid rgba(255,255,255,.12); }
         .hidden { display: none !important; }
         .glass-panel { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.1); }
         #viewer-container { width: 100%; height: 100%; position: relative; }
@@ -167,6 +172,7 @@
     <script>
         let zxToken = localStorage.getItem("zx_token");
         let zxUser = JSON.parse(localStorage.getItem("zx_user") || "null");
+        window.zxCurrentImageUrl = "";
         function zxCanExport() {
             return zxUser && (zxUser.role === "owner" || ["studio_pro", "ultimate"].includes(zxUser.plan));
         }
@@ -230,11 +236,14 @@
             box.innerHTML = html;
         }
         function zxExportMessage(result) {
+            const imageExport = result.image_url && zxCanExport()
+                ? `<br><a class="download-link" href="${result.image_url}" download>JPG 이미지 저장</a>`
+                : "";
             if (!result.worker_ready) {
-                return `<br><span style="color:#fcd34d">현재 서버에 3D Worker 의존성이 없어 GLB 파일은 준비되지 않았습니다. 화면 미리보기는 바로 표시됩니다.</span>`;
+                return `${imageExport}<br><span style="color:#fcd34d">현재 서버에 3D Worker 의존성이 없어 GLB 파일은 준비되지 않았습니다. NanoBanana/Gemini 건축 이미지를 먼저 중앙 결과로 제공합니다.</span>`;
             }
             return result.model_url
-                ? `<br><button class="export-button" onclick="window.zxDownloadJpg()">JPG 저장</button><a class="download-link" href="${result.model_url}" download>GLB 3D 모델 다운로드</a><div class="studio-format-note">JPG는 현재 보이는 화면 이미지이고, GLB는 Blender/Three.js 같은 도구에서 여는 실제 3D 모델 파일입니다.</div>`
+                ? `<br><button class="export-button" onclick="window.zxDownloadJpg()">JPG 저장</button>${imageExport}<a class="download-link" href="${result.model_url}" download>GLB 3D 모델 다운로드</a><div class="studio-format-note">JPG는 현재 보이는 화면 이미지이고, GLB는 Blender/Three.js 같은 도구에서 여는 실제 3D 모델 파일입니다.</div>`
                 : `<br><span style="color:#fcd34d">체험 미리보기는 보기 전용입니다. JPG/GLB 저장은 구독 후 제공됩니다.</span>`;
         }
         function zxRenderResultCard(preview) {
@@ -252,17 +261,26 @@
             let panel = document.getElementById("nanobanana-preview");
             if (!result?.image_url) {
                 if (panel) panel.remove();
+                window.zxCurrentImageUrl = "";
                 return;
             }
+            window.zxCurrentImageUrl = result.image_url;
             if (!panel) {
                 panel = document.createElement("div");
                 panel.id = "nanobanana-preview";
                 panel.className = "nanobanana-preview";
                 document.getElementById("viewer-container").appendChild(panel);
             }
-            panel.innerHTML = `<img src="${result.image_url}" alt="NanoBanana generated Studio preview"><p>NanoBanana 즉시 생성 이미지</p>`;
+            const actions = zxCanExport()
+                ? `<div class="nanobanana-actions"><a href="${result.image_url}" download>JPG 이미지 저장</a><button type="button" onclick="window.zxClearNanoPreview()">3D 미리보기 보기</button></div>`
+                : "";
+            panel.innerHTML = `<img src="${result.image_url}" alt="NanoBanana generated Studio preview"><p>NanoBanana/Gemini가 생성한 건축 이미지입니다. 실제 GLB/OBJ 3D 모델은 3D Worker 서버 연결 후 제공됩니다.</p>${actions}`;
         }
         window.zxRenderNanoBananaImage = zxRenderNanoBananaImage;
+        window.zxClearNanoPreview = () => {
+            const panel = document.getElementById("nanobanana-preview");
+            if (panel) panel.remove();
+        };
         function zxShowFallbackPreview(profile) {
             const placeholder = document.getElementById('placeholder');
             if (placeholder) placeholder.classList.add('hidden');
@@ -371,7 +389,7 @@
             }
             const link = document.createElement('a');
             link.download = `zenthex-studio-${Date.now()}.jpg`;
-            link.href = renderer.domElement.toDataURL('image/jpeg', 0.92);
+            link.href = window.zxCurrentImageUrl || renderer.domElement.toDataURL('image/jpeg', 0.92);
             link.click();
         };
 

@@ -7,10 +7,15 @@ This checklist is the master review gate before uploading or publishing Zenthex.
 - Homepage shows one clear Zenthex brand experience, not a split demo screen.
 - Homepage hero must always introduce Zenthex as a public brand, not change into "Zenthex Control" for the owner.
 - Homepage must show visual Studio/Trading preview panels so the first screen is not text-only.
+- Studio must show NanoBanana/Gemini generated images as the central main result, not as a small side preview.
+- Studio must state that GLB/OBJ generation needs the later 3D Worker server while current output is AI building image/JPG.
 - Logged-in homepage navigation must show My Page, Customer Center, and Logout instead of only Login.
 - Owner homepage actions must open Studio workspace, Trading engine, CEO dashboard, and My Page instead of trial-only actions.
 - Customer Center must exist for account, subscription, Studio, Trading, and Upbit key guidance.
 - Customer Center must include an inquiry form, store tickets in the database, and allow the owner to manage ticket status/replies in the CEO dashboard.
+- Trading must support split-entry mode so a configured total budget can be divided into multiple entries with average-price based take-profit/stop-loss.
+- Split-entry mode must show max entry count, add-entry trigger, current entry count, and risk copy that it is not a guaranteed-profit formula.
+- Trading stop controls must separate pause/hold from sell-and-stop so users do not accidentally market-sell a position.
 - No public page contains "demo" copy for the production-facing flow.
 - Login and signup pages do not expose owner email or owner account guidance.
 - Owner email is controlled by `ZENTHEX_OWNER_EMAILS`, with `7foliath@naver.com` kept as the built-in owner fallback.

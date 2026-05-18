@@ -36,6 +36,11 @@ class BotState:
         self.investment_mode = "all_krw"
         self.investment_amount = 50000.0
         self.investment_ratio = 0.5
+        self.entry_mode = "single"
+        self.entry_slices = 1
+        self.entry_count = 0
+        self.add_entry_drop_pct = 0.005
+        self.planned_total_krw = 0.0
         self.rotate_existing_accepted = False
         self.rotated_holdings = False
         self.daily_max_loss_pct = 0.05
@@ -47,8 +52,8 @@ class BotState:
         self.last_order_status = "대기"
         self.decision_note = "대기 중입니다. 시작하면 전체 KRW 마켓을 스캔합니다."
         self.entry_rule = "매수: 24시간 상승, 6시간 상승, 1분/3분 단기 상승, 거래량 급증, 과열·급락 위험 필터 통과"
-        self.exit_rule = "매도: 고정 목표 도달 또는 추적 익절 조건 충족 시 전량 매도, 손절선 도달 시 전량 매도 후 재스캔"
-        self.risk_rule = "리스크: 최소 주문 5,000원, 일일 최대 손실 5%, 연속 손절 3회 제한"
+        self.exit_rule = "매도: 평균 매수가 기준 목표 도달 또는 추적 익절 조건 충족 시 전량 매도, 손절선 도달 시 전량 매도 후 정지"
+        self.risk_rule = "리스크: 최소 주문 5,000원, 분할 진입 총액 제한, 일일 최대 손실 5%, 연속 손절 3회 제한"
         self.current_score = 0.0
         self.logs = ["[System] Zenthex Signal Guard 대기 중: 업비트 전체 KRW 마켓을 스캔합니다."]
 
@@ -271,6 +276,77 @@ async def refresh_real_balances():
     except Exception as e:
         log_trade(f"[Exchange] 잔고 조회 실패: {e}")
 
+def calculate_total_investment_budget() -> float:
+    available = max(bot_state.balance, 0.0)
+    if bot_state.investment_mode in ["all_krw", "rotate_holdings"]:
+        return available * 0.99
+    if bot_state.investment_mode == "fixed":
+        return min(bot_state.investment_amount, available * 0.99)
+    return available * bot_state.investment_ratio * 0.99
+
+def calculate_next_entry_krw() -> float:
+    if bot_state.planned_total_krw <= 0:
+        bot_state.planned_total_krw = calculate_total_investment_budget()
+    max_entries = max(1, int(bot_state.entry_slices or 1))
+    if bot_state.entry_mode != "split":
+        max_entries = 1
+    if bot_state.entry_count >= max_entries:
+        return 0.0
+    per_entry = bot_state.planned_total_krw / max_entries
+    remaining_budget = max(bot_state.planned_total_krw - bot_state.entry_krw, 0.0)
+    available = max(bot_state.balance, 0.0) * 0.99
+    return min(per_entry, remaining_budget, available)
+
+def reset_position_tracking():
+    bot_state.held_btc = 0
+    bot_state.avg_buy_price = 0
+    bot_state.entry_krw = 0
+    bot_state.peak_yield = 1.0
+    bot_state.entry_count = 0
+    bot_state.planned_total_krw = 0
+
+async def execute_entry_order(invest_krw: float, price: float, reason: str) -> bool:
+    if invest_krw < 5000:
+        log_trade("[Risk Manager] 다음 진입 금액이 5,000원 미만이라 주문하지 않습니다.")
+        return False
+
+    previous_entry_krw = bot_state.entry_krw
+    previous_qty = bot_state.held_btc
+    if bot_state.trading_mode == "real":
+        before_qty = get_real_balance(ticker_currency(bot_state.active_ticker))
+        bot_state.decision_note = f"{bot_state.active_ticker} {reason} 실매수 요청 중입니다. 주문 결과를 확인합니다."
+        log_trade(f"[Real Buy Request] {bot_state.active_ticker} {reason}: {invest_krw:,.0f}원")
+        result = await asyncio.to_thread(bot_state.upbit.buy_market_order, bot_state.active_ticker, invest_krw)
+        if not result or (isinstance(result, dict) and result.get("error")):
+            log_trade(f"[Real Buy Error] 매수 주문 실패: {result}")
+            return False
+        remember_order(result, "BUY" if bot_state.entry_count == 0 else "ADD BUY")
+        await asyncio.sleep(1)
+        await refresh_real_balances()
+        after_qty = get_real_balance(ticker_currency(bot_state.active_ticker))
+        added_qty = max(after_qty - before_qty, 0)
+        if added_qty <= 0:
+            log_trade("[Real Buy Error] 매수 요청 후 체결 수량을 확인하지 못했습니다. 업비트 주문 내역을 확인하세요.")
+            return False
+        bot_state.held_btc = previous_qty + added_qty
+    else:
+        buy_qty = (invest_krw / price) * 0.9995
+        bot_state.held_btc += buy_qty
+        bot_state.balance -= invest_krw
+
+    bot_state.entry_krw = previous_entry_krw + invest_krw
+    if bot_state.held_btc > 0:
+        bot_state.avg_buy_price = bot_state.entry_krw / bot_state.held_btc
+    else:
+        bot_state.avg_buy_price = price
+    bot_state.entry_count += 1
+    bot_state.peak_yield = 1.0
+    log_trade(
+        f"[Entry] {bot_state.active_ticker} {reason} 완료: {invest_krw:,.0f}원 / "
+        f"{bot_state.entry_count}/{max(1, bot_state.entry_slices)}회 / 평균가 {bot_state.avg_buy_price:,.0f}원"
+    )
+    return True
+
 async def scalping_loop():
     mode_label = "실거래" if bot_state.trading_mode == "real" else "전략 체험"
     log_trade(f"[Signal Guard] {mode_label} 엔진 시작: 코인 선택 -> 조건 검증 -> 목표 도달 시 자동 종료")
@@ -350,12 +426,8 @@ async def scalping_loop():
                     await refresh_real_balances()
                     log_trade(f"[Real Balance] 사용 가능 KRW {bot_state.balance:,.0f}원")
 
-                if bot_state.investment_mode in ["all_krw", "rotate_holdings"]:
-                    invest_krw = bot_state.balance * 0.99
-                elif bot_state.investment_mode == "fixed":
-                    invest_krw = min(bot_state.investment_amount, bot_state.balance * 0.99)
-                else:
-                    invest_krw = bot_state.balance * bot_state.investment_ratio * 0.99
+                bot_state.planned_total_krw = calculate_total_investment_budget()
+                invest_krw = calculate_next_entry_krw()
 
                 if invest_krw < 5000:
                     bot_state.decision_note = "주문 가능 금액이 5,000원 미만이라 엔진을 정지합니다."
@@ -363,38 +435,11 @@ async def scalping_loop():
                     bot_state.state = TradingState.ERROR
                     break
 
-                if bot_state.trading_mode == "real":
-                    before_qty = get_real_balance(ticker_currency(bot_state.active_ticker))
-                    bot_state.decision_note = f"{bot_state.active_ticker} 실매수 요청 중입니다. 주문 결과를 확인합니다."
-                    log_trade(f"[Real Buy Request] {bot_state.active_ticker} 시장가 매수 요청: {invest_krw:,.0f}원")
-                    result = await asyncio.to_thread(bot_state.upbit.buy_market_order, bot_state.active_ticker, invest_krw)
-                    if not result or (isinstance(result, dict) and result.get("error")):
-                        log_trade(f"[Real Buy Error] 매수 주문 실패: {result}")
-                        bot_state.state = TradingState.ERROR
-                        break
-                    remember_order(result, "BUY")
-                    await asyncio.sleep(1)
-                    await refresh_real_balances()
-                    after_qty = get_real_balance(ticker_currency(bot_state.active_ticker))
-                    bot_state.held_btc = max(after_qty - before_qty, 0)
-                    if bot_state.held_btc <= 0:
-                        log_trade("[Real Buy Error] 매수 요청 후 체결 수량을 확인하지 못했습니다. 업비트 주문 내역을 확인하세요.")
-                        bot_state.state = TradingState.ERROR
-                        break
-                    bot_state.avg_buy_price = price
-                    bot_state.entry_krw = invest_krw
-                    bot_state.peak_yield = 1.0
-                    bot_state.decision_note = f"{bot_state.active_ticker} 실매수 완료. 목표가 도달 또는 손절선 이탈 여부를 2초마다 확인합니다."
-                    log_trade(f"[Real Entry] {bot_state.active_ticker} {invest_krw:,.0f}원 실매수 요청 완료. 기준가 {price:,.0f}원")
-                else:
-                    buy_qty = invest_krw / price
-                    bot_state.held_btc = buy_qty * 0.9995
-                    bot_state.avg_buy_price = price
-                    bot_state.entry_krw = invest_krw
-                    bot_state.peak_yield = 1.0
-                    bot_state.balance -= invest_krw
-                    bot_state.decision_note = f"{bot_state.active_ticker} 체험 진입 완료. 목표가 도달 또는 손절선 이탈 여부를 2초마다 확인합니다."
-                    log_trade(f"[Strategy Entry] {bot_state.active_ticker} {invest_krw:,.0f}원 진입. 체결가 {price:,.0f}원")
+                if not await execute_entry_order(invest_krw, price, "1차 진입"):
+                    bot_state.state = TradingState.ERROR
+                    break
+                split_note = " 분할 진입은 평균가 기준으로 추가 진입을 감시합니다." if bot_state.entry_mode == "split" else ""
+                bot_state.decision_note = f"{bot_state.active_ticker} 진입 완료. 목표가 도달 또는 손절선 이탈 여부를 2초마다 확인합니다.{split_note}"
                 bot_state.state = TradingState.HOLDING
 
             elif bot_state.state == TradingState.HOLDING:
@@ -415,16 +460,31 @@ async def scalping_loop():
                         f"{bot_state.active_ticker} 보유 감시 중: 현재 {(current_yield - 1.0) * 100:.3f}%, "
                         f"목표 {(bot_state.target_yield - 1.0) * 100:.2f}%, 손절 {(bot_state.stop_loss_yield - 1.0) * 100:.2f}%"
                     )
+                if (
+                    bot_state.entry_mode == "split"
+                    and bot_state.entry_count < bot_state.entry_slices
+                    and current_yield <= 1.0 - (bot_state.add_entry_drop_pct * bot_state.entry_count)
+                ):
+                    add_krw = calculate_next_entry_krw()
+                    if add_krw >= 5000:
+                        bot_state.state = TradingState.BUYING
+                        log_trade(
+                            f"[Split Entry] 평균가 대비 {(current_yield - 1.0) * 100:.2f}% 구간. "
+                            f"{bot_state.entry_count + 1}/{bot_state.entry_slices}회 추가 진입을 시도합니다."
+                        )
+                        ok = await execute_entry_order(add_krw, price, "분할 추가 진입")
+                        bot_state.state = TradingState.HOLDING if ok else TradingState.ERROR
+                        if not ok:
+                            break
+                        await asyncio.sleep(2)
+                        continue
                 if bot_state.trading_mode == "practice" and current_yield < 1.003:
                     replacement = await asyncio.to_thread(scan_upbit_candidates, 1)
                     if replacement and replacement[0]["ticker"] != bot_state.active_ticker and replacement[0]["score"] > 0.55:
                         sell_amount = (bot_state.held_btc * price) * 0.9995
                         bot_state.balance += sell_amount
                         old_ticker = bot_state.active_ticker
-                        bot_state.held_btc = 0
-                        bot_state.avg_buy_price = 0
-                        bot_state.entry_krw = 0
-                        bot_state.peak_yield = 1.0
+                        reset_position_tracking()
                         bot_state.state = TradingState.IDLE
                         bot_state.decision_note = f"{old_ticker}보다 강한 후보가 보여 교체 대기합니다."
                         log_trade(f"[Rotation] {old_ticker} 힘이 약해 더 강한 후보 {replacement[0]['ticker']}로 교체 대기")
@@ -459,9 +519,7 @@ async def scalping_loop():
                         bot_state.balance += sell_amount
                         bot_state.held_btc = 0
                         log_trade(f"[Take Profit] {bot_state.active_ticker} 목표 수익률 도달 +{profit_pct:.2f}%. 자동 매도 후 엔진 종료.")
-                    bot_state.avg_buy_price = 0
-                    bot_state.entry_krw = 0
-                    bot_state.peak_yield = 1.0
+                    reset_position_tracking()
                     bot_state.consecutive_loss_count = 0
                     bot_state.state = TradingState.STOPPED
                     send_push_notification("목표 수익률 도달", f"{bot_state.active_ticker} +{profit_pct:.2f}% 달성. 엔진을 종료했습니다.")
@@ -491,9 +549,7 @@ async def scalping_loop():
                         bot_state.balance += sell_amount
                         bot_state.held_btc = 0
                         log_trade(f"[Stop Loss] {bot_state.active_ticker} -{loss_pct:.2f}%. 손절 후 대기 상태로 복귀.")
-                    bot_state.avg_buy_price = 0
-                    bot_state.entry_krw = 0
-                    bot_state.peak_yield = 1.0
+                    reset_position_tracking()
                     bot_state.consecutive_loss_count += 1
                     if bot_state.trading_mode == "real":
                         bot_state.state = TradingState.STOPPED
