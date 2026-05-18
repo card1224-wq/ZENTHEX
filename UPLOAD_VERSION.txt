@@ -1,4 +1,8 @@
-ZENTHEX_UPLOAD_VERSION=2026-05-18-1045
+ZENTHEX_UPLOAD_VERSION=2026-05-18-1105
+Trading UI: sell-and-stop button is always visible and disabled with a no-position label until there is a Zenthex position
+Trading Logs: system log timestamps now use Korea time (KST)
+Trading Scanner: auto-selection criteria are shown in the UI and scanner thresholds were adjusted so quiet markets can still surface relaxed candidates
+Trading Copy: screen now clarifies Upbit is the current live connector and Binance is the next connector target
 Trading Safety: stop controls now separate pause/hold from sell-and-stop
 Trading Safety: pause stops the engine without selling current holdings
 Trading Safety: sell-and-stop market-sells the current Zenthex engine position and then stops

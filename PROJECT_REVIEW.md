@@ -16,6 +16,7 @@ This checklist is the master review gate before uploading or publishing Zenthex.
 - Trading must support split-entry mode so a configured total budget can be divided into multiple entries with average-price based take-profit/stop-loss.
 - Split-entry mode must show max entry count, add-entry trigger, current entry count, and risk copy that it is not a guaranteed-profit formula.
 - Trading stop controls must separate pause/hold from sell-and-stop so users do not accidentally market-sell a position.
+- Trading must show the automatic selection criteria and use KST timestamps in system logs.
 - No public page contains "demo" copy for the production-facing flow.
 - Login and signup pages do not expose owner email or owner account guidance.
 - Owner email is controlled by `ZENTHEX_OWNER_EMAILS`, with `7foliath@naver.com` kept as the built-in owner fallback.

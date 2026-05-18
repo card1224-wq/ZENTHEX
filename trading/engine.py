@@ -1,5 +1,6 @@
 ﻿import time
 import asyncio
+from datetime import datetime, timezone, timedelta
 import pyupbit
 from mobile.push import send_push_notification
 from admin.router import admin_state
@@ -55,12 +56,12 @@ class BotState:
         self.exit_rule = "매도: 평균 매수가 기준 목표 도달 또는 추적 익절 조건 충족 시 전량 매도, 손절선 도달 시 전량 매도 후 정지"
         self.risk_rule = "리스크: 최소 주문 5,000원, 분할 진입 총액 제한, 일일 최대 손실 5%, 연속 손절 3회 제한"
         self.current_score = 0.0
-        self.logs = ["[System] Zenthex Signal Guard 대기 중: 업비트 전체 KRW 마켓을 스캔합니다."]
+        self.logs = ["[System] Zenthex Signal Guard 대기 중: 업비트 전체 KRW 마켓을 스캔합니다. 로그 시간은 한국시간(KST)입니다."]
 
 bot_state = BotState()
 
 def log_trade(msg: str):
-    timestamp = time.strftime("[%H:%M:%S]")
+    timestamp = datetime.now(timezone(timedelta(hours=9))).strftime("[%H:%M:%S KST]")
     full_msg = f"{timestamp} {msg}"
     print(full_msg)
     bot_state.logs.append(full_msg)
@@ -173,9 +174,11 @@ def scan_upbit_candidates(limit: int = 5):
                 drawdown = (high_24h - last) / high_24h
                 trend_bonus = 1.0 if last > ma12 > ma24 else 0.0
 
-                if change_24h <= 0.015 or momentum_6h <= 0 or value_24h < 300_000_000:
+                if value_24h < 100_000_000:
                     continue
-                if volatility > 0.45 or drawdown > 0.18:
+                if change_24h <= 0.003 and momentum_6h <= -0.003:
+                    continue
+                if volatility > 0.65 or drawdown > 0.28:
                     continue
                 rough_score = (
                     change_24h * 12
@@ -227,9 +230,9 @@ def scan_upbit_candidates(limit: int = 5):
                 breakout = 1.0 if last1 > prev_high_5 else 0.0
                 short_trend = 1.0 if last1 > ma5 > ma10 else 0.0
 
-                if minute1_momentum <= 0 or minute3_momentum <= 0 or minute5_momentum < -0.002:
+                if minute1_momentum <= -0.0015 or minute3_momentum <= -0.002 or minute5_momentum < -0.004:
                     continue
-                if tick_volume_surge < 1.4 and not breakout:
+                if tick_volume_surge < 1.1 and not breakout and not short_trend:
                     continue
 
                 score = (
@@ -261,6 +264,27 @@ def scan_upbit_candidates(limit: int = 5):
             except Exception:
                 continue
         candidates.sort(key=lambda item: item["score"], reverse=True)
+        if not candidates and pre_candidates:
+            log_trade("[Signal Guard] 엄격 조건 통과 코인이 없어 완화 후보를 확인합니다. 완화 기준: 24h/6h 방향, 거래대금 1억원 이상, 변동성/급락 위험 필터")
+            for base in pre_candidates[:limit]:
+                candidates.append({
+                    "ticker": base["ticker"],
+                    "momentum": base["momentum"],
+                    "momentum6h": base["momentum6h"],
+                    "volumeSurge": base["volumeSurge"],
+                    "tickVolumeSurge": base["volumeSurge"],
+                    "minute1Momentum": 0,
+                    "minute3Momentum": 0,
+                    "minute5Momentum": 0,
+                    "breakout": 0,
+                    "shortTrend": 0,
+                    "value24h": base["value24h"],
+                    "volatility": base["volatility"],
+                    "drawdown": base["drawdown"],
+                    "price": base["price"],
+                    "score": base["roughScore"],
+                    "reason": "완화 후보",
+                })
         return candidates[:limit]
     except Exception as e:
         log_trade(f"[Signal Guard] 전체 코인 스캔 실패, BTC 기준으로 전환합니다: {e}")
