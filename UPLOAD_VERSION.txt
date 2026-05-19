@@ -1,4 +1,8 @@
-ZENTHEX_UPLOAD_VERSION=2026-05-19-1015
+ZENTHEX_UPLOAD_VERSION=2026-05-19-1030
+Trading Safety: broad-market guard added. New entries pause when BTC/ETH show short-term KRW-market selloff pressure
+Trading Safety: entry confirmation now checks current price and orderbook spread/bid-ask balance before buying
+Trading Safety: stop-loss cooldown added so recently stopped-out coins are not immediately re-entered
+Trading UI: current decision now shows market-filter and cooldown status while the engine runs
 Studio Fix: NanoBanana/Gemini provider now reads image data from multiple Gemini response shapes and returns clean Korean diagnostics
 Trading Scanner: added price-volume alignment, high-chase prevention, and recent red-candle rejection to reduce entries into falling coins
 Trading Scanner: relaxed candidates now avoid coins sitting too close to the 24h high

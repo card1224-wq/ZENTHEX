@@ -19,6 +19,8 @@ This checklist is the master review gate before uploading or publishing Zenthex.
 - Trading must show the automatic selection criteria and use KST timestamps in system logs.
 - Trading desktop layout must use three columns so quick execution, live status, and auxiliary settings do not stack into one long form.
 - Trading scanner must reject volume-with-price-falling, recent red candles, and late entries too close to the 24h high.
+- Trading entry guard must block BTC/ETH broad-market short-term selloffs, weak orderbooks, and immediate post-signal price drops before buying.
+- Trading must apply a cooldown after stop-loss so the same coin is not immediately re-entered by the scanner.
 - Studio NanoBanana/Gemini failures must show a clear reason such as missing API key, missing package, empty image response, or API error.
 - No public page contains "demo" copy for the production-facing flow.
 - Login and signup pages do not expose owner email or owner account guidance.

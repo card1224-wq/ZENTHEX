@@ -44,6 +44,8 @@ class BotState:
         self.planned_total_krw = 0.0
         self.rotate_existing_accepted = False
         self.rotated_holdings = False
+        self.cooldowns = {}
+        self.market_guard_note = "시장상태 필터 대기 중"
         self.daily_max_loss_pct = 0.05
         self.consecutive_loss_count = 0
         self.max_consecutive_loss = 3
@@ -52,7 +54,7 @@ class BotState:
         self.last_order_side = ""
         self.last_order_status = "대기"
         self.decision_note = "대기 중입니다. 시작하면 전체 KRW 마켓을 스캔합니다."
-        self.entry_rule = "매수: 24시간 상승, 6시간 상승, 1분/3분 단기 상승, 거래량 급증, 과열·급락 위험 필터 통과"
+        self.entry_rule = "매수: 시장상태(BTC/ETH), 24h/6h 방향, 거래량+가격 동행, 호가 방어, 고점추격/급락 필터 통과"
         self.exit_rule = "매도: 평균 매수가 기준 목표 도달 또는 추적 익절 조건 충족 시 전량 매도, 손절선 도달 시 전량 매도 후 정지"
         self.risk_rule = "리스크: 최소 주문 5,000원, 분할 진입 총액 제한, 일일 최대 손실 5%, 연속 손절 3회 제한"
         self.current_score = 0.0
@@ -85,6 +87,85 @@ def get_current_price(ticker: str) -> float:
         return float(pyupbit.get_current_price(ticker) or 0)
     except Exception:
         return 0.0
+
+def clear_expired_cooldowns():
+    now = datetime.now(timezone.utc)
+    expired = [ticker for ticker, until in bot_state.cooldowns.items() if until <= now]
+    for ticker in expired:
+        bot_state.cooldowns.pop(ticker, None)
+
+def is_ticker_in_cooldown(ticker: str) -> bool:
+    clear_expired_cooldowns()
+    return ticker in bot_state.cooldowns
+
+def set_ticker_cooldown(ticker: str, minutes: int = 20, reason: str = "손실"):
+    until = datetime.now(timezone.utc) + timedelta(minutes=minutes)
+    bot_state.cooldowns[ticker] = until
+    log_trade(f"[Cooldown] {ticker} {reason} 후 {minutes}분 동안 자동 재진입을 막습니다.")
+
+def market_regime_allows_entry():
+    """Block new entries when the broad KRW crypto market is dropping fast."""
+    try:
+        checks = []
+        for ticker in ["KRW-BTC", "KRW-ETH"]:
+            frame = pyupbit.get_ohlcv(ticker, interval="minute1", count=6)
+            if frame is None or len(frame) < 6:
+                bot_state.market_guard_note = "BTC/ETH 시장상태 확인 실패. 신규 진입 보류"
+                return False, bot_state.market_guard_note
+            closes = frame["close"]
+            last = float(closes.iloc[-1])
+            five_minute = (last / float(closes.iloc[0])) - 1.0
+            last_candle = (last / float(closes.iloc[-2])) - 1.0
+            checks.append((ticker, five_minute, last_candle))
+
+        bad = [
+            f"{ticker} 5분 {five * 100:.2f}% / 1분 {one * 100:.2f}%"
+            for ticker, five, one in checks
+            if five <= -0.006 or one <= -0.0035
+        ]
+        if bad:
+            bot_state.market_guard_note = "시장 하락 방어: " + ", ".join(bad)
+            return False, bot_state.market_guard_note
+        bot_state.market_guard_note = "BTC/ETH 단기 급락 없음. 신규 진입 가능"
+        return True, bot_state.market_guard_note
+    except Exception as e:
+        bot_state.market_guard_note = f"시장상태 확인 오류로 신규 진입 보류: {e}"
+        return False, bot_state.market_guard_note
+
+def orderbook_allows_entry(ticker: str):
+    try:
+        orderbook = pyupbit.get_orderbook(ticker)
+        if isinstance(orderbook, list):
+            orderbook = orderbook[0] if orderbook else None
+        units = (orderbook or {}).get("orderbook_units") or []
+        if len(units) < 3:
+            return False, "호가 데이터가 부족합니다."
+        best_ask = float(units[0].get("ask_price") or 0)
+        best_bid = float(units[0].get("bid_price") or 0)
+        if best_ask <= 0 or best_bid <= 0:
+            return False, "최우선 호가를 확인하지 못했습니다."
+        spread = (best_ask - best_bid) / best_bid
+        bid_size = sum(float(row.get("bid_size") or 0) for row in units[:5])
+        ask_size = sum(float(row.get("ask_size") or 0) for row in units[:5])
+        bid_ask_ratio = bid_size / max(ask_size, 1e-9)
+        if spread > 0.006:
+            return False, f"호가 간격이 넓습니다({spread * 100:.2f}%)."
+        if bid_ask_ratio < 0.75:
+            return False, f"매수호가 방어가 약합니다({bid_ask_ratio:.2f}배)."
+        return True, f"호가 통과: 스프레드 {spread * 100:.2f}%, 매수/매도 잔량 {bid_ask_ratio:.2f}배"
+    except Exception as e:
+        return False, f"호가 확인 실패: {e}"
+
+async def confirm_entry_signal(ticker: str, signal_price: float):
+    current_price = await asyncio.to_thread(get_current_price, ticker)
+    if current_price <= 0:
+        return False, "현재가 확인 실패로 진입 보류"
+    if signal_price > 0 and current_price < signal_price * 0.998:
+        return False, f"선정 후 가격이 바로 밀렸습니다({signal_price:,.0f} -> {current_price:,.0f})."
+    ok, note = await asyncio.to_thread(orderbook_allows_entry, ticker)
+    if not ok:
+        return False, note
+    return True, note
 
 def get_real_balance(currency: str) -> float:
     if not bot_state.upbit:
@@ -142,11 +223,14 @@ async def liquidate_existing_holdings():
 def scan_upbit_candidates(limit: int = 5):
     """Scalping scanner. It filters 24h strength, then ranks 1/3/5m entry signals."""
     try:
+        clear_expired_cooldowns()
         markets = pyupbit.get_tickers(fiat="KRW")
         pre_candidates = []
         candidates = []
         for ticker in markets:
             try:
+                if is_ticker_in_cooldown(ticker):
+                    continue
                 hourly = pyupbit.get_ohlcv(ticker, interval="minute60", count=25)
                 if hourly is None:
                     continue
@@ -281,7 +365,9 @@ def scan_upbit_candidates(limit: int = 5):
         if not candidates and pre_candidates:
             log_trade("[Signal Guard] 엄격 조건 통과 코인이 없어 완화 후보를 확인합니다. 완화 기준: 24h/6h 방향, 거래대금 1억원 이상, 변동성/급락 위험 필터")
             for base in pre_candidates[:limit]:
-                if base["drawdown"] < 0.025:
+                if is_ticker_in_cooldown(base["ticker"]):
+                    continue
+                if base["drawdown"] > 0.20:
                     continue
                 candidates.append({
                     "ticker": base["ticker"],
@@ -425,6 +511,13 @@ async def scalping_loop():
                 break
 
             if bot_state.state == TradingState.IDLE and bot_state.avg_buy_price == 0:
+                market_ok, market_note = await asyncio.to_thread(market_regime_allows_entry)
+                if not market_ok:
+                    bot_state.decision_note = f"{market_note}. 무리한 매수 없이 20초 후 다시 확인합니다."
+                    log_trade(f"[Market Guard] {market_note}")
+                    await asyncio.sleep(20)
+                    continue
+
                 if bot_state.ticker_mode == "manual":
                     bot_state.active_ticker = bot_state.selected_ticker or "KRW-BTC"
                     price = get_current_price(bot_state.active_ticker) or price
@@ -460,6 +553,15 @@ async def scalping_loop():
                         f"거래량 {chosen.get('tickVolumeSurge', 0):.1f}x / "
                         f"24h +{chosen['momentum'] * 100:.2f}%"
                     )
+
+                confirm_ok, confirm_note = await confirm_entry_signal(bot_state.active_ticker, price)
+                if not confirm_ok:
+                    bot_state.decision_note = f"{bot_state.active_ticker} 진입 보류: {confirm_note}"
+                    log_trade(f"[Entry Guard] {bot_state.active_ticker} 진입 보류: {confirm_note}")
+                    bot_state.state = TradingState.IDLE
+                    await asyncio.sleep(5)
+                    continue
+                log_trade(f"[Entry Guard] {bot_state.active_ticker} 진입 전 확인 통과: {confirm_note}")
 
                 bot_state.state = TradingState.BUYING
                 bot_state.decision_note = f"{bot_state.active_ticker} 매수 준비 중입니다. 투자금과 리스크 한도를 확인합니다."
@@ -594,6 +696,7 @@ async def scalping_loop():
                         log_trade(f"[Stop Loss] {bot_state.active_ticker} -{loss_pct:.2f}%. 손절 후 대기 상태로 복귀.")
                     reset_position_tracking()
                     bot_state.consecutive_loss_count += 1
+                    set_ticker_cooldown(bot_state.active_ticker, 20, "손절")
                     if bot_state.trading_mode == "real":
                         bot_state.state = TradingState.STOPPED
                         bot_state.decision_note = "손절 매도 후 실거래 엔진을 완전 정지했습니다. 다시 시작하려면 사용자가 직접 실거래 시작을 눌러야 합니다."

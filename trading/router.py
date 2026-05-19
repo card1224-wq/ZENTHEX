@@ -523,6 +523,8 @@ async def status(Authorization: str = Header(None), db: Session = Depends(get_db
         "lastOrderSide": bot_state.last_order_side,
         "lastOrderStatus": bot_state.last_order_status,
         "decisionNote": bot_state.decision_note,
+        "marketGuardNote": bot_state.market_guard_note,
+        "cooldownCount": len(bot_state.cooldowns),
         "entryRule": bot_state.entry_rule,
         "exitRule": bot_state.exit_rule,
         "riskRule": bot_state.risk_rule,

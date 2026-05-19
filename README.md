@@ -14,6 +14,7 @@ Zenthex is an AI SaaS platform with Zenthex Studio and Zenthex Trading.
 - Trading logs use KST and the screen explains the automatic selection filters before entry
 - Trading desktop layout uses three columns: quick execution, live monitor, and auxiliary settings
 - Trading scanner rejects price-falling volume spikes, strong recent red candles, and late 24h-high chase entries
+- Trading entry guard blocks broad BTC/ETH short-term selloffs, weak orderbooks, instant post-signal price drops, and repeat entries into recently stopped-out coins
 - Upbit: live market scan, strategy experience, and gated real trading
 - Binance: next exchange integration target, gated the same way as Upbit for real orders
 - Owner dashboard for the email configured in `ZENTHEX_OWNER_EMAILS`
@@ -104,6 +105,9 @@ The trading experience does not promise profit. It uses 24h strength as a broad 
 - short-term volume surge
 - short-term breakout
 - 1m moving-average trend
+- BTC/ETH broad-market guard
+- orderbook spread and bid/ask balance
+- post-stop-loss ticker cooldown
 - volatility filter
 - drawdown from 24h high
 
