@@ -17,6 +17,9 @@ This checklist is the master review gate before uploading or publishing Zenthex.
 - Split-entry mode must show max entry count, add-entry trigger, current entry count, and risk copy that it is not a guaranteed-profit formula.
 - Trading stop controls must separate pause/hold from sell-and-stop so users do not accidentally market-sell a position.
 - Trading must show the automatic selection criteria and use KST timestamps in system logs.
+- Trading desktop layout must use three columns so quick execution, live status, and auxiliary settings do not stack into one long form.
+- Trading scanner must reject volume-with-price-falling, recent red candles, and late entries too close to the 24h high.
+- Studio NanoBanana/Gemini failures must show a clear reason such as missing API key, missing package, empty image response, or API error.
 - No public page contains "demo" copy for the production-facing flow.
 - Login and signup pages do not expose owner email or owner account guidance.
 - Owner email is controlled by `ZENTHEX_OWNER_EMAILS`, with `7foliath@naver.com` kept as the built-in owner fallback.

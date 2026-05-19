@@ -1,4 +1,9 @@
-ZENTHEX_UPLOAD_VERSION=2026-05-18-1105
+ZENTHEX_UPLOAD_VERSION=2026-05-19-1015
+Studio Fix: NanoBanana/Gemini provider now reads image data from multiple Gemini response shapes and returns clean Korean diagnostics
+Trading Scanner: added price-volume alignment, high-chase prevention, and recent red-candle rejection to reduce entries into falling coins
+Trading Scanner: relaxed candidates now avoid coins sitting too close to the 24h high
+Trading UI: desktop layout changed to three columns: left quick execution, middle live status/returns, right auxiliary settings
+Trading UI: API key/IP, Binance planned connector notice, advanced strategy, and auto-selection criteria move into the right auxiliary panel
 Trading UI: sell-and-stop button is always visible and disabled with a no-position label until there is a Zenthex position
 Trading Logs: system log timestamps now use Korea time (KST)
 Trading Scanner: auto-selection criteria are shown in the UI and scanner thresholds were adjusted so quiet markets can still surface relaxed candidates

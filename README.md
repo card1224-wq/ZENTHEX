@@ -12,6 +12,8 @@ Zenthex is an AI SaaS platform with Zenthex Studio and Zenthex Trading.
 - Trading split entry: divide a configured total budget into multiple entries and calculate take-profit/stop-loss from the average buy price
 - Trading stop controls: pause keeps holdings, while sell-and-stop market-sells the current Zenthex position before ending the engine
 - Trading logs use KST and the screen explains the automatic selection filters before entry
+- Trading desktop layout uses three columns: quick execution, live monitor, and auxiliary settings
+- Trading scanner rejects price-falling volume spikes, strong recent red candles, and late 24h-high chase entries
 - Upbit: live market scan, strategy experience, and gated real trading
 - Binance: next exchange integration target, gated the same way as Upbit for real orders
 - Owner dashboard for the email configured in `ZENTHEX_OWNER_EMAILS`

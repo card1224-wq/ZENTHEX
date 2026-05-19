@@ -194,6 +194,7 @@ def scan_upbit_candidates(limit: int = 5):
                     "momentum6h": momentum_6h,
                     "volumeSurge": volume_surge,
                     "value24h": value_24h,
+                    "high24h": high_24h,
                     "volatility": volatility,
                     "drawdown": drawdown,
                     "price": last,
@@ -222,17 +223,27 @@ def scan_upbit_candidates(limit: int = 5):
                 minute1_momentum = (last1 / float(c1.iloc[-4])) - 1.0
                 minute3_momentum = (float(c3.iloc[-1]) / float(c3.iloc[-4])) - 1.0
                 minute5_momentum = (float(c5.iloc[-1]) / float(c5.iloc[-4])) - 1.0
+                last_candle_move = (float(c1.iloc[-1]) / float(c1.iloc[-2])) - 1.0
+                minute3_last_move = (float(c3.iloc[-1]) / float(c3.iloc[-2])) - 1.0
                 recent_tick_volume = float(v1.tail(3).mean())
                 previous_tick_volume = float(v1.iloc[-12:-3].mean() or 1)
                 tick_volume_surge = recent_tick_volume / max(previous_tick_volume, 1e-9)
                 ma5 = float(c1.tail(5).mean())
                 ma10 = float(c1.tail(10).mean())
+                ma20 = float(c1.tail(20).mean())
+                price_volume_aligned = tick_volume_surge >= 1.15 and minute1_momentum > 0 and minute3_momentum > 0
+                near_day_high = (base["price"] / max(base.get("high24h", base["price"]), 1e-9)) > 0.975
+                falling_with_volume = tick_volume_surge >= 1.25 and (last_candle_move < -0.0015 or minute3_last_move < -0.0025)
                 breakout = 1.0 if last1 > prev_high_5 else 0.0
-                short_trend = 1.0 if last1 > ma5 > ma10 else 0.0
+                short_trend = 1.0 if last1 > ma5 > ma10 > ma20 else 0.0
 
                 if minute1_momentum <= -0.0015 or minute3_momentum <= -0.002 or minute5_momentum < -0.004:
                     continue
-                if tick_volume_surge < 1.1 and not breakout and not short_trend:
+                if falling_with_volume:
+                    continue
+                if near_day_high and not breakout:
+                    continue
+                if not price_volume_aligned and not breakout and not short_trend:
                     continue
 
                 score = (
@@ -253,6 +264,9 @@ def scan_upbit_candidates(limit: int = 5):
                     "minute1Momentum": minute1_momentum,
                     "minute3Momentum": minute3_momentum,
                     "minute5Momentum": minute5_momentum,
+                    "lastCandleMove": last_candle_move,
+                    "priceVolumeAligned": price_volume_aligned,
+                    "nearDayHigh": near_day_high,
                     "breakout": breakout,
                     "shortTrend": short_trend,
                     "value24h": base["value24h"],
@@ -267,6 +281,8 @@ def scan_upbit_candidates(limit: int = 5):
         if not candidates and pre_candidates:
             log_trade("[Signal Guard] 엄격 조건 통과 코인이 없어 완화 후보를 확인합니다. 완화 기준: 24h/6h 방향, 거래대금 1억원 이상, 변동성/급락 위험 필터")
             for base in pre_candidates[:limit]:
+                if base["drawdown"] < 0.025:
+                    continue
                 candidates.append({
                     "ticker": base["ticker"],
                     "momentum": base["momentum"],
@@ -276,6 +292,9 @@ def scan_upbit_candidates(limit: int = 5):
                     "minute1Momentum": 0,
                     "minute3Momentum": 0,
                     "minute5Momentum": 0,
+                    "lastCandleMove": 0,
+                    "priceVolumeAligned": False,
+                    "nearDayHigh": False,
                     "breakout": 0,
                     "shortTrend": 0,
                     "value24h": base["value24h"],
