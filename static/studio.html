@@ -186,7 +186,7 @@
             if (zxCanExport()) {
                 chip.className = "account-chip full";
                 chip.innerText = zxUser.role === "owner" ? "대표 전체 권한" : "Studio 구독 권한";
-                note.innerHTML = "Zenthex Studio 전체 권한입니다. JPG 저장으로 화면 이미지를 받을 수 있고, 필요 시 GLB 3D 모델 파일도 받을 수 있습니다.";
+                note.innerHTML = "Zenthex Studio 전체 권한입니다. 현재 3D 결과는 NanoBanana/Gemini 건축 이미지로 먼저 제공하고, GLB 모델 파일은 3D Worker 서버 연결 후 제공합니다.";
                 if (watermark) watermark.classList.add("hidden");
                 return;
             }
@@ -199,6 +199,14 @@
         }
         async function zxRefreshUser() {
             zxToken = localStorage.getItem("zx_token");
+            const zxExpiresAt = Number(localStorage.getItem("zx_expires_at") || 0);
+            if (zxToken && zxExpiresAt && Date.now() > zxExpiresAt) {
+                localStorage.removeItem("zx_token");
+                localStorage.removeItem("zx_user");
+                localStorage.removeItem("zx_expires_at");
+                zxToken = null;
+                zxUser = null;
+            }
             if (!zxToken) { zxUser = null; zxRenderAccessState(); return; }
             try {
                 const res = await fetch("/api/auth/me", { headers: { "Authorization": `Bearer ${zxToken}` } });
@@ -208,6 +216,7 @@
                 } else if (res.status === 401) {
                     localStorage.removeItem("zx_token");
                     localStorage.removeItem("zx_user");
+                    localStorage.removeItem("zx_expires_at");
                     zxToken = null;
                     zxUser = null;
                 }
@@ -225,6 +234,7 @@
             if (!text.toLowerCase().includes("invalid token")) return first;
             localStorage.removeItem("zx_token");
             localStorage.removeItem("zx_user");
+            localStorage.removeItem("zx_expires_at");
             zxToken = null;
             zxUser = null;
             zxRenderAccessState();
@@ -240,7 +250,7 @@
                 ? `<br><a class="download-link" href="${result.image_url}" download>JPG 이미지 저장</a>`
                 : "";
             if (!result.worker_ready) {
-                return `${imageExport}<br><span style="color:#fcd34d">현재 서버에 3D Worker 의존성이 없어 GLB 파일은 준비되지 않았습니다. NanoBanana/Gemini 건축 이미지를 먼저 중앙 결과로 제공합니다.</span>`;
+                return `${imageExport}<br><span style="color:#fcd34d">현재 Zenthex 자체 3D Worker가 없으므로 NanoBanana/Gemini에서 가져온 3D 건축 이미지를 메인 결과로 제공합니다. GLB 파일은 Worker 서버 연결 후 제공합니다.</span>`;
             }
             return result.model_url
                 ? `<br><button class="export-button" onclick="window.zxDownloadJpg()">JPG 저장</button>${imageExport}<a class="download-link" href="${result.model_url}" download>GLB 3D 모델 다운로드</a><div class="studio-format-note">JPG는 현재 보이는 화면 이미지이고, GLB는 Blender/Three.js 같은 도구에서 여는 실제 3D 모델 파일입니다.</div>`
@@ -272,9 +282,9 @@
                 document.getElementById("viewer-container").appendChild(panel);
             }
             const actions = zxCanExport()
-                ? `<div class="nanobanana-actions"><a href="${result.image_url}" download>JPG 이미지 저장</a><button type="button" onclick="window.zxClearNanoPreview()">3D 미리보기 보기</button></div>`
+                ? `<div class="nanobanana-actions"><a href="${result.image_url}" download>JPG 이미지 저장</a><button type="button" onclick="window.zxClearNanoPreview()">Zenthex 기본 3D 보기</button></div>`
                 : "";
-            panel.innerHTML = `<img src="${result.image_url}" alt="NanoBanana generated Studio preview"><p>NanoBanana/Gemini가 생성한 건축 이미지입니다. 실제 GLB/OBJ 3D 모델은 3D Worker 서버 연결 후 제공됩니다.</p>${actions}`;
+            panel.innerHTML = `<img src="${result.image_url}" alt="NanoBanana generated Studio preview"><p>NanoBanana/Gemini에서 가져온 3D 건축 이미지입니다. 현재 Studio의 메인 결과이며, 실제 GLB/OBJ 3D 모델은 Zenthex 3D Worker 서버 연결 후 제공합니다.</p>${actions}`;
         }
         window.zxRenderNanoBananaImage = zxRenderNanoBananaImage;
         window.zxClearNanoPreview = () => {
@@ -515,7 +525,7 @@
         scene.add(currentModel);
         controls.target.set(0, 5, 0);
         document.getElementById('status-box').classList.remove('hidden');
-        document.getElementById('status-box').innerHTML = '샘플 3D 미리보기가 표시되어 있습니다. 프롬프트를 입력하면 새 공간으로 교체됩니다.<div class="studio-format-note">구독 권한에서는 JPG 저장을 먼저 제공하고, GLB는 실제 3D 모델 파일로 함께 제공합니다.</div>';
+        document.getElementById('status-box').innerHTML = '샘플 3D 미리보기가 표시되어 있습니다. 프롬프트를 입력하면 NanoBanana/Gemini 3D 건축 이미지가 메인 결과로 표시됩니다.<div class="studio-format-note">구독 권한에서는 JPG 저장을 먼저 제공하고, GLB는 Zenthex 3D Worker 서버 연결 후 제공합니다.</div>';
 
         // Front-end file upload flow
         document.getElementById('drop-zone').onclick = () => document.getElementById('file-input').click();
@@ -563,7 +573,7 @@
                     loader.classList.remove('active');
                     const exportLinks = result.model_url ? `<br><button class="export-button" onclick="window.zxDownloadJpg()">JPG 저장</button><a class="download-link" href="${result.model_url}" download>GLB 3D 모델 다운로드</a><div class="studio-format-note">JPG는 현재 보이는 화면 이미지이고, GLB는 Blender/Three.js에서 여는 실제 3D 모델 파일입니다.</div>` : '';
                     const providerMsg = result.provider_message ? `<br><span class="text-gray-400">${result.provider_message}</span>` : '';
-                    const workerMsg = !result.worker_ready ? '<br><span class="text-amber-300">서버 3D Worker 의존성이 없어 GLB 파일은 준비되지 않았습니다. 화면 미리보기와 JPG 저장을 우선 제공합니다.</span>' : '';
+                    const workerMsg = !result.worker_ready ? '<br><span class="text-amber-300">Zenthex 자체 3D Worker가 아직 없으므로 NanoBanana/Gemini 3D 건축 이미지와 JPG 저장을 우선 제공합니다. GLB 파일은 Worker 서버 연결 후 제공합니다.</span>' : '';
                     const lockedMsg = result.preview_only ? '<br><span class="text-amber-300">체험 미리보기는 보기 전용입니다. JPG/GLB 저장은 구독 후 제공됩니다.</span>' : `<br><span class="text-[#00ffcc]">구독 권한으로 JPG 저장과 GLB 3D 모델 다운로드가 가능합니다.</span>${exportLinks}${workerMsg}`;
                     document.getElementById('status-box').innerHTML = `3D 생성이 완료되었습니다.<br><span class="text-white">${result.preview?.title || '생성된 공간'}을 마우스로 둘러보세요.</span>${providerMsg}${lockedMsg}`;
                     
@@ -633,7 +643,7 @@
                     loader.classList.remove('active');
                     const exportLinks = result.model_url ? `<br><button class="export-button" onclick="window.zxDownloadJpg()">JPG 저장</button><a class="download-link" href="${result.model_url}" download>GLB 3D 모델 다운로드</a><div class="studio-format-note">JPG는 현재 보이는 화면 이미지이고, GLB는 Blender/Three.js에서 여는 실제 3D 모델 파일입니다.</div>` : '';
                     const providerMsg = result.provider_message ? `<br><span class="text-gray-400">${result.provider_message}</span>` : '';
-                    const workerMsg = !result.worker_ready ? '<br><span class="text-amber-300">서버 3D Worker 의존성이 없어 GLB 파일은 준비되지 않았습니다. 화면 미리보기와 JPG 저장을 우선 제공합니다.</span>' : '';
+                    const workerMsg = !result.worker_ready ? '<br><span class="text-amber-300">Zenthex 자체 3D Worker가 아직 없으므로 NanoBanana/Gemini 3D 건축 이미지와 JPG 저장을 우선 제공합니다. GLB 파일은 Worker 서버 연결 후 제공합니다.</span>' : '';
                     const lockedMsg = result.preview_only ? '<br><span class="text-amber-300">체험 미리보기는 보기 전용입니다. JPG/GLB 저장은 구독 후 제공됩니다.</span>' : `<br><span class="text-[#00ffcc]">구독 권한으로 JPG 저장과 GLB 3D 모델 다운로드가 가능합니다.</span>${exportLinks}${workerMsg}`;
                     document.getElementById('status-box').innerHTML = `<span class="text-purple-400">프롬프트 기반 3D 생성이 완료되었습니다.<br>${result.preview?.title || '생성된 공간'}을 둘러보세요.</span>${providerMsg}${lockedMsg}`;
                     

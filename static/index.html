@@ -184,6 +184,7 @@
     function clearSession(){
       localStorage.removeItem('zx_token');
       localStorage.removeItem('zx_user');
+      localStorage.removeItem('zx_expires_at');
       token=null;
       user=null;
     }
@@ -203,6 +204,8 @@
     }
 
     async function refreshUser(){
+      const expiresAt=Number(localStorage.getItem('zx_expires_at')||0);
+      if(token&&expiresAt&&Date.now()>expiresAt){ clearSession(); renderNav(null); return; }
       if(!token){ renderNav(null); return; }
       if(user){ renderNav(user); }
       try{

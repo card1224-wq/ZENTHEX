@@ -24,6 +24,7 @@ import uuid
 import hmac
 import hashlib
 import base64
+import time
 from email.message import EmailMessage
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -114,8 +115,13 @@ def token_secret() -> str:
 def sign_token_payload(payload: str) -> str:
     return hmac.new(token_secret().encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).hexdigest()
 
+def session_ttl_seconds() -> int:
+    hours = float(os.getenv("ZENTHEX_SESSION_HOURS", "24") or 24)
+    return max(1, int(hours * 3600))
+
 def make_signed_token(user_id: int) -> str:
-    payload = f"{user_id}:{uuid.uuid4().hex}"
+    issued_at = int(time.time())
+    payload = f"{user_id}:{issued_at}:{uuid.uuid4().hex}"
     signature = sign_token_payload(payload)
     raw = f"{payload}:{signature}".encode("utf-8")
     return "zx." + base64.urlsafe_b64encode(raw).decode("utf-8").rstrip("=")
@@ -127,11 +133,16 @@ def read_signed_token(token: str):
     encoded += "=" * (-len(encoded) % 4)
     try:
         raw = base64.urlsafe_b64decode(encoded.encode("utf-8")).decode("utf-8")
-        user_id, nonce, signature = raw.split(":", 2)
+        user_id, issued_at, nonce, signature = raw.split(":", 3)
     except Exception:
         return None
-    payload = f"{user_id}:{nonce}"
+    payload = f"{user_id}:{issued_at}:{nonce}"
     if not hmac.compare_digest(sign_token_payload(payload), signature):
+        return None
+    try:
+        if int(time.time()) - int(issued_at) > session_ttl_seconds():
+            return None
+    except ValueError:
         return None
     try:
         return int(user_id)
@@ -140,8 +151,13 @@ def read_signed_token(token: str):
 
 def issue_user_token(user: User):
     access_token = make_signed_token(user.id)
-    SESSION_TOKENS[access_token] = user.id
-    return {"access_token": access_token, "token_type": "bearer", "user_info": UserResponse.model_validate(user)}
+    SESSION_TOKENS[access_token] = {"user_id": user.id, "expires_at": int(time.time()) + session_ttl_seconds()}
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "expires_in": session_ttl_seconds(),
+        "user_info": UserResponse.model_validate(user),
+    }
 
 def apply_owner_privileges(user: User):
     user.role = "owner"
@@ -377,9 +393,17 @@ def require_current_user(Authorization: str, db: Session):
     return get_current_user(token, db)
 
 def get_current_user(token: str, db: Session = Depends(get_db)):
-    user_id = SESSION_TOKENS.get(token) or read_signed_token(token)
+    session = SESSION_TOKENS.get(token)
+    user_id = None
+    if isinstance(session, dict):
+        if int(time.time()) <= int(session.get("expires_at") or 0):
+            user_id = session.get("user_id")
+        else:
+            SESSION_TOKENS.pop(token, None)
     if not user_id:
-        raise HTTPException(status_code=401, detail="Invalid token")
+        user_id = read_signed_token(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Login session expired. Please log in again.")
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(

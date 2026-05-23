@@ -146,10 +146,10 @@ def describe_prompt_preview(prompt: str, source: str = "prompt"):
         "rooms": ["메인 공간", "보조 공간", "동선"],
     }
 
-def build_nanobanana_result(prompt: str):
+def build_nanobanana_result(prompt: str, reference_image_path: str | None = None):
     if not nanobanana_is_configured():
-        return {"status": "skipped", "message": "GEMINI_API_KEY가 없어 NanoBanana를 건너뛰고 Studio 3D 미리보기를 사용합니다."}
-    return generate_preview_image(prompt)
+        return {"status": "skipped", "message": "GEMINI_API_KEY가 없어 NanoBanana/Gemini 3D 이미지를 건너뛰고 Studio 기본 미리보기를 사용합니다."}
+    return generate_preview_image(prompt, reference_image_path=reference_image_path)
 
 @router.post("/upload")
 async def upload_floorplan(
@@ -182,14 +182,18 @@ async def upload_floorplan(
     if STUDIO_WORKER_READY:
         background_tasks.add_task(generate_3d_task, file_path, model_path, bg_path, "premium", 25.0)
 
+    nano = build_nanobanana_result(
+        f"업로드한 도면을 기준으로 프리미엄 3D 건축 평면 이미지로 변환해줘. 파일명: {file.filename or 'uploaded floor plan'}",
+        reference_image_path=file_path,
+    )
     can_export = user_can_export(user)
     return {
         "status": "success",
-        "message": "3D 미리보기를 준비했습니다." if not STUDIO_WORKER_READY else "3D 생성 작업을 시작했습니다.",
+        "message": "NanoBanana/Gemini 3D 이미지를 준비했습니다." if nano.get("status") == "success" else ("3D 미리보기를 준비했습니다." if not STUDIO_WORKER_READY else "3D 생성 작업을 시작했습니다."),
         "preview": describe_prompt_preview(file.filename or "업로드 도면", "upload"),
-        "image_url": None,
-        "image_provider": None,
-        "provider_message": "업로드 도면은 현재 3D 미리보기와 GLB Worker로 처리합니다.",
+        "image_url": nano.get("image_url"),
+        "image_provider": nano.get("provider"),
+        "provider_message": nano.get("message"),
         "preview_only": not can_export,
         "export_locked": not can_export,
         "model_url": f"/static/models/{model_filename}" if can_export and STUDIO_WORKER_READY else None,

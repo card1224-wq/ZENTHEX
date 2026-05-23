@@ -16,7 +16,7 @@ Zenthex is an AI SaaS platform with Zenthex Studio and Zenthex Trading.
 - Trading scanner rejects price-falling volume spikes, strong recent red candles, and late 24h-high chase entries
 - Trading entry guard blocks broad BTC/ETH short-term selloffs, weak orderbooks, instant post-signal price drops, and repeat entries into recently stopped-out coins
 - Upbit: live market scan, strategy experience, and gated real trading
-- Binance: next exchange integration target, gated the same way as Upbit for real orders
+- Binance: connector-ready key verification and balance lookup, with Spot-only auto-ordering as the next engine attachment
 - Owner dashboard for the email configured in `ZENTHEX_OWNER_EMAILS`
 - Email verification, phone verification, ID lookup, password reset
 - My Page with billing history and receipt print view
@@ -28,6 +28,8 @@ Zenthex is an AI SaaS platform with Zenthex Studio and Zenthex Trading.
 - Owner account receives Ultimate access without payment, but still needs email code verification
 
 Login tokens are signed so new logins continue to work after a server restart or redeploy. If an older browser token is still present from a previous build, Studio clears it and retries as a one-day trial instead of blocking the prompt flow with an invalid-token error. Real trading still requires a fresh valid login because it can place real orders.
+
+Login sessions expire automatically. The default session lifetime is 24 hours and can be changed with `ZENTHEX_SESSION_HOURS`. Closing the browser does not immediately log out by itself because the app keeps a signed session for normal SaaS convenience, but expired sessions are rejected by the backend and cleared by the main pages.
 
 Accounts are stored in the database, not in the static GitHub files. If the deployment starts with a new empty `zenthex.db`, an old browser login token can remain while the matching account no longer exists on the server. In that case the app now clears stale sessions and the login screen shows whether the email does not exist or the password is wrong. Production should use a persistent database through `ZENTHEX_DATABASE_URL`.
 
@@ -82,6 +84,8 @@ Current production test target is Upbit because KRW markets and all listed coin 
 - Required safety: order-only API key, withdrawal permission disabled, risk agreement, owner kill switch
 - First Binance scope: spot trading only, small order tests, no futures until risk controls are proven
 
+Binance connector readiness is now in place for account creation day. Owner or Trading Pro/Ultimate users can select Binance connection, choose Testnet or Live, enter API/Secret keys, run key diagnostics, verify the key, and load balances. This does not yet route automatic orders through Binance; it prepares the verified connector so the next trading-engine step can attach Binance Spot to the same risk manager used by Upbit.
+
 Upbit real-trading keys require asset lookup and order permissions, and the public IP address of the running Zenthex FastAPI server must be registered on the Upbit Open API key. GitHub Pages is not the trading server; it only serves static files. If authentication fails, the UI returns a more specific diagnostic for likely IP, permission, Access Key, or Secret Key problems. The Trading screen shows the configured Zenthex server IP from `ZENTHEX_SERVER_PUBLIC_IP`, or auto-detects the FastAPI server outbound IP through `api.ipify.org` when the environment value is empty. It includes "업비트 키 진단하기" for troubleshooting and "업비트 키 인증하기" for the live-trading gate. Secret Key is hidden by default, with a temporary view button for paste checks. The backend re-checks the key again when the real engine starts.
 
 For real paid trading, the outbound IP should be fixed. Zenthex currently uses `74.220.52.254` as the intended fixed server IP value. The production server must actually route outbound Upbit requests through this same IP, and `ZENTHEX_SERVER_PUBLIC_IP=74.220.52.254` must be set in the server environment. If the displayed IP keeps changing, the deployment likely has no fixed outbound IP or the app is auto-detecting the current egress IP. Auto-detected IP is shown as a warning/reference only.
@@ -92,7 +96,7 @@ The Trading page keeps the long strategy form readable with a compact top summar
 
 Studio exports use two formats: GLB is the real 3D model file for 3D viewers/tools, while JPG is a flat image of the current preview screen. Owner, Studio Pro, and Ultimate users can use both export paths.
 
-Studio prompt previews can use Gemini NanoBanana when `GEMINI_API_KEY` is configured. The immediate image preview uses `gemini-2.5-flash-image` by default through `ZENTHEX_NANOBANANA_MODEL`, then the local Three.js preview and optional GLB worker continue as the 3D layer. If no key is configured, the app falls back to the built-in visual preview instead of failing.
+Studio prompt previews can use Gemini NanoBanana when `GEMINI_API_KEY` is configured. Until Zenthex's own 3D Worker is ready, NanoBanana/Gemini is treated as the primary 3D-style architectural result source: prompts and uploaded 2D drawings are sent to Gemini to generate premium isometric 3D floor-plan images like a top-down apartment render. The immediate image preview uses `gemini-2.5-flash-image` by default through `ZENTHEX_NANOBANANA_MODEL`, then the local Three.js preview and optional GLB worker continue as the later model layer. If no key is configured, the app falls back to the built-in visual preview instead of failing.
 
 ## Signal Guard Formula
 

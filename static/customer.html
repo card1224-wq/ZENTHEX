@@ -87,9 +87,17 @@
   </div>
 
   <script>
-    const token=localStorage.getItem('zx_token');
-    const user=JSON.parse(localStorage.getItem('zx_user')||'null');
+    let token=localStorage.getItem('zx_token');
+    let user=JSON.parse(localStorage.getItem('zx_user')||'null');
+    const expiresAt=Number(localStorage.getItem('zx_expires_at')||0);
     const accountLink=document.getElementById('account-link');
+    if(token&&expiresAt&&Date.now()>expiresAt){
+      localStorage.removeItem('zx_token');
+      localStorage.removeItem('zx_user');
+      localStorage.removeItem('zx_expires_at');
+      token=null;
+      user=null;
+    }
     if(!token){
       accountLink.href='login.html';
       accountLink.innerText='로그인';

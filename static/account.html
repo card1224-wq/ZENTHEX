@@ -58,9 +58,11 @@
 <script>
 const token = localStorage.getItem('zx_token');
 let currentUser = JSON.parse(localStorage.getItem('zx_user') || 'null');
+const expiresAt = Number(localStorage.getItem('zx_expires_at') || 0);
+if(token&&expiresAt&&Date.now()>expiresAt){ logout(); }
 if(!token){ alert('로그인이 필요합니다.'); location.href='login.html'; }
 function headers(){ return {'Content-Type':'application/json','Authorization':`Bearer ${token}`}; }
-function logout(){ localStorage.removeItem('zx_token'); localStorage.removeItem('zx_user'); location.href='index.html'; }
+function logout(){ localStorage.removeItem('zx_token'); localStorage.removeItem('zx_user'); localStorage.removeItem('zx_expires_at'); location.href='index.html'; }
 async function loadMe(){ const res=await fetch('/api/auth/me',{headers:headers()}); const data=await res.json(); if(!res.ok){logout(); return;} currentUser=data; localStorage.setItem('zx_user',JSON.stringify(data)); renderUser(); }
 function isOwner(){ return currentUser && currentUser.role === 'owner'; }
 const planCatalog=[

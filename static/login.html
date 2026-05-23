@@ -157,6 +157,7 @@
         if(!res.ok) throw new Error(messageFrom(data,'로그인에 실패했습니다.'));
         localStorage.setItem('zx_token',data.access_token);
         localStorage.setItem('zx_user',JSON.stringify(data.user_info));
+        localStorage.setItem('zx_expires_at',String(Date.now()+((data.expires_in||86400)*1000)));
         location.href=data.user_info.role==='owner'?'admin.html':'account.html';
       }catch(e){ errorDiv.innerText=e.message; }
     }

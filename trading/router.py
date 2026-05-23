@@ -9,6 +9,7 @@ import pyupbit
 
 from auth.router import get_current_user
 from database.session import get_db
+from trading.binance_client import build_binance_account_summary, check_binance_key, clean_key as clean_binance_key
 from trading.engine import bot_state, TradingState, scalping_loop, log_trade
 
 router = APIRouter(prefix="/api/finance", tags=["finance"])
@@ -39,6 +40,11 @@ class ManualTrade(BaseModel):
 class UpbitKeyCheck(BaseModel):
     accessKey: str = ""
     secretKey: str = ""
+
+class BinanceKeyCheck(BaseModel):
+    accessKey: str = ""
+    secretKey: str = ""
+    testnet: bool = True
 
 def clean_api_key(value: str) -> str:
     return (value or "").strip().replace("\u200b", "").replace("\ufeff", "")
@@ -277,6 +283,41 @@ async def account_summary(config: UpbitKeyCheck, Authorization: str = Header(Non
         return {"status": "success", "message": "업비트 잔고와 수익률을 불러왔습니다.", **summary}
     except Exception as e:
         return {"status": "error", "message": explain_upbit_auth_error(e)}
+
+def require_trading_permission(Authorization: str, db: Session):
+    if not Authorization:
+        raise HTTPException(status_code=401, detail="Trading 연결은 로그인 후 사용할 수 있습니다.")
+    user = get_current_user(Authorization.replace("Bearer ", ""), db)
+    if not user_can_real_trade(user):
+        raise HTTPException(status_code=403, detail="Trading 연결은 Trading Pro 또는 Ultimate 구독 권한이 필요합니다.")
+    return user
+
+@router.post("/binance/check-key")
+async def binance_check_key(config: BinanceKeyCheck, Authorization: str = Header(None), db: Session = Depends(get_db)):
+    require_trading_permission(Authorization, db)
+    access_key = clean_binance_key(config.accessKey)
+    secret_key = clean_binance_key(config.secretKey)
+    if not access_key or not secret_key:
+        return {"status": "error", "message": "Binance API Key와 Secret Key를 모두 입력해야 합니다.", "verified": False}
+    return await asyncio.to_thread(check_binance_key, access_key, secret_key, config.testnet)
+
+@router.post("/binance/verify-key")
+async def binance_verify_key(config: BinanceKeyCheck, Authorization: str = Header(None), db: Session = Depends(get_db)):
+    require_trading_permission(Authorization, db)
+    access_key = clean_binance_key(config.accessKey)
+    secret_key = clean_binance_key(config.secretKey)
+    if not access_key or not secret_key:
+        return {"status": "error", "message": "Binance API Key와 Secret Key를 모두 입력해야 합니다.", "verified": False}
+    return await asyncio.to_thread(check_binance_key, access_key, secret_key, config.testnet)
+
+@router.post("/binance/account-summary")
+async def binance_account_summary(config: BinanceKeyCheck, Authorization: str = Header(None), db: Session = Depends(get_db)):
+    require_trading_permission(Authorization, db)
+    access_key = clean_binance_key(config.accessKey)
+    secret_key = clean_binance_key(config.secretKey)
+    if not access_key or not secret_key:
+        return {"status": "error", "message": "Binance API Key와 Secret Key를 모두 입력해야 합니다."}
+    return await asyncio.to_thread(build_binance_account_summary, access_key, secret_key, config.testnet)
 
 @router.post("/start")
 async def start_bot(config: StartConfig, Authorization: str = Header(None), db: Session = Depends(get_db)):

@@ -1,4 +1,13 @@
 ZENTHEX_UPLOAD_VERSION=2026-05-19-1030
+Trading Binance: connector-ready client added for Binance Spot/Testnet account authentication
+Trading Binance: UI now supports Binance Testnet/Live key diagnostics, key verification, and balance lookup for owner/subscribers
+Trading Binance: Futures/선물 remains blocked in MVP; automatic orders will attach to the shared risk manager in the next engine step
+Studio: NanoBanana/Gemini is now the primary 3D-style architectural image source until the Zenthex 3D Worker is ready
+Studio: prompt generation now asks NanoBanana/Gemini for premium isometric 3D floor-plan/apartment render images
+Studio: uploaded 2D drawings are sent to NanoBanana/Gemini as reference images for 3D-style architectural output
+Studio UI: copy now explains that GLB/OBJ models come later from the Zenthex 3D Worker, while NanoBanana/Gemini supplies the current 3D visual result
+Auth: signed login sessions now expire by default after 24 hours through ZENTHEX_SESSION_HOURS
+Auth UI: login stores the expiry time and core pages clear expired sessions automatically
 Trading Safety: broad-market guard added. New entries pause when BTC/ETH show short-term KRW-market selloff pressure
 Trading Safety: entry confirmation now checks current price and orderbook spread/bid-ask balance before buying
 Trading Safety: stop-loss cooldown added so recently stopped-out coins are not immediately re-entered

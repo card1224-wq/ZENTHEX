@@ -35,10 +35,27 @@ def _save_inline_image(part, output_path: Path) -> bool:
     return False
 
 
-def generate_preview_image(prompt: str, output_dir: str = "static/models") -> dict:
+def _build_studio_prompt(prompt: str, has_reference: bool) -> str:
+    reference_note = (
+        "Use the attached reference image as the source layout and transform it into a polished 3D floor-plan render. "
+        if has_reference
+        else ""
+    )
+    return (
+        "Create the main Zenthex Studio result as a premium isometric 3D architectural floor-plan image. "
+        "The result should look like a detailed top-down 3D apartment or interior model: visible walls, rooms, "
+        "furniture, wood floors, windows, balconies, bathrooms, kitchen, lighting, and realistic depth. "
+        "If the user asks for a Korean apartment, use a modern Korean residential layout and Korean room labels "
+        "only where they help explain the floor plan. Do not create a flat 2D blueprint. Do not create abstract art. "
+        "Make it presentation-ready for a SaaS customer who wants to preview the space before subscribing. "
+        f"{reference_note}User request: {prompt}"
+    )
+
+
+def generate_preview_image(prompt: str, output_dir: str = "static/models", reference_image_path: str | None = None) -> dict:
     api_key = (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or "").strip()
     if not api_key:
-        return {"status": "skipped", "message": "GEMINI_API_KEY가 없어 NanoBanana/Gemini 이미지 생성을 건너뛰었습니다."}
+        return {"status": "skipped", "message": "GEMINI_API_KEY가 없어 NanoBanana/Gemini 3D 이미지 생성을 건너뛰었습니다."}
 
     try:
         from google import genai
@@ -52,18 +69,26 @@ def generate_preview_image(prompt: str, output_dir: str = "static/models") -> di
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     filename = f"nanobanana_{int(time.time())}.png"
     output_path = Path(output_dir) / filename
-
-    studio_prompt = (
-        "Create a polished architectural concept render for Zenthex Studio. "
-        "Use a clean premium SaaS visual style, realistic spatial composition, "
-        "clear room zoning, modern Korean residential/interior design taste, "
-        "architectural lighting, and no text labels. "
-        f"User request: {prompt}"
-    )
+    studio_prompt = _build_studio_prompt(prompt, bool(reference_image_path))
 
     try:
         client = genai.Client(api_key=api_key)
-        response = client.models.generate_content(model=model, contents=[studio_prompt])
+        contents = [studio_prompt]
+        if reference_image_path:
+            try:
+                from google.genai import types
+
+                path = Path(reference_image_path)
+                suffix = path.suffix.lower()
+                mime_type = "image/png" if suffix == ".png" else "image/jpeg"
+                contents.append(types.Part.from_bytes(data=path.read_bytes(), mime_type=mime_type))
+            except Exception as exc:
+                return {
+                    "status": "error",
+                    "message": f"NanoBanana/Gemini 참고 이미지 준비 실패: {exc}",
+                }
+
+        response = client.models.generate_content(model=model, contents=contents)
         for part in _iter_response_parts(response):
             if _save_inline_image(part, output_path):
                 return {
@@ -71,7 +96,7 @@ def generate_preview_image(prompt: str, output_dir: str = "static/models") -> di
                     "provider": "nanobanana",
                     "model": model,
                     "image_url": f"/static/models/{filename}",
-                    "message": "NanoBanana/Gemini 이미지 생성 완료",
+                    "message": "NanoBanana/Gemini 3D 건축 이미지 생성 완료",
                 }
         return {
             "status": "empty",

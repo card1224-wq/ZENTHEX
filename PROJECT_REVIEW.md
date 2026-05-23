@@ -51,6 +51,7 @@ This checklist is the master review gate before uploading or publishing Zenthex.
 - Real trading start should require key verification and then re-check the key on the backend before placing live orders.
 - Trading owner and Trading Pro/Ultimate users must land on the real-trade permission view, not a trial-only view.
 - Real trading key check must explain likely Upbit failures: allowed IP mismatch, missing asset/order permission, wrong Access Key, wrong Secret Key.
+- Binance connector readiness must include Testnet/Live key diagnostics, key verification, balance lookup, Spot-only warning, and no Futures launch in the MVP.
 - Trading screen must show the Zenthex FastAPI server public IP from `ZENTHEX_SERVER_PUBLIC_IP` with a copy button for Upbit allowed IP registration.
 - Paid real trading must use a fixed outbound server IP. Current intended Zenthex fixed IP is `74.220.52.254`; auto-detected IP is a warning/reference only, and the server must actually route outbound Upbit requests through the same IP.
 - Trading screen must verify configured IP versus actual outbound IP. If they differ, the deployment is not ready for Upbit live trading.
