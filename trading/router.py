@@ -324,7 +324,10 @@ async def start_bot(config: StartConfig, Authorization: str = Header(None), db: 
     if bot_state.state not in [TradingState.STOPPED, TradingState.ERROR]:
         return {"status": "error", "message": "Bot is already running"}
 
-    bot_state.target_yield = config.targetYield
+    bot_state.target_yield = max(config.targetYield, 1.003)
+    bot_state.stop_loss_yield = 0.993
+    bot_state.daily_max_loss_pct = 0.015
+    bot_state.max_consecutive_loss = 2
     bot_state.exit_mode = config.exitMode if config.exitMode in ["fixed", "trailing"] else "fixed"
     bot_state.trailing_start_yield = max(config.trailingStartYield, 1.001)
     bot_state.trailing_drop_pct = min(max(config.trailingDropPct, 0.001), 0.05)
@@ -334,7 +337,7 @@ async def start_bot(config: StartConfig, Authorization: str = Header(None), db: 
     bot_state.investment_ratio = config.investmentRatio
     bot_state.entry_mode = config.entryMode if config.entryMode in ["single", "split"] else "single"
     bot_state.entry_slices = min(max(int(config.entrySlices or 1), 1), 10) if bot_state.entry_mode == "split" else 1
-    bot_state.add_entry_drop_pct = min(max(float(config.addEntryDropPct or 0.005), 0.001), 0.05)
+    bot_state.add_entry_drop_pct = min(max(float(config.addEntryDropPct or 0.002), 0.001), 0.05)
     bot_state.ticker_mode = config.tickerMode if config.tickerMode in ["auto", "manual"] else "auto"
     bot_state.selected_ticker = config.selectedTicker if config.selectedTicker.startswith("KRW-") else "KRW-BTC"
     bot_state.trading_mode = config.tradingMode if config.tradingMode in ["practice", "real"] else "practice"
@@ -352,9 +355,9 @@ async def start_bot(config: StartConfig, Authorization: str = Header(None), db: 
     bot_state.rotate_existing_accepted = config.rotateExistingAccepted
     bot_state.rotated_holdings = False
     if bot_state.entry_mode == "split":
-        bot_state.risk_rule = f"리스크: 총 투자금을 {bot_state.entry_slices}회로 나누어 진입, 평균가 대비 {bot_state.add_entry_drop_pct * 100:.1f}% 구간마다 추가 진입, 전체 손절선과 일일 손실 제한 적용"
+        bot_state.risk_rule = f"리스크: 총 투자금을 {bot_state.entry_slices}회로 나누되 하락 추가매수 금지, 평균가 대비 +{bot_state.add_entry_drop_pct * 100:.1f}% 수익 방향 확인 시 추가 진입, 일일 손실 1.5%, 연속 손절 2회 제한"
     else:
-        bot_state.risk_rule = "리스크: 최소 주문 5,000원, 일일 최대 손실 5%, 연속 손절 3회 제한"
+        bot_state.risk_rule = "리스크: 최소 주문 5,000원, 하락 추가매수 금지, 일일 최대 손실 1.5%, 연속 손절 2회 제한"
 
     if bot_state.trading_mode == "real":
         if not Authorization:

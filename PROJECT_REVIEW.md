@@ -19,6 +19,8 @@ This checklist is the master review gate before uploading or publishing Zenthex.
 - Trading must show the automatic selection criteria and use KST timestamps in system logs.
 - Trading desktop layout must use three columns so quick execution, live status, and auxiliary settings do not stack into one long form.
 - Trading scanner must reject volume-with-price-falling, recent red candles, and late entries too close to the 24h high.
+- Trading scanner must wait instead of entering when no coin has positive 1m/3m/5m momentum and recent bullish candle confirmation.
+- Trading split entry must add only into profitable rising positions, not average down into falling positions.
 - Trading entry guard must block BTC/ETH broad-market short-term selloffs, weak orderbooks, and immediate post-signal price drops before buying.
 - Trading must apply a cooldown after stop-loss so the same coin is not immediately re-entered by the scanner.
 - Studio NanoBanana/Gemini failures must show a clear reason such as missing API key, missing package, empty image response, or API error.
@@ -57,6 +59,7 @@ This checklist is the master review gate before uploading or publishing Zenthex.
 - Trading screen must verify configured IP versus actual outbound IP. If they differ, the deployment is not ready for Upbit live trading.
 - Public docs must explain that GitHub Pages is not the trading server and cannot provide the Upbit outbound IP.
 - Trading settings must show a compact summary for exit mode, target yield, capital mode, and coin selection so the strategy is readable at a glance.
+- Trading must provide explicit Upbit/Binance exchange selection buttons before exchange-specific key setup.
 - Trading's default screen should expose only the essential strategy controls; advanced controls such as trailing exit and existing-holdings rotation should be collapsed but automatically opened when selected.
 - Trading must show a return-rate chart from the latest Upbit balance/status `totalPnlPct`, so users can monitor profit movement, not only coin holdings.
 - Trading includes short scalping targets and high-risk target options: +10%, +30%, +50%.

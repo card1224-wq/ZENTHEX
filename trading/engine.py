@@ -28,8 +28,8 @@ class BotState:
         self.ticker_mode = "auto"
         self.selected_ticker = "KRW-BTC"
         self.signal_candidates = []
-        self.target_yield = 1.01
-        self.stop_loss_yield = 0.994
+        self.target_yield = 1.005
+        self.stop_loss_yield = 0.993
         self.exit_mode = "fixed"
         self.trailing_start_yield = 1.005
         self.trailing_drop_pct = 0.004
@@ -40,23 +40,23 @@ class BotState:
         self.entry_mode = "single"
         self.entry_slices = 1
         self.entry_count = 0
-        self.add_entry_drop_pct = 0.005
+        self.add_entry_drop_pct = 0.002
         self.planned_total_krw = 0.0
         self.rotate_existing_accepted = False
         self.rotated_holdings = False
         self.cooldowns = {}
         self.market_guard_note = "시장상태 필터 대기 중"
-        self.daily_max_loss_pct = 0.05
+        self.daily_max_loss_pct = 0.015
         self.consecutive_loss_count = 0
-        self.max_consecutive_loss = 3
+        self.max_consecutive_loss = 2
         self.initial_daily_balance = self.balance
         self.last_order_uuid = ""
         self.last_order_side = ""
         self.last_order_status = "대기"
         self.decision_note = "대기 중입니다. 시작하면 전체 KRW 마켓을 스캔합니다."
-        self.entry_rule = "매수: 시장상태(BTC/ETH), 24h/6h 방향, 거래량+가격 동행, 호가 방어, 고점추격/급락 필터 통과"
+        self.entry_rule = "매수: BTC/ETH 시장 방어, 1m/3m/5m 모두 상승, 최근 양봉 우세, 거래량+가격 동행, 호가 방어 통과"
         self.exit_rule = "매도: 평균 매수가 기준 목표 도달 또는 추적 익절 조건 충족 시 전량 매도, 손절선 도달 시 전량 매도 후 정지"
-        self.risk_rule = "리스크: 최소 주문 5,000원, 분할 진입 총액 제한, 일일 최대 손실 5%, 연속 손절 3회 제한"
+        self.risk_rule = "리스크: 최소 주문 5,000원, 하락 추가매수 금지, 일일 최대 손실 1.5%, 연속 손절 2회 제한"
         self.current_score = 0.0
         self.logs = ["[System] Zenthex Signal Guard 대기 중: 업비트 전체 KRW 마켓을 스캔합니다. 로그 시간은 한국시간(KST)입니다."]
 
@@ -260,7 +260,7 @@ def scan_upbit_candidates(limit: int = 5):
 
                 if value_24h < 100_000_000:
                     continue
-                if change_24h <= 0.003 and momentum_6h <= -0.003:
+                if change_24h <= 0.004 or momentum_6h <= 0:
                     continue
                 if volatility > 0.65 or drawdown > 0.28:
                     continue
@@ -309,25 +309,32 @@ def scan_upbit_candidates(limit: int = 5):
                 minute5_momentum = (float(c5.iloc[-1]) / float(c5.iloc[-4])) - 1.0
                 last_candle_move = (float(c1.iloc[-1]) / float(c1.iloc[-2])) - 1.0
                 minute3_last_move = (float(c3.iloc[-1]) / float(c3.iloc[-2])) - 1.0
+                bullish_1m_count = sum(1 for idx in [-1, -2, -3] if float(c1.iloc[idx]) > float(minute1["open"].iloc[idx]))
                 recent_tick_volume = float(v1.tail(3).mean())
                 previous_tick_volume = float(v1.iloc[-12:-3].mean() or 1)
                 tick_volume_surge = recent_tick_volume / max(previous_tick_volume, 1e-9)
                 ma5 = float(c1.tail(5).mean())
                 ma10 = float(c1.tail(10).mean())
                 ma20 = float(c1.tail(20).mean())
-                price_volume_aligned = tick_volume_surge >= 1.15 and minute1_momentum > 0 and minute3_momentum > 0
+                price_volume_aligned = tick_volume_surge >= 1.2 and minute1_momentum > 0 and minute3_momentum > 0 and minute5_momentum > 0
                 near_day_high = (base["price"] / max(base.get("high24h", base["price"]), 1e-9)) > 0.975
-                falling_with_volume = tick_volume_surge >= 1.25 and (last_candle_move < -0.0015 or minute3_last_move < -0.0025)
+                falling_with_volume = tick_volume_surge >= 1.2 and (last_candle_move <= 0 or minute3_last_move <= 0)
                 breakout = 1.0 if last1 > prev_high_5 else 0.0
                 short_trend = 1.0 if last1 > ma5 > ma10 > ma20 else 0.0
 
-                if minute1_momentum <= -0.0015 or minute3_momentum <= -0.002 or minute5_momentum < -0.004:
+                if minute1_momentum <= 0 or minute3_momentum <= 0 or minute5_momentum <= 0:
+                    continue
+                if last_candle_move <= 0 or minute3_last_move <= 0:
+                    continue
+                if bullish_1m_count < 2:
                     continue
                 if falling_with_volume:
                     continue
                 if near_day_high and not breakout:
                     continue
-                if not price_volume_aligned and not breakout and not short_trend:
+                if not price_volume_aligned:
+                    continue
+                if not short_trend and not breakout:
                     continue
 
                 score = (
@@ -349,6 +356,7 @@ def scan_upbit_candidates(limit: int = 5):
                     "minute3Momentum": minute3_momentum,
                     "minute5Momentum": minute5_momentum,
                     "lastCandleMove": last_candle_move,
+                    "bullish1mCount": bullish_1m_count,
                     "priceVolumeAligned": price_volume_aligned,
                     "nearDayHigh": near_day_high,
                     "breakout": breakout,
@@ -363,33 +371,7 @@ def scan_upbit_candidates(limit: int = 5):
                 continue
         candidates.sort(key=lambda item: item["score"], reverse=True)
         if not candidates and pre_candidates:
-            log_trade("[Signal Guard] 엄격 조건 통과 코인이 없어 완화 후보를 확인합니다. 완화 기준: 24h/6h 방향, 거래대금 1억원 이상, 변동성/급락 위험 필터")
-            for base in pre_candidates[:limit]:
-                if is_ticker_in_cooldown(base["ticker"]):
-                    continue
-                if base["drawdown"] > 0.20:
-                    continue
-                candidates.append({
-                    "ticker": base["ticker"],
-                    "momentum": base["momentum"],
-                    "momentum6h": base["momentum6h"],
-                    "volumeSurge": base["volumeSurge"],
-                    "tickVolumeSurge": base["volumeSurge"],
-                    "minute1Momentum": 0,
-                    "minute3Momentum": 0,
-                    "minute5Momentum": 0,
-                    "lastCandleMove": 0,
-                    "priceVolumeAligned": False,
-                    "nearDayHigh": False,
-                    "breakout": 0,
-                    "shortTrend": 0,
-                    "value24h": base["value24h"],
-                    "volatility": base["volatility"],
-                    "drawdown": base["drawdown"],
-                    "price": base["price"],
-                    "score": base["roughScore"],
-                    "reason": "완화 후보",
-                })
+            log_trade("[Signal Guard] 상승 확인 조건을 통과한 코인이 없습니다. 떨어지는 코인은 사지 않기 위해 완화 진입 없이 대기합니다.")
         return candidates[:limit]
     except Exception as e:
         log_trade(f"[Signal Guard] 전체 코인 스캔 실패, BTC 기준으로 전환합니다: {e}")
@@ -608,16 +590,22 @@ async def scalping_loop():
                 if (
                     bot_state.entry_mode == "split"
                     and bot_state.entry_count < bot_state.entry_slices
-                    and current_yield <= 1.0 - (bot_state.add_entry_drop_pct * bot_state.entry_count)
+                    and current_yield >= 1.0 + (bot_state.add_entry_drop_pct * bot_state.entry_count)
                 ):
                     add_krw = calculate_next_entry_krw()
                     if add_krw >= 5000:
+                        confirm_ok, confirm_note = await confirm_entry_signal(bot_state.active_ticker, price)
+                        if not confirm_ok:
+                            bot_state.decision_note = f"추가 진입 보류: {confirm_note}"
+                            log_trade(f"[Pyramid Guard] 추가 진입 보류: {confirm_note}")
+                            await asyncio.sleep(2)
+                            continue
                         bot_state.state = TradingState.BUYING
                         log_trade(
-                            f"[Split Entry] 평균가 대비 {(current_yield - 1.0) * 100:.2f}% 구간. "
-                            f"{bot_state.entry_count + 1}/{bot_state.entry_slices}회 추가 진입을 시도합니다."
+                            f"[Pyramid Entry] 평균가 대비 +{(current_yield - 1.0) * 100:.2f}% 수익 방향 확인. "
+                            f"{bot_state.entry_count + 1}/{bot_state.entry_slices}회 추가 진입을 시도합니다. {confirm_note}"
                         )
-                        ok = await execute_entry_order(add_krw, price, "분할 추가 진입")
+                        ok = await execute_entry_order(add_krw, price, "수익 방향 추가 진입")
                         bot_state.state = TradingState.HOLDING if ok else TradingState.ERROR
                         if not ok:
                             break
@@ -696,7 +684,7 @@ async def scalping_loop():
                         log_trade(f"[Stop Loss] {bot_state.active_ticker} -{loss_pct:.2f}%. 손절 후 대기 상태로 복귀.")
                     reset_position_tracking()
                     bot_state.consecutive_loss_count += 1
-                    set_ticker_cooldown(bot_state.active_ticker, 20, "손절")
+                    set_ticker_cooldown(bot_state.active_ticker, 120, "손절")
                     if bot_state.trading_mode == "real":
                         bot_state.state = TradingState.STOPPED
                         bot_state.decision_note = "손절 매도 후 실거래 엔진을 완전 정지했습니다. 다시 시작하려면 사용자가 직접 실거래 시작을 눌러야 합니다."

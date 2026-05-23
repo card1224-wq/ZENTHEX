@@ -1,4 +1,9 @@
 ZENTHEX_UPLOAD_VERSION=2026-05-19-1030
+Trading Scanner: entries now require positive 1m/3m/5m momentum, recent bullish candle confirmation, and price-volume alignment
+Trading Scanner: relaxed fallback entry removed; if no coin is rising clearly, the engine waits instead of buying
+Trading Risk: split entry changed from averaging down to pyramiding; extra buys happen only after the position is already profitable
+Trading Risk: default daily loss limit tightened to 1.5%, consecutive stop-loss limit to 2, and stop-loss cooldown to 120 minutes
+Trading UI: explicit Upbit/Binance exchange selection buttons added before exchange-specific key setup
 Trading Binance: connector-ready client added for Binance Spot/Testnet account authentication
 Trading Binance: UI now supports Binance Testnet/Live key diagnostics, key verification, and balance lookup for owner/subscribers
 Trading Binance: Futures/선물 remains blocked in MVP; automatic orders will attach to the shared risk manager in the next engine step
