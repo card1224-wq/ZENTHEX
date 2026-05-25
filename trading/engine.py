@@ -4,6 +4,7 @@ from datetime import datetime, timezone, timedelta
 import pyupbit
 from mobile.push import send_push_notification
 from admin.router import admin_state
+from trading.bithumb_client import get_bithumb_current_price
 
 class TradingState:
     IDLE = "IDLE"
@@ -19,6 +20,7 @@ class BotState:
         self.state = TradingState.STOPPED
         self.is_real_key = False
         self.trading_mode = "practice"
+        self.exchange = "upbit"
         self.upbit = None
         self.balance = 1000000.0
         self.held_btc = 0.0
@@ -55,8 +57,8 @@ class BotState:
         self.last_order_status = "대기"
         self.decision_note = "대기 중입니다. 시작하면 전체 KRW 마켓을 스캔합니다."
         self.entry_rule = "매수: BTC/ETH 시장 방어, 1m/3m/5m 모두 상승, 최근 양봉 우세, 거래량+가격 동행, 호가 방어 통과"
-        self.exit_rule = "매도: 평균 매수가 기준 목표 도달 또는 추적 익절 조건 충족 시 전량 매도, 손절선 도달 시 전량 매도 후 정지"
-        self.risk_rule = "리스크: 최소 주문 5,000원, 하락 추가매수 금지, 일일 최대 손실 1.5%, 연속 손절 2회 제한"
+        self.exit_rule = "매도: 사용자가 고른 목표 수익률 도달 시 전량 매도, 추적 익절은 최고점 대비 되밀림 시 매도, 손절선 도달 시 전량 매도 후 정지"
+        self.risk_rule = "리스크: 최소 주문 5,000원, 떨어지는 기존 보유 코인은 정리 가능, 하락 추가매수 금지, 일일 최대 손실 1.5%, 연속 손절 2회 제한"
         self.current_score = 0.0
         self.logs = ["[System] Zenthex Signal Guard 대기 중: 업비트 전체 KRW 마켓을 스캔합니다. 로그 시간은 한국시간(KST)입니다."]
 
@@ -73,7 +75,7 @@ def log_trade(msg: str):
 def remember_order(result, side: str):
     bot_state.last_order_side = side
     if isinstance(result, dict):
-        bot_state.last_order_uuid = str(result.get("uuid") or "")
+        bot_state.last_order_uuid = str(result.get("uuid") or result.get("order_id") or "")
         bot_state.last_order_status = str(result.get("state") or "requested")
     else:
         bot_state.last_order_uuid = ""
@@ -84,6 +86,8 @@ def ticker_currency(ticker: str) -> str:
 
 def get_current_price(ticker: str) -> float:
     try:
+        if bot_state.exchange == "bithumb":
+            return get_bithumb_current_price(ticker)
         return float(pyupbit.get_current_price(ticker) or 0)
     except Exception:
         return 0.0
@@ -207,6 +211,15 @@ async def liquidate_existing_holdings():
         price = get_current_price(ticker)
         if qty * price < 5000:
             log_trade(f"[Rotation Skip] {ticker} 평가금액이 5,000원 미만입니다.")
+            continue
+        avg_price = float(row.get("avg_buy_price") or 0)
+        pnl_pct = ((price / avg_price) - 1.0) if avg_price > 0 else 0
+        recent = pyupbit.get_ohlcv(ticker, interval="minute1", count=4)
+        recent_move = 0.0
+        if recent is not None and len(recent) >= 4:
+            recent_move = (float(recent["close"].iloc[-1]) / float(recent["close"].iloc[0])) - 1.0
+        if pnl_pct > -0.001 and recent_move >= 0:
+            log_trade(f"[Rotation Keep] {ticker} 손실/하락 흐름이 뚜렷하지 않아 보유 유지: 손익 {pnl_pct * 100:.2f}%, 3분 {recent_move * 100:.2f}%")
             continue
         log_trade(f"[Rotation Sell Request] 기존 보유 {ticker} {qty:.8f}개 시장가 매도 요청")
         result = await asyncio.to_thread(bot_state.upbit.sell_market_order, ticker, qty)
@@ -588,6 +601,8 @@ async def scalping_loop():
                         f"목표 {(bot_state.target_yield - 1.0) * 100:.2f}%, 손절 {(bot_state.stop_loss_yield - 1.0) * 100:.2f}%"
                     )
                 if (
+                    not should_take_profit
+                    and
                     bot_state.entry_mode == "split"
                     and bot_state.entry_count < bot_state.entry_slices
                     and current_yield >= 1.0 + (bot_state.add_entry_drop_pct * bot_state.entry_count)
@@ -611,7 +626,7 @@ async def scalping_loop():
                             break
                         await asyncio.sleep(2)
                         continue
-                if bot_state.trading_mode == "practice" and current_yield < 1.003:
+                if not should_take_profit and bot_state.trading_mode == "practice" and current_yield < 1.003:
                     replacement = await asyncio.to_thread(scan_upbit_candidates, 1)
                     if replacement and replacement[0]["ticker"] != bot_state.active_ticker and replacement[0]["score"] > 0.55:
                         sell_amount = (bot_state.held_btc * price) * 0.9995
@@ -631,6 +646,7 @@ async def scalping_loop():
                         bot_state.decision_note = f"추적 익절 발동. 최고 +{peak_pct:.2f}%에서 현재 +{profit_pct:.2f}%로 밀려 전량 매도 후 엔진을 종료합니다."
                     else:
                         bot_state.decision_note = f"목표 수익률 +{profit_pct:.2f}% 도달. 전량 매도 후 엔진을 종료합니다."
+                        log_trade(f"[Fixed Take Profit Guard] {bot_state.active_ticker} 고정 목표 수익률 우선 매도 조건 발동: +{profit_pct:.2f}%")
                     if bot_state.trading_mode == "real":
                         sell_qty = bot_state.held_btc
                         if sell_qty <= 0:

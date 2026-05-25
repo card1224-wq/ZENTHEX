@@ -1,4 +1,10 @@
-ZENTHEX_UPLOAD_VERSION=2026-05-19-1030
+ZENTHEX_UPLOAD_VERSION=2026-05-25-익절-빗썸
+Trading Safety: fixed target take-profit now applies to every selected target yield, not only +0.5%; selected target hit means sell/stop first
+Trading Safety: fixed target take-profit has priority over split add-entry and practice rotation checks
+Trading Exchange: Bithumb selector, key diagnostics, JWT account authentication, balance lookup, and live market-order start path added
+Trading Exchange: Binance auto-orders remain blocked until attached to the shared risk manager; Upbit and Bithumb can use the live engine path
+Trading Rotation: existing holdings rotation now sells only holdings with clear loss/weak short-term flow, then looks for rising candidates
+Trading Ops: browser close is safe only while the FastAPI server stays awake; server sleep/shutdown means no automatic sell can be executed
 Trading Scanner: entries now require positive 1m/3m/5m momentum, recent bullish candle confirmation, and price-volume alignment
 Trading Scanner: relaxed fallback entry removed; if no coin is rising clearly, the engine waits instead of buying
 Trading Risk: split entry changed from averaging down to pyramiding; extra buys happen only after the position is already profitable

@@ -59,6 +59,9 @@ This checklist is the master review gate before uploading or publishing Zenthex.
 - Trading screen must verify configured IP versus actual outbound IP. If they differ, the deployment is not ready for Upbit live trading.
 - Public docs must explain that GitHub Pages is not the trading server and cannot provide the Upbit outbound IP.
 - Trading settings must show a compact summary for exit mode, target yield, capital mode, and coin selection so the strategy is readable at a glance.
+- Fixed target exits must apply to every selected target yield. When the selected target is reached, sell-and-stop has priority over split add-entry and rotation checks.
+- Bithumb live trading must use the same permission gate, no-withdrawal key rule, target-profit exit, stop-loss exit, and sell-and-stop path as Upbit.
+- Existing-holdings rotation must not blindly churn every coin; it should only sell holdings with clear loss or weak short-term flow before moving to a stronger rising candidate.
 - Trading must provide explicit Upbit/Binance exchange selection buttons before exchange-specific key setup.
 - Trading's default screen should expose only the essential strategy controls; advanced controls such as trailing exit and existing-holdings rotation should be collapsed but automatically opened when selected.
 - Trading must show a return-rate chart from the latest Upbit balance/status `totalPnlPct`, so users can monitor profit movement, not only coin holdings.

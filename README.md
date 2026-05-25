@@ -77,16 +77,17 @@ The Customer Center is not only an information page. Users can submit account, b
 
 ## Trading Direction
 
-Current production test target is Upbit because KRW markets and all listed coin scanning are already wired into the experience. Binance should be added as the next connector with the same safety structure:
+Current production test target is Upbit first, with Bithumb added as a second live KRW exchange path. Binance should be added as the next connector with the same safety structure:
 
 - Public: exchange status, market scan preview, strategy explanation
 - Paid: real trading, API key registration, order execution
 - Required safety: order-only API key, withdrawal permission disabled, risk agreement, owner kill switch
+- Bithumb scope: spot KRW market only, JWT key verification, balance lookup, and market buy/sell through the shared risk manager
 - First Binance scope: spot trading only, small order tests, no futures until risk controls are proven
 
-Binance connector readiness is now in place for account creation day. Owner or Trading Pro/Ultimate users can select Binance connection, choose Testnet or Live, enter API/Secret keys, run key diagnostics, verify the key, and load balances. This does not yet route automatic orders through Binance; it prepares the verified connector so the next trading-engine step can attach Binance Spot to the same risk manager used by Upbit.
+Binance connector readiness is now in place for account creation day. Owner or Trading Pro/Ultimate users can select Binance connection, choose Testnet or Live, enter API/Secret keys, run key diagnostics, verify the key, and load balances. This does not yet route automatic orders through Binance; it prepares the verified connector so the next trading-engine step can attach Binance Spot to the same risk manager used by Upbit and Bithumb.
 
-The Trading screen starts with explicit exchange selection buttons. Upbit opens the current live auto-trading path, while Binance opens the connection and verification path so a newly created Binance account can be tested immediately.
+The Trading screen starts with explicit exchange selection buttons. Upbit and Bithumb open live auto-trading paths after key verification and risk consent, while Binance opens the connection and verification path so a newly created Binance account can be tested immediately.
 
 Upbit real-trading keys require asset lookup and order permissions, and the public IP address of the running Zenthex FastAPI server must be registered on the Upbit Open API key. GitHub Pages is not the trading server; it only serves static files. If authentication fails, the UI returns a more specific diagnostic for likely IP, permission, Access Key, or Secret Key problems. The Trading screen shows the configured Zenthex server IP from `ZENTHEX_SERVER_PUBLIC_IP`, or auto-detects the FastAPI server outbound IP through `api.ipify.org` when the environment value is empty. It includes "업비트 키 진단하기" for troubleshooting and "업비트 키 인증하기" for the live-trading gate. Secret Key is hidden by default, with a temporary view button for paste checks. The backend re-checks the key again when the real engine starts.
 
@@ -119,7 +120,7 @@ The trading experience does not promise profit. It uses 24h strength as a broad 
 
 The scanner must not buy coins that are currently falling. Current entry requires 1m, 3m, and 5m momentum to be positive, recent 1m candles to be bullish, price and volume to rise together, and the current price to hold above short moving averages. If no coin passes those rising-confirmation checks, the engine waits instead of using a relaxed entry.
 
-Default scalping targets should be small, such as +0.3% to +1.0%, with a tight stop loss around -0.6%. Practice mode can rotate away from weak candidates into stronger candidates. Real rotation should require a separate opt-in because it can sell assets from a user's account.
+Default scalping targets should be small, such as +0.3% to +1.0%, with a tight stop loss around -0.6%. In fixed target mode, every selected target yield must trigger sell-and-stop when reached, not only +0.5%. Practice mode can rotate away from weak candidates into stronger candidates. Real rotation requires a separate opt-in and should sell only holdings with clear loss or weak short-term flow before moving cash into stronger rising candidates.
 
 High-risk target options such as +10%, +30%, and +50% are available in the UI, but they are not normal scalping targets. They can keep the engine holding much longer and can expose the user to larger loss swings.
 

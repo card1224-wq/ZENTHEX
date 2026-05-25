@@ -10,7 +10,8 @@ import pyupbit
 from auth.router import get_current_user
 from database.session import get_db
 from trading.binance_client import build_binance_account_summary, check_binance_key, clean_key as clean_binance_key
-from trading.engine import bot_state, TradingState, scalping_loop, log_trade
+from trading.bithumb_client import BithumbClient, build_bithumb_account_summary, check_bithumb_key, clean_key as clean_bithumb_key
+from trading.engine import bot_state, TradingState, scalping_loop, log_trade, get_current_price
 
 router = APIRouter(prefix="/api/finance", tags=["finance"])
 
@@ -45,6 +46,10 @@ class BinanceKeyCheck(BaseModel):
     accessKey: str = ""
     secretKey: str = ""
     testnet: bool = True
+
+class BithumbKeyCheck(BaseModel):
+    accessKey: str = ""
+    secretKey: str = ""
 
 def clean_api_key(value: str) -> str:
     return (value or "").strip().replace("\u200b", "").replace("\ufeff", "")
@@ -319,6 +324,33 @@ async def binance_account_summary(config: BinanceKeyCheck, Authorization: str = 
         return {"status": "error", "message": "Binance API Key와 Secret Key를 모두 입력해야 합니다."}
     return await asyncio.to_thread(build_binance_account_summary, access_key, secret_key, config.testnet)
 
+@router.post("/bithumb/check-key")
+async def bithumb_check_key(config: BithumbKeyCheck, Authorization: str = Header(None), db: Session = Depends(get_db)):
+    require_trading_permission(Authorization, db)
+    access_key = clean_bithumb_key(config.accessKey)
+    secret_key = clean_bithumb_key(config.secretKey)
+    if not access_key or not secret_key:
+        return {"status": "error", "message": "빗썸 API Key와 Secret Key를 모두 입력해야 합니다.", "verified": False}
+    return await asyncio.to_thread(check_bithumb_key, access_key, secret_key)
+
+@router.post("/bithumb/verify-key")
+async def bithumb_verify_key(config: BithumbKeyCheck, Authorization: str = Header(None), db: Session = Depends(get_db)):
+    require_trading_permission(Authorization, db)
+    access_key = clean_bithumb_key(config.accessKey)
+    secret_key = clean_bithumb_key(config.secretKey)
+    if not access_key or not secret_key:
+        return {"status": "error", "message": "빗썸 API Key와 Secret Key를 모두 입력해야 합니다.", "verified": False}
+    return await asyncio.to_thread(check_bithumb_key, access_key, secret_key)
+
+@router.post("/bithumb/account-summary")
+async def bithumb_account_summary(config: BithumbKeyCheck, Authorization: str = Header(None), db: Session = Depends(get_db)):
+    require_trading_permission(Authorization, db)
+    access_key = clean_bithumb_key(config.accessKey)
+    secret_key = clean_bithumb_key(config.secretKey)
+    if not access_key or not secret_key:
+        return {"status": "error", "message": "빗썸 API Key와 Secret Key를 모두 입력해야 합니다."}
+    return await asyncio.to_thread(build_bithumb_account_summary, access_key, secret_key)
+
 @router.post("/start")
 async def start_bot(config: StartConfig, Authorization: str = Header(None), db: Session = Depends(get_db)):
     if bot_state.state not in [TradingState.STOPPED, TradingState.ERROR]:
@@ -340,7 +372,8 @@ async def start_bot(config: StartConfig, Authorization: str = Header(None), db: 
     bot_state.add_entry_drop_pct = min(max(float(config.addEntryDropPct or 0.002), 0.001), 0.05)
     bot_state.ticker_mode = config.tickerMode if config.tickerMode in ["auto", "manual"] else "auto"
     bot_state.selected_ticker = config.selectedTicker if config.selectedTicker.startswith("KRW-") else "KRW-BTC"
-    bot_state.trading_mode = config.tradingMode if config.tradingMode in ["practice", "real"] else "practice"
+    bot_state.trading_mode = config.tradingMode if config.tradingMode in ["practice", "real", "bithumb_real"] else "practice"
+    bot_state.exchange = "bithumb" if bot_state.trading_mode == "bithumb_real" else "upbit"
     bot_state.consecutive_loss_count = 0
     bot_state.held_btc = 0
     bot_state.avg_buy_price = 0
@@ -359,7 +392,7 @@ async def start_bot(config: StartConfig, Authorization: str = Header(None), db: 
     else:
         bot_state.risk_rule = "리스크: 최소 주문 5,000원, 하락 추가매수 금지, 일일 최대 손실 1.5%, 연속 손절 2회 제한"
 
-    if bot_state.trading_mode == "real":
+    if bot_state.trading_mode in ["real", "bithumb_real"]:
         if not Authorization:
             return {"status": "error", "message": "실거래는 로그인 후 Trading Pro 또는 Ultimate 구독이 필요합니다."}
         user = get_current_user(Authorization.replace("Bearer ", ""), db)
@@ -369,23 +402,39 @@ async def start_bot(config: StartConfig, Authorization: str = Header(None), db: 
             return {"status": "error", "message": "실거래 위험 확인 체크가 필요합니다."}
         if bot_state.investment_mode == "rotate_holdings" and not config.rotateExistingAccepted:
             return {"status": "error", "message": "보유 코인 정리 후 재진입은 별도 위험 확인 체크가 필요합니다."}
-        access_key = clean_api_key(config.accessKey)
-        secret_key = clean_api_key(config.secretKey)
+        if bot_state.trading_mode == "bithumb_real":
+            access_key = clean_bithumb_key(config.accessKey)
+            secret_key = clean_bithumb_key(config.secretKey)
+        else:
+            access_key = clean_api_key(config.accessKey)
+            secret_key = clean_api_key(config.secretKey)
         if not access_key or not secret_key:
-            return {"status": "error", "message": "업비트 Access Key와 Secret Key가 필요합니다."}
+            exchange_name = "빗썸" if bot_state.exchange == "bithumb" else "업비트"
+            return {"status": "error", "message": f"{exchange_name} Access Key와 Secret Key가 필요합니다."}
         try:
-            upbit, real_krw, auth_error = check_upbit_key(access_key, secret_key)
-            if auth_error:
-                log_trade(f"[Real Auth Error] {auth_error}")
-                return {"status": "error", "message": auth_error}
-            bot_state.upbit = upbit
-            bot_state.balance = float(real_krw or 0)
+            if bot_state.exchange == "bithumb":
+                result = await asyncio.to_thread(check_bithumb_key, access_key, secret_key)
+                if result.get("status") != "success":
+                    log_trade(f"[Bithumb Auth Error] {result.get('message')}")
+                    return {"status": "error", "message": result.get("message") or "빗썸 키 인증 실패"}
+                bot_state.upbit = BithumbClient(access_key, secret_key)
+                bot_state.balance = float(result.get("cashBalance") or 0)
+                log_trade("[Real Mode] 빗썸 실거래 모드가 활성화되었습니다. 출금 권한 없는 API 키만 사용하세요.")
+            else:
+                upbit, real_krw, auth_error = check_upbit_key(access_key, secret_key)
+                if auth_error:
+                    log_trade(f"[Real Auth Error] {auth_error}")
+                    return {"status": "error", "message": auth_error}
+                bot_state.upbit = upbit
+                bot_state.balance = float(real_krw or 0)
+                log_trade("[Real Mode] 업비트 실거래 모드가 활성화되었습니다. 출금 권한 없는 API 키만 사용하세요.")
             bot_state.is_real_key = True
-            log_trade("[Real Mode] 업비트 실거래 모드가 활성화되었습니다. 출금 권한 없는 API 키만 사용하세요.")
         except Exception as e:
+            was_bithumb = bot_state.exchange == "bithumb"
             bot_state.trading_mode = "practice"
+            bot_state.exchange = "upbit"
             bot_state.is_real_key = False
-            message = explain_upbit_auth_error(e)
+            message = str(e) if was_bithumb else explain_upbit_auth_error(e)
             log_trade(f"[Real Auth Error] {message} / raw={e}")
             return {"status": "error", "message": message}
     else:
@@ -397,7 +446,7 @@ async def start_bot(config: StartConfig, Authorization: str = Header(None), db: 
 
 @router.post("/manual_trade")
 async def manual_trade(trade: ManualTrade):
-    current_price = pyupbit.get_current_price(bot_state.active_ticker) or 80000000
+    current_price = get_current_price(bot_state.active_ticker) or 80000000
     if trade.type == "buy" and bot_state.balance >= trade.amount:
         bot_state.held_btc += (trade.amount / current_price) * 0.9995
         bot_state.avg_buy_price = current_price
@@ -434,7 +483,7 @@ async def stop_bot(Authorization: str = Header(None), db: Session = Depends(get_
 @router.post("/sell-and-stop")
 async def sell_and_stop_bot(Authorization: str = Header(None), db: Session = Depends(get_db)):
     require_real_status_permission(Authorization, db)
-    current_price = pyupbit.get_current_price(bot_state.active_ticker) or 0
+    current_price = get_current_price(bot_state.active_ticker) or 0
     sell_qty = float(bot_state.held_btc or 0)
 
     if sell_qty <= 0:
@@ -479,7 +528,7 @@ async def sell_and_stop_bot(Authorization: str = Header(None), db: Session = Dep
 @router.get("/status")
 async def status(Authorization: str = Header(None), db: Session = Depends(get_db)):
     require_real_status_permission(Authorization, db)
-    current_price = pyupbit.get_current_price(bot_state.active_ticker) or 80000000
+    current_price = get_current_price(bot_state.active_ticker) or 80000000
     coin_value = bot_state.held_btc * current_price if bot_state.held_btc > 0 else 0
     est_balance = bot_state.balance + coin_value
     current_yield = ((current_price / bot_state.avg_buy_price) - 1.0) if bot_state.avg_buy_price else 0
@@ -506,6 +555,49 @@ async def status(Authorization: str = Header(None), db: Session = Depends(get_db
                 est_balance = summary["estBalance"]
                 total_pnl = summary["totalPnl"]
                 total_pnl_pct = summary["totalPnlPct"]
+        except Exception:
+            pass
+    elif bot_state.trading_mode == "bithumb_real" and bot_state.upbit:
+        try:
+            balances = await asyncio.to_thread(bot_state.upbit.get_balances)
+            if isinstance(balances, list):
+                positions = []
+                bot_state.balance = 0.0
+                coin_value = 0.0
+                invested_value = 0.0
+                for row in balances:
+                    currency = row.get("currency")
+                    qty = float(row.get("balance") or 0) + float(row.get("locked") or 0)
+                    if currency == "KRW":
+                        bot_state.balance = float(row.get("balance") or 0)
+                        continue
+                    if not currency or qty <= 0:
+                        continue
+                    ticker = f"KRW-{currency}"
+                    price_now = get_current_price(ticker)
+                    avg_price = float(row.get("avg_buy_price") or 0)
+                    valuation = qty * price_now if price_now else 0
+                    entry_value = avg_price * qty if avg_price else 0
+                    pnl = valuation - entry_value if entry_value else 0
+                    pnl_pct = pnl / entry_value if entry_value else 0
+                    coin_value += valuation
+                    invested_value += entry_value
+                    positions.append({
+                        "ticker": ticker,
+                        "qty": qty,
+                        "avgBuyPrice": avg_price,
+                        "entryKrw": entry_value,
+                        "currentPrice": price_now,
+                        "valuation": valuation,
+                        "pnl": pnl,
+                        "pnlPct": pnl_pct,
+                        "targetPrice": target_price if ticker == bot_state.active_ticker else 0,
+                        "stopPrice": stop_price if ticker == bot_state.active_ticker else 0,
+                        "status": bot_state.state if ticker == bot_state.active_ticker else "BITHUMB HOLDING",
+                    })
+                est_balance = bot_state.balance + coin_value
+                total_pnl = coin_value - invested_value if invested_value else 0
+                total_pnl_pct = total_pnl / invested_value if invested_value else 0
         except Exception:
             pass
     if not positions and (bot_state.held_btc > 0 or bot_state.avg_buy_price > 0):
