@@ -14,6 +14,7 @@ from trading.bithumb_client import BithumbClient, build_bithumb_account_summary,
 from trading.engine import bot_state, TradingState, scalping_loop, log_trade, get_current_price
 
 router = APIRouter(prefix="/api/finance", tags=["finance"])
+DEFAULT_ZENTHEX_SERVER_PUBLIC_IP = "74.220.52.254"
 
 class StartConfig(BaseModel):
     accessKey: str = ""
@@ -63,8 +64,10 @@ def detect_outbound_ip() -> str:
 
 @router.get("/server-ip")
 async def server_ip():
-    public_ip = (os.getenv("ZENTHEX_SERVER_PUBLIC_IP") or "").strip()
+    public_ip = (os.getenv("ZENTHEX_SERVER_PUBLIC_IP") or DEFAULT_ZENTHEX_SERVER_PUBLIC_IP).strip()
     source = "env"
+    if public_ip == DEFAULT_ZENTHEX_SERVER_PUBLIC_IP and not (os.getenv("ZENTHEX_SERVER_PUBLIC_IP") or "").strip():
+        source = "default_fixed"
     if not public_ip:
         try:
             public_ip = detect_outbound_ip()
@@ -78,7 +81,7 @@ async def server_ip():
             "is_fixed": False,
             "message": "Zenthex 서버 공인 IP가 아직 설정되지 않았습니다. 실거래 서버에서 확인한 고정 IP를 ZENTHEX_SERVER_PUBLIC_IP 환경변수에 넣어야 합니다.",
         }
-    if source != "env":
+    if source == "auto_detected":
         return {
             "status": "warning",
             "server_ip": public_ip,
@@ -91,12 +94,13 @@ async def server_ip():
         "server_ip": public_ip,
         "source": source,
         "is_fixed": True,
-        "message": "이 IP를 Upbit Open API 허용 IP에 등록하세요.",
+        "message": "이 IP를 Upbit/Bithumb/Binance API 허용 IP에 등록하세요.",
     }
 
 @router.get("/server-ip/verify")
 async def verify_server_ip():
-    configured_ip = (os.getenv("ZENTHEX_SERVER_PUBLIC_IP") or "").strip()
+    configured_ip = (os.getenv("ZENTHEX_SERVER_PUBLIC_IP") or DEFAULT_ZENTHEX_SERVER_PUBLIC_IP).strip()
+    configured_source = "env" if (os.getenv("ZENTHEX_SERVER_PUBLIC_IP") or "").strip() else "default_fixed"
     try:
         outbound_ip = detect_outbound_ip()
     except Exception as exc:
@@ -107,21 +111,14 @@ async def verify_server_ip():
             "matches": False,
             "message": f"실제 outbound IP를 확인하지 못했습니다: {exc}",
         }
-    if not configured_ip:
-        return {
-            "status": "missing",
-            "configured_ip": "",
-            "outbound_ip": outbound_ip,
-            "matches": False,
-            "message": "ZENTHEX_SERVER_PUBLIC_IP가 비어 있습니다. 표시 IP가 아니라 실제 고정 IP를 서버 환경변수에 설정해야 합니다.",
-        }
     matches = configured_ip == outbound_ip
     return {
         "status": "success" if matches else "mismatch",
         "configured_ip": configured_ip,
+        "configured_source": configured_source,
         "outbound_ip": outbound_ip,
         "matches": matches,
-        "message": "표시 IP와 실제 outbound IP가 일치합니다." if matches else "표시 IP와 실제 outbound IP가 다릅니다. Upbit 허용 IP에는 실제 outbound IP가 필요하며, 실거래 전 고정 IP 라우팅을 확인해야 합니다.",
+        "message": "표시 IP와 실제 outbound IP가 일치합니다." if matches else "표시 IP와 실제 outbound IP가 다릅니다. 거래소 허용 IP에는 실제 outbound IP가 필요하며, 실거래 전 고정 IP 라우팅을 확인해야 합니다.",
     }
 
 def explain_upbit_auth_error(raw_error) -> str:

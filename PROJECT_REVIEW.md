@@ -54,9 +54,9 @@ This checklist is the master review gate before uploading or publishing Zenthex.
 - Trading owner and Trading Pro/Ultimate users must land on the real-trade permission view, not a trial-only view.
 - Real trading key check must explain likely Upbit failures: allowed IP mismatch, missing asset/order permission, wrong Access Key, wrong Secret Key.
 - Binance connector readiness must include Testnet/Live key diagnostics, key verification, balance lookup, Spot-only warning, and no Futures launch in the MVP.
-- Trading screen must show the Zenthex FastAPI server public IP from `ZENTHEX_SERVER_PUBLIC_IP` with a copy button for Upbit allowed IP registration.
-- Paid real trading must use a fixed outbound server IP. Current intended Zenthex fixed IP is `74.220.52.254`; auto-detected IP is a warning/reference only, and the server must actually route outbound Upbit requests through the same IP.
-- Trading screen must verify configured IP versus actual outbound IP. If they differ, the deployment is not ready for Upbit live trading.
+- Trading screen must show the Zenthex FastAPI server public IP from `ZENTHEX_SERVER_PUBLIC_IP` with a copy button for exchange allowed-IP registration.
+- Paid real trading must use a fixed outbound server IP. Current intended Zenthex fixed IP is `74.220.52.254`; the server should actually route outbound Upbit/Bithumb/Binance requests through the same IP.
+- Trading screen must verify configured IP versus actual outbound IP. If they differ, the deployment is not ready for fixed-IP live trading until the server routing or exchange allowed-IP setting is corrected.
 - Public docs must explain that GitHub Pages is not the trading server and cannot provide the Upbit outbound IP.
 - Trading settings must show a compact summary for exit mode, target yield, capital mode, and coin selection so the strategy is readable at a glance.
 - Fixed target exits must apply to every selected target yield. When the selected target is reached, sell-and-stop has priority over split add-entry and rotation checks.
