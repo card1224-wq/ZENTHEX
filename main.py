@@ -16,7 +16,6 @@ from trading.router import router as trading_router
 from mobile.push import router as mobile_router
 from billing.router import router as billing_router
 from admin.router import router as admin_router
-from support.router import router as support_router
 
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -38,7 +37,6 @@ app.include_router(trading_router)
 app.include_router(mobile_router)
 app.include_router(billing_router)
 app.include_router(admin_router)
-app.include_router(support_router)
 
 # Mount static folders
 os.makedirs("uploads", exist_ok=True)
@@ -77,11 +75,6 @@ async def serve_studio():
 @app.get("/account.html", response_class=HTMLResponse)
 async def serve_account():
     with open("static/account.html", "r", encoding="utf-8") as f:
-        return f.read()
-
-@app.get("/customer.html", response_class=HTMLResponse)
-async def serve_customer():
-    with open("static/customer.html", "r", encoding="utf-8") as f:
         return f.read()
 
 # FINANCE ENGINE is now modularized in trading/router.py

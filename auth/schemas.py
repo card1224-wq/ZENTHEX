@@ -43,7 +43,6 @@ class UserResponse(BaseModel):
     role: str
     email_verified: bool
     studio_generations_left: int
-    approval_status: str | None = "approved"
 
     class Config:
         from_attributes = True
@@ -51,5 +50,4 @@ class UserResponse(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
-    expires_in: int
     user_info: UserResponse
