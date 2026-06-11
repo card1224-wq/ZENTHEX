@@ -8,7 +8,7 @@
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap');
     * { box-sizing: border-box; }
     body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; background:#050507; color:white; font-family:Inter,system-ui,sans-serif; padding:24px; }
-    .card { width:min(500px,100%); background:#111116; border:1px solid rgba(255,255,255,.12); border-radius:12px; padding:32px; box-shadow:0 30px 80px rgba(0,0,0,.45); }
+    .card { width:min(520px,100%); background:#111116; border:1px solid rgba(255,255,255,.12); border-radius:12px; padding:32px; box-shadow:0 30px 80px rgba(0,0,0,.45); }
     a { color:#a1a1aa; text-decoration:none; font-size:13px; font-weight:800; }
     h1 { margin:16px 0 6px; letter-spacing:4px; font-size:28px; }
     p { color:#a1a1aa; line-height:1.6; margin:0 0 22px; font-size:14px; }
@@ -24,8 +24,8 @@
     .link-row button { background:none; border:0; color:#a1a1aa; font-weight:800; cursor:pointer; }
     .inline-actions { display:grid; grid-template-columns:1fr auto; gap:8px; align-items:center; }
     .mini { padding:12px 14px; border:0; border-radius:8px; background:#24242c; color:white; font-weight:900; cursor:pointer; white-space:nowrap; }
-    .err { color:#ff6b6b; min-height:18px; margin-top:10px; font-size:13px; text-align:center; }
-    .ok { color:#00ffcc; min-height:18px; margin-top:10px; font-size:13px; text-align:center; }
+    .err { color:#ff6b6b; min-height:18px; margin-top:10px; font-size:13px; text-align:center; line-height:1.5; }
+    .ok { color:#00ffcc; min-height:18px; margin-top:10px; font-size:13px; text-align:center; line-height:1.5; }
     .muted { color:#71717a; font-size:12px; margin-top:6px; line-height:1.5; }
   </style>
 </head>
@@ -33,7 +33,7 @@
   <div class="card">
     <a href="index.html">← 메인으로</a>
     <h1>ZENTHEX</h1>
-    <p>이메일 주소로 로그인합니다. 비밀번호를 잊은 경우 가입할 때 선택한 힌트 질문과 답변을 확인한 뒤 이메일 재설정 코드로 변경합니다.</p>
+    <p>이메일 주소로 로그인합니다. 비밀번호를 잊은 경우 힌트 질문 또는 인증 코드로 새 비밀번호를 만들 수 있습니다.</p>
 
     <div class="tabs">
       <div class="tab active" onclick="switchTab('login')">로그인</div>
@@ -69,11 +69,11 @@
       <label>휴대폰 번호</label>
       <div class="inline-actions">
         <input id="signup-phone" placeholder="01012345678" oninput="phoneVerified=false; document.getElementById('phone-status').innerText='';" />
-        <button class="mini" onclick="sendPhoneCode()">인증코드 발송</button>
+        <button class="mini" onclick="sendPhoneCode()">인증코드 받기</button>
       </div>
       <label>휴대폰 인증코드</label>
       <div class="inline-actions">
-        <input id="signup-phone-code" placeholder="문자로 받은 6자리 코드" />
+        <input id="signup-phone-code" placeholder="테스트 코드 122492" />
         <button class="mini" onclick="verifyPhoneCode()">인증 확인</button>
       </div>
       <div id="phone-status" class="ok"></div>
@@ -99,11 +99,14 @@
       <label>비밀번호 힌트 질문</label>
       <input id="reset-hint-question" readonly placeholder="이메일 입력 후 질문을 불러오세요" />
       <button class="submit" onclick="loadHintQuestion()">힌트 질문 불러오기</button>
-      <label>힌트 답변</label>
-      <input id="reset-hint-answer" />
-      <button class="submit" onclick="checkHintAndSendCode()">힌트 확인 및 코드 받기</button>
+      <div id="hint-answer-box">
+        <label>힌트 답변</label>
+        <input id="reset-hint-answer" />
+        <button class="submit" onclick="checkHintAndSendCode()">힌트 확인 후 코드 받기</button>
+      </div>
+      <button id="direct-reset-btn" class="submit" style="display:none" onclick="requestResetCodeOnly()">이메일 코드 받기</button>
       <label>재설정 코드</label>
-      <input id="reset-code" />
+      <input id="reset-code" placeholder="테스트 코드 122492" />
       <label>새 비밀번호</label>
       <input type="password" id="reset-password" />
       <button class="submit" onclick="resetPassword()">비밀번호 변경</button>
@@ -114,6 +117,7 @@
 
   <script>
     let phoneVerified = false;
+    let resetWithoutHint = false;
 
     function switchTab(tab){
       document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
@@ -136,18 +140,25 @@
       return data.message||fallback;
     }
 
+    function showCodeMessage(box, data, fallback){
+      box.innerText = data && data.dev_code ? `${data.message || fallback} 테스트 코드: ${data.dev_code}` : messageFrom(data, fallback);
+    }
+
     async function doLogin(){
       const email=document.getElementById('login-email').value.trim();
       const password=document.getElementById('login-password').value;
       const errorDiv=document.getElementById('login-error');
       errorDiv.innerText='';
+      if(!email){ errorDiv.innerText='이메일을 입력해주세요.'; return; }
+      if(!password){ errorDiv.innerText='비밀번호를 입력해주세요.'; return; }
       try{
         const res=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
-        const data=await res.json();
-        if(!res.ok) throw new Error(messageFrom(data,'로그인 실패'));
+        const data=await res.json().catch(()=>null);
+        if(!res.ok) throw new Error(messageFrom(data,'로그인에 실패했습니다.'));
         localStorage.setItem('zx_token',data.access_token);
         localStorage.setItem('zx_user',JSON.stringify(data.user_info));
-        location.href=(data.user_info.role==='owner'||data.user_info.role==='admin')?'admin.html':'account.html';
+        localStorage.setItem('zx_expires_at',String(Date.now()+((data.expires_in||86400)*1000)));
+        location.href=data.user_info.role==='owner'?'admin.html':'account.html';
       }catch(e){ errorDiv.innerText=e.message; }
     }
 
@@ -175,11 +186,11 @@
       try{
         const res=await fetch('/api/auth/signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password,full_name,birth_date,phone_number,password_hint_question,password_hint_answer})});
         const data=await res.json().catch(()=>null);
-        if(!res.ok) throw new Error(messageFrom(data,'회원가입 실패'));
-        alert('회원가입이 완료되었습니다. 로그인 후 마이페이지에서 이메일 인증을 진행할 수 있습니다.');
+        if(!res.ok) throw new Error(messageFrom(data,'회원가입에 실패했습니다.'));
+        alert(data.role==='owner' ? '대표 계정 회원가입이 완료되었습니다. 로그인 후 이메일 인증을 진행하세요.' : '회원가입 신청이 접수되었습니다. 대표 승인 후 로그인할 수 있습니다.');
         document.getElementById('login-email').value=email;
         switchTab('login');
-      }catch(e){ errorDiv.innerText=e.message||'회원가입 실패'; }
+      }catch(e){ errorDiv.innerText=e.message||'회원가입에 실패했습니다.'; }
     }
 
     async function sendPhoneCode(){
@@ -191,7 +202,7 @@
       const res=await fetch('/api/auth/phone/send-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone_number})});
       const data=await res.json().catch(()=>null);
       if(!res.ok){ box.innerText=messageFrom(data,'인증코드 발송에 실패했습니다.'); return; }
-      box.innerText=data.dev_code ? `개발용 인증코드: ${data.dev_code}` : '인증코드를 발송했습니다.';
+      showCodeMessage(box, data, '인증코드를 발송했습니다.');
     }
 
     async function verifyPhoneCode(){
@@ -209,13 +220,22 @@
     async function findId(){
       const email=document.getElementById('login-email').value.trim();
       const box=document.getElementById('login-ok');
+      if(!email){ box.innerText='이메일을 입력해주세요.'; return; }
       const res=await fetch('/api/auth/find-id',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
-      const data=await res.json();
-      box.innerText=data.message||data.detail;
+      const data=await res.json().catch(()=>null);
+      box.innerText=messageFrom(data,'가입 정보가 있다면 이메일로 안내됩니다.');
     }
 
     function requestReset(){
       document.getElementById('reset-email').value=document.getElementById('login-email').value.trim();
+      document.getElementById('reset-msg').innerText='';
+      document.getElementById('reset-hint-question').value='';
+      document.getElementById('reset-hint-answer').value='';
+      document.getElementById('reset-code').value='';
+      document.getElementById('reset-password').value='';
+      resetWithoutHint=false;
+      document.getElementById('hint-answer-box').style.display='block';
+      document.getElementById('direct-reset-btn').style.display='none';
       switchTab('reset');
     }
 
@@ -228,10 +248,23 @@
       const data=await res.json().catch(()=>null);
       if(!res.ok){ box.innerText=messageFrom(data,'힌트 질문을 찾을 수 없습니다.'); return; }
       document.getElementById('reset-hint-question').value=data.password_hint_question;
-      box.innerText='힌트 질문을 불러왔습니다. 답변을 입력해주세요.';
+      resetWithoutHint=!!data.reset_without_hint;
+      document.getElementById('hint-answer-box').style.display=resetWithoutHint?'none':'block';
+      document.getElementById('direct-reset-btn').style.display=resetWithoutHint?'block':'none';
+      box.innerText=resetWithoutHint?'기존 계정입니다. 이메일 코드 받기를 눌러 재설정하세요.':'힌트 질문을 불러왔습니다. 답변을 입력해주세요.';
+    }
+
+    async function requestResetCodeOnly(){
+      const email=document.getElementById('reset-email').value.trim();
+      const box=document.getElementById('reset-msg');
+      if(!email){ box.innerText='이메일을 입력해주세요.'; return; }
+      const res=await fetch('/api/auth/password/request-reset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+      const data=await res.json().catch(()=>null);
+      showCodeMessage(box, data, res.ok?'재설정 코드를 발송했습니다.':'재설정 코드 발송 실패');
     }
 
     async function checkHintAndSendCode(){
+      if(resetWithoutHint){ await requestResetCodeOnly(); return; }
       const email=document.getElementById('reset-email').value.trim();
       const password_hint_question=document.getElementById('reset-hint-question').value;
       const password_hint_answer=document.getElementById('reset-hint-answer').value.trim();
@@ -242,17 +275,24 @@
       if(!password_hint_answer){ box.innerText='힌트 답변을 입력해주세요.'; return; }
       const res=await fetch('/api/auth/password/hint',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password_hint_question,password_hint_answer})});
       const data=await res.json().catch(()=>null);
-      box.innerText=messageFrom(data,res.ok?'재설정 코드를 발송했습니다.':'힌트 확인 실패');
+      showCodeMessage(box, data, res.ok?'재설정 코드를 발송했습니다.':'힌트 확인 실패');
     }
 
     async function resetPassword(){
       const email=document.getElementById('reset-email').value.trim();
       const code=document.getElementById('reset-code').value.trim();
       const new_password=document.getElementById('reset-password').value;
+      const box=document.getElementById('reset-msg');
+      if(!email){ box.innerText='이메일을 입력해주세요.'; return; }
+      if(!code){ box.innerText='재설정 코드를 입력해주세요.'; return; }
+      if(new_password.length<6){ box.innerText='새 비밀번호는 6자 이상이어야 합니다.'; return; }
       const res=await fetch('/api/auth/password/reset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,code,new_password})});
-      const data=await res.json();
-      document.getElementById('reset-msg').innerText=data.message||data.detail;
-      if(res.ok) setTimeout(()=>switchTab('login'),900);
+      const data=await res.json().catch(()=>null);
+      box.innerText=messageFrom(data,res.ok?'비밀번호가 변경되었습니다.':'비밀번호 변경 실패');
+      if(res.ok){
+        document.getElementById('login-email').value=email;
+        setTimeout(()=>switchTab('login'),900);
+      }
     }
   </script>
 </body>

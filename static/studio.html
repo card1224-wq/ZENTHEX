@@ -7,28 +7,60 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
     <style>
-        :root { --accent-indigo: #6366f1; --accent-purple: #8b5cf6; --bg-dark: #09090b; }
+        :root { --accent-indigo: #00e6c3; --accent-purple: #91a7ff; --bg-dark: #050507; }
         body { font-family: 'Outfit', sans-serif; background-color: var(--bg-dark); color: #d1d5db; margin: 0; overflow-x: hidden; }
         * { box-sizing: border-box; }
-        nav { min-height: 80px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 16px 24px; border-bottom: 1px solid rgba(255,255,255,.08); background: rgba(0,0,0,.45); }
+        nav { min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 14px 24px; border-bottom: 1px solid rgba(255,255,255,.08); background: rgba(0,0,0,.45); }
         nav a { color: #a1a1aa; text-decoration: none; }
-        main { display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); min-height: calc(100vh - 80px); }
-        main > div:first-child { padding: 28px; background: #0c0c0e; border-right: 1px solid rgba(255,255,255,.08); }
-        main > div:last-child { min-height: calc(100vh - 80px); position: relative; background: #050507; }
+        main { display: grid; grid-template-columns: minmax(340px, 430px) minmax(0, 1fr); min-height: calc(100vh - 72px); }
+        main > div:first-child { padding: 22px; background: #0c0c0e; border-right: 1px solid rgba(255,255,255,.08); }
+        main > div:last-child { min-height: calc(100vh - 72px); position: relative; background: #050507; }
         h2 { margin: 0 0 16px; }
         textarea, input, select { width: 100%; border: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.55); color: #fff; border-radius: 10px; padding: 12px; }
         button { cursor: pointer; }
         #drop-zone { border: 2px dashed rgba(255,255,255,.14); border-radius: 16px; padding: 28px; text-align: center; cursor: pointer; }
-        #btn-generate { width: 100%; margin-top: 12px; border: 1px solid rgba(139,92,246,.55); background: rgba(139,92,246,.22); color: #d8b4fe; border-radius: 12px; padding: 13px; font-weight: 800; }
+        #btn-generate { width: 100%; margin-top: 12px; border: 1px solid rgba(0,230,195,.45); background: rgba(0,230,195,.16); color: #99f6e4; border-radius: 12px; padding: 13px; font-weight: 800; }
         #status-box { margin-top: 16px; padding: 14px; border-radius: 12px; border: 1px solid rgba(99,102,241,.28); background: rgba(99,102,241,.08); color: #c7d2fe; }
         .fallback-preview {
             position: absolute; inset: 14%; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.12);
             border-radius: 18px; background: linear-gradient(135deg, rgba(99,102,241,.12), rgba(0,255,204,.06));
             color: #e5e7eb; text-align: center; padding: 24px; z-index: 15;
         }
+        .preview-result-card {
+            position: absolute; right: 18px; top: 18px; z-index: 24; width: min(320px, calc(100% - 36px));
+            border: 1px solid rgba(0,230,195,.22); background: rgba(5,5,7,.74); backdrop-filter: blur(16px);
+            border-radius: 14px; padding: 14px; box-shadow: 0 18px 60px rgba(0,0,0,.32);
+        }
+        .preview-result-card strong { color:#f8fafc; font-size:14px; display:block; margin-bottom:7px; }
+        .preview-result-card p { color:#a1a1aa; font-size:12px; line-height:1.55; margin:0; }
+        .preview-result-card span { display:inline-flex; margin:8px 6px 0 0; border:1px solid rgba(255,255,255,.10); border-radius:999px; padding:5px 8px; color:#99f6e4; font-size:11px; font-weight:800; }
+        .google-ai-studio-preview {
+            position:absolute; left:50%; top:50%; transform:translate(-50%, -50%); z-index:23;
+            width:min(860px, calc(100% - 56px)); max-height:calc(100% - 56px);
+            border:1px solid rgba(0,230,195,.22); background:rgba(0,0,0,.72); backdrop-filter:blur(18px);
+            border-radius:18px; padding:12px; box-shadow:0 28px 90px rgba(0,0,0,.50);
+        }
+        .google-ai-studio-preview img { width:100%; display:block; border-radius:14px; aspect-ratio:16/10; object-fit:cover; max-height:calc(100vh - 210px); }
+        .google-ai-studio-preview p { margin:10px 2px 0; color:#99f6e4; font-size:12px; font-weight:900; line-height:1.55; }
+        .google-ai-studio-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+        .google-ai-studio-actions a, .google-ai-studio-actions button { border:0; border-radius:8px; padding:9px 12px; font-weight:900; font-size:12px; text-decoration:none; }
+        .google-ai-studio-actions a { background:#00e6c3; color:#050507; }
+        .google-ai-studio-actions button { background:rgba(255,255,255,.10); color:#f8fafc; border:1px solid rgba(255,255,255,.12); }
         .hidden { display: none !important; }
         .glass-panel { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.1); }
         #viewer-container { width: 100%; height: 100%; position: relative; }
+        .zenthex-mark {
+            width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px;
+            border: 1px solid rgba(0,230,195,.35); background: rgba(0,230,195,.08);
+        }
+        .zenthex-mark svg { width: 24px; height: 24px; }
+        .account-chip { border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 7px 10px; font-size: 11px; font-weight: 800; color: #c7d2fe; }
+        .account-chip.full { color: #99f6e4; border-color: rgba(0,230,195,.35); background: rgba(0,230,195,.08); }
+        .account-chip.trial { color: #fcd34d; border-color: rgba(252,211,77,.28); background: rgba(252,211,77,.06); }
+        .download-link { display: inline-flex; margin-top: 10px; color: #050507; background: #00e6c3; border-radius: 8px; padding: 9px 12px; font-weight: 900; text-decoration: none; }
+        .export-button { display: inline-flex; margin-top: 10px; margin-left: 8px; color: #050507; background: #fff; border-radius: 8px; padding: 9px 12px; font-weight: 900; border: 0; }
+        .studio-format-note { margin-top:10px; color:#a1a1aa; font-size:12px; line-height:1.6; }
+        .sample-badge { position:absolute; left:18px; bottom:18px; z-index:25; border:1px solid rgba(0,230,195,.28); background:rgba(0,230,195,.08); color:#99f6e4; border-radius:999px; padding:8px 11px; font-size:11px; font-weight:900; pointer-events:none; }
         
         .loading-overlay {
             position: absolute; inset: 0; background: rgba(9, 9, 11, 0.95);
@@ -75,18 +107,24 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></svg>
                 메인으로
             </a>
-            <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center font-bold">HL</div>
+            <div class="zenthex-mark" aria-hidden="true">
+                <svg viewBox="0 0 120 120">
+                    <path d="M60 8 104 33v54L60 112 16 87V33L60 8Z" fill="#10141d" stroke="#dbeafe" stroke-width="7"/>
+                    <path d="M31 38h44L45 82h44" fill="none" stroke="#00e6c3" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
             <span class="font-extrabold tracking-widest text-sm md:text-base uppercase truncate">Zenthex Studio <span class="text-xs text-indigo-400 ml-1">AI 3D ENGINE</span></span>
         </div>
-        <div class="hidden md:block px-4 py-1 rounded-full bg-purple-500/20 text-purple-300 text-[10px] font-bold border border-purple-500/30">
-            CLOUD AI WORKSPACE
+        <div class="flex items-center gap-2">
+            <span id="studio-access-chip" class="account-chip trial">권한 확인 중</span>
+            <a id="studio-account-link" href="account.html" class="text-xs font-bold text-gray-400 hover:text-white">구독/계정</a>
         </div>
     </nav>
 
     <main class="flex-grow grid grid-cols-1 lg:grid-cols-12 lg:overflow-hidden min-h-[calc(100vh-5rem)] lg:h-[calc(100vh-5rem)]">
         <!-- Left Sidebar -->
         <div class="col-span-1 lg:col-span-3 border-r border-white/5 p-5 md:p-8 flex flex-col gap-6 bg-[#0c0c0e]">
-            <div class="glass-panel p-4 rounded-xl border-indigo-500/30 text-indigo-200 text-xs font-bold leading-relaxed mb-4">Zenthex Studio는 프롬프트와 2D 도면을 3D 공간으로 변환하는 AI 제작 워크스페이스입니다. 무료 체험은 같은 IP 기준 하루 1회 제공되며, 이후에는 Studio Pro 또는 Ultimate 구독이 필요합니다.</div>
+            <div id="studio-access-note" class="glass-panel p-4 rounded-xl border-indigo-500/30 text-indigo-200 text-xs font-bold leading-relaxed mb-4">Zenthex Studio 권한을 확인하고 있습니다.</div>
 
             <!-- Upload flow -->
             <div>
@@ -119,9 +157,10 @@
         <div class="col-span-1 lg:col-span-9 relative bg-[#050507] min-h-[56vh] lg:min-h-0">
             <div id="viewer-container" class="w-full h-full">
                 <div id="preview-watermark" class="preview-watermark"></div>
-                <div id="placeholder" class="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                <div id="placeholder" class="absolute inset-0 flex items-center justify-center pointer-events-none z-10 hidden">
                     <p class="text-xs uppercase tracking-[0.4em] text-gray-600 font-bold">프롬프트 또는 도면을 입력하세요</p>
                 </div>
+                <div id="sample-badge" class="sample-badge">샘플 3D 미리보기 표시 중</div>
                 <div id="loading" class="loading-overlay">
                     <div class="spinner mb-4"></div>
                     <div class="text-xs text-indigo-400 font-bold uppercase tracking-widest animate-pulse" id="loading-text">공간을 생성하는 중...</div>
@@ -131,47 +170,171 @@
     </main>
 
     <script>
+        let zxToken = localStorage.getItem("zx_token");
+        let zxUser = JSON.parse(localStorage.getItem("zx_user") || "null");
+        window.zxCurrentImageUrl = "";
+        function zxCanExport() {
+            return zxUser && (zxUser.role === "owner" || ["studio_pro", "ultimate"].includes(zxUser.plan));
+        }
+        function zxIsSignedIn() {
+            return !!zxToken && !!zxUser;
+        }
+        function zxRenderAccessState() {
+            const chip = document.getElementById("studio-access-chip");
+            const note = document.getElementById("studio-access-note");
+            const watermark = document.getElementById("preview-watermark");
+            if (zxCanExport()) {
+                chip.className = "account-chip full";
+                chip.innerText = zxUser.role === "owner" ? "대표 전체 권한" : "Studio 구독 권한";
+                note.innerHTML = "Zenthex Studio 전체 권한입니다. 현재 3D 결과는 Google AI Studio/Gemini 건축 이미지로 먼저 제공하고, GLB 모델 파일은 3D Worker 서버 연결 후 제공합니다.";
+                if (watermark) watermark.classList.add("hidden");
+                return;
+            }
+            chip.className = "account-chip trial";
+            chip.innerText = zxIsSignedIn() ? "구독 필요" : "1일 1회 체험";
+            note.innerHTML = zxIsSignedIn()
+                ? "현재 계정은 Studio 구독 권한이 없습니다. 생성 미리보기 후 다운로드는 Studio Pro 또는 Ultimate 구독이 필요합니다."
+                : "로그인 없이도 같은 IP 기준 하루 1회 Studio 체험이 가능합니다. 구독하면 다운로드와 작업 보관이 열립니다.";
+            if (watermark) watermark.classList.remove("hidden");
+        }
+        async function zxRefreshUser() {
+            zxToken = localStorage.getItem("zx_token");
+            const zxExpiresAt = Number(localStorage.getItem("zx_expires_at") || 0);
+            if (zxToken && zxExpiresAt && Date.now() > zxExpiresAt) {
+                localStorage.removeItem("zx_token");
+                localStorage.removeItem("zx_user");
+                localStorage.removeItem("zx_expires_at");
+                zxToken = null;
+                zxUser = null;
+            }
+            if (!zxToken) { zxUser = null; zxRenderAccessState(); return; }
+            try {
+                const res = await fetch("/api/auth/me", { headers: { "Authorization": `Bearer ${zxToken}` } });
+                if (res.ok) {
+                    zxUser = await res.json();
+                    localStorage.setItem("zx_user", JSON.stringify(zxUser));
+                } else if (res.status === 401) {
+                    localStorage.removeItem("zx_token");
+                    localStorage.removeItem("zx_user");
+                    localStorage.removeItem("zx_expires_at");
+                    zxToken = null;
+                    zxUser = null;
+                }
+            } catch (_) {}
+            zxRenderAccessState();
+        }
         function zxAuthHeaders() {
-            return { "Authorization": `Bearer ${localStorage.getItem("zx_token") || ""}` };
+            zxToken = localStorage.getItem("zx_token");
+            return zxToken ? { "Authorization": `Bearer ${zxToken}` } : {};
+        }
+        async function zxStudioFetch(url, options) {
+            const first = await fetch(url, { ...options, headers: { ...(options.headers || {}), ...zxAuthHeaders() } });
+            if (first.status !== 401) return first;
+            const text = await first.clone().text();
+            if (!text.toLowerCase().includes("invalid token")) return first;
+            localStorage.removeItem("zx_token");
+            localStorage.removeItem("zx_user");
+            localStorage.removeItem("zx_expires_at");
+            zxToken = null;
+            zxUser = null;
+            zxRenderAccessState();
+            return fetch(url, { ...options, headers: options.headers || {} });
         }
         function zxShowStatus(html) {
             const box = document.getElementById('status-box');
             box.classList.remove('hidden');
             box.innerHTML = html;
         }
-        function zxShowFallbackPreview() {
+        function zxExportMessage(result) {
+            const imageExport = result.image_url && zxCanExport()
+                ? `<br><a class="download-link" href="${result.image_url}" download>JPG 이미지 저장</a>`
+                : "";
+            if (!result.worker_ready) {
+                return `${imageExport}<br><span style="color:#fcd34d">현재 Zenthex 자체 3D Worker가 없으므로 Google AI Studio/Gemini에서 가져온 3D 건축 이미지를 메인 결과로 제공합니다. GLB 파일은 Worker 서버 연결 후 제공합니다.</span>`;
+            }
+            return result.model_url
+                ? `<br><button class="export-button" onclick="window.zxDownloadJpg()">JPG 저장</button>${imageExport}<a class="download-link" href="${result.model_url}" download>GLB 3D 모델 다운로드</a><div class="studio-format-note">JPG는 현재 보이는 화면 이미지이고, GLB는 Blender/Three.js 같은 도구에서 여는 실제 3D 모델 파일입니다.</div>`
+                : `<br><span style="color:#fcd34d">체험 미리보기는 보기 전용입니다. JPG/GLB 저장은 구독 후 제공됩니다.</span>`;
+        }
+        function zxRenderResultCard(preview) {
+            let card = document.getElementById("preview-result-card");
+            if (!card) {
+                card = document.createElement("div");
+                card.id = "preview-result-card";
+                card.className = "preview-result-card";
+                document.getElementById("viewer-container").appendChild(card);
+            }
+            const rooms = (preview?.rooms || []).map(room => `<span>${room}</span>`).join("");
+            card.innerHTML = `<strong>${preview?.title || "Zenthex 3D Preview"}</strong><p>${preview?.summary || "생성된 공간 미리보기입니다."}</p><div>${rooms}</div>`;
+        }
+        function zxRenderGoogleAIStudioImage(result) {
+            let panel = document.getElementById("google-ai-studio-preview");
+            if (!result?.image_url) {
+                if (panel) panel.remove();
+                window.zxCurrentImageUrl = "";
+                return;
+            }
+            window.zxCurrentImageUrl = result.image_url;
+            if (!panel) {
+                panel = document.createElement("div");
+                panel.id = "google-ai-studio-preview";
+                panel.className = "google-ai-studio-preview";
+                document.getElementById("viewer-container").appendChild(panel);
+            }
+            const actions = zxCanExport()
+                ? `<div class="google-ai-studio-actions"><a href="${result.image_url}" download>JPG 이미지 저장</a><button type="button" onclick="window.zxClearNanoPreview()">Zenthex 기본 3D 보기</button></div>`
+                : "";
+            panel.innerHTML = `<img src="${result.image_url}" alt="Google AI Studio generated Studio preview"><p>Google AI Studio/Gemini에서 가져온 3D 건축 이미지입니다. 현재 Studio의 메인 결과이며, 실제 GLB/OBJ 3D 모델은 Zenthex 3D Worker 서버 연결 후 제공합니다.</p>${actions}`;
+        }
+        window.zxRenderGoogleAIStudioImage = zxRenderGoogleAIStudioImage;
+        window.zxClearNanoPreview = () => {
+            const panel = document.getElementById("google-ai-studio-preview");
+            if (panel) panel.remove();
+        };
+        function zxShowFallbackPreview(profile) {
             const placeholder = document.getElementById('placeholder');
             if (placeholder) placeholder.classList.add('hidden');
-            let preview = document.getElementById('fallback-preview');
-            if (!preview) {
-                preview = document.createElement('div');
-                preview.id = 'fallback-preview';
-                preview.className = 'fallback-preview';
-                preview.innerHTML = '<div><strong style="font-size:24px">Zenthex 3D Preview</strong><p style="margin-top:12px;color:#a1a1aa">모바일 미리보기 구성이 완료되었습니다.<br>구독 후 GLB 다운로드와 고급 렌더링이 제공됩니다.</p></div>';
-                document.getElementById('viewer-container').appendChild(preview);
+            let previewBox = document.getElementById('fallback-preview');
+            if (!previewBox) {
+                previewBox = document.createElement('div');
+                previewBox.id = 'fallback-preview';
+                previewBox.className = 'fallback-preview';
+                previewBox.innerHTML = '<div><strong style="font-size:24px">Zenthex 3D Preview</strong><p id="fallback-preview-copy" style="margin-top:12px;color:#a1a1aa"></p></div>';
+                document.getElementById('viewer-container').appendChild(previewBox);
             }
+            document.getElementById("fallback-preview-copy").innerHTML = zxCanExport()
+                ? "전체 권한으로 생성 미리보기가 완료되었습니다.<br>다운로드 링크가 제공됩니다."
+                : "체험 미리보기가 완료되었습니다.<br>다운로드는 Studio Pro 또는 Ultimate 구독 후 제공됩니다.";
+            zxRenderResultCard(profile);
         }
         async function zxFallbackUpload(file) {
             const formData = new FormData();
             formData.append("file", file);
-            const response = await fetch("/api/studio/upload", { method: "POST", headers: zxAuthHeaders(), body: formData });
+            const response = await zxStudioFetch("/api/studio/upload", { method: "POST", body: formData });
             const result = await response.json();
             if (!response.ok || result.status !== "success") throw new Error(result.detail || result.message || "업로드 체험에 실패했습니다.");
-            zxShowFallbackPreview();
-            zxShowStatus(`3D 생성 요청이 완료되었습니다.<br><span style="color:#fcd34d">체험 미리보기는 보기 전용입니다. 다운로드는 구독 후 제공됩니다.</span>`);
+            await zxRefreshUser();
+            zxShowFallbackPreview(result.preview);
+            zxRenderGoogleAIStudioImage(result);
+            const exportMsg = zxExportMessage(result);
+            zxShowStatus(`3D 생성 요청이 완료되었습니다.${exportMsg}`);
         }
         async function zxFallbackGenerate() {
             const promptStr = document.getElementById('ai-prompt').value.trim();
             if (!promptStr) return alert("프롬프트를 입력해주세요.");
             const formData = new FormData();
             formData.append("prompt", promptStr);
-            const response = await fetch("/api/studio/generate", { method: "POST", headers: zxAuthHeaders(), body: formData });
+            const response = await zxStudioFetch("/api/studio/generate", { method: "POST", body: formData });
             const result = await response.json();
             if (!response.ok || result.status !== "success") throw new Error(result.detail || result.message || "프롬프트 체험에 실패했습니다.");
-            zxShowFallbackPreview();
-            zxShowStatus(`프롬프트 기반 3D 생성 요청이 완료되었습니다.<br><span style="color:#fcd34d">체험 미리보기는 보기 전용입니다. 다운로드는 구독 후 제공됩니다.</span>`);
+            await zxRefreshUser();
+            zxShowFallbackPreview(result.preview);
+            zxRenderGoogleAIStudioImage(result);
+            const exportMsg = zxExportMessage(result);
+            zxShowStatus(`프롬프트 기반 3D 생성 요청이 완료되었습니다.${exportMsg}`);
         }
         document.addEventListener('DOMContentLoaded', () => {
+            zxRefreshUser();
             const dropZone = document.getElementById('drop-zone');
             const fileInput = document.getElementById('file-input');
             const generateBtn = document.getElementById('btn-generate');
@@ -229,6 +392,16 @@
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         container.appendChild(renderer.domElement);
+        window.zxDownloadJpg = () => {
+            if (!zxCanExport()) {
+                alert('JPG 저장은 Studio Pro 또는 Ultimate 구독 후 사용할 수 있습니다.');
+                return;
+            }
+            const link = document.createElement('a');
+            link.download = `zenthex-studio-${Date.now()}.jpg`;
+            link.href = window.zxCurrentImageUrl || renderer.domElement.toDataURL('image/jpeg', 0.92);
+            link.click();
+        };
 
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
@@ -255,8 +428,9 @@
         scene.add(grid);
 
         // Core Procedural Generation Function (Zenthex Preview Style)
-        const generateProceduralBuilding = () => {
+        const generateProceduralBuilding = (profile = {}) => {
             const group = new THREE.Group();
+            const kind = typeof profile === 'string' ? profile : (profile.kind || 'premium');
             
             // Premium Materials
             const glassMat = new THREE.MeshPhysicalMaterial({
@@ -266,6 +440,47 @@
             const frameMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.5 });
             const floorMat = new THREE.MeshStandardMaterial({ color: 0xe5e7eb, roughness: 0.8 });
             const lightStripMat = new THREE.MeshStandardMaterial({ color: 0x00ffcc, emissive: 0x00ffcc, emissiveIntensity: 2 });
+
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0xd7dde7, roughness: 0.62 });
+            const warmFloorMat = new THREE.MeshStandardMaterial({ color: 0xc9b89a, roughness: 0.76 });
+            const accentMat = new THREE.MeshStandardMaterial({ color: 0x00e6c3, roughness: 0.45, emissive: 0x003c35, emissiveIntensity: 0.65 });
+            const addBox = (name, size, pos, mat) => {
+                const mesh = new THREE.Mesh(new THREE.BoxGeometry(size[0], size[1], size[2]), mat);
+                mesh.name = name;
+                mesh.position.set(pos[0], pos[1], pos[2]);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                group.add(mesh);
+                return mesh;
+            };
+
+            if (kind === 'apartment_32') {
+                addBox('apartment-floor', [34, 0.45, 22], [0, 0, 0], warmFloorMat);
+                addBox('living-room', [13, 0.22, 11], [-8, 0.38, -3], new THREE.MeshStandardMaterial({ color: 0xe8edf2, roughness: 0.8 }));
+                addBox('kitchen', [8, 0.26, 7], [6, 0.42, -5], new THREE.MeshStandardMaterial({ color: 0xd8d1c5, roughness: 0.72 }));
+                addBox('bedroom-main', [9, 0.3, 7], [-9, 0.5, 7], new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.7 }));
+                addBox('bedroom-sub', [7, 0.3, 6], [5, 0.5, 7], new THREE.MeshStandardMaterial({ color: 0xbfd7d3, roughness: 0.72 }));
+                addBox('bath', [5, 0.34, 4], [13, 0.54, 5], new THREE.MeshStandardMaterial({ color: 0xa7c7d9, roughness: 0.55 }));
+                addBox('outer-wall-front', [35, 3.2, 0.45], [0, 1.8, -11.2], wallMat);
+                addBox('outer-wall-back', [35, 3.2, 0.45], [0, 1.8, 11.2], wallMat);
+                addBox('outer-wall-left', [0.45, 3.2, 22], [-17.2, 1.8, 0], wallMat);
+                addBox('outer-wall-right', [0.45, 3.2, 22], [17.2, 1.8, 0], wallMat);
+                addBox('partition-1', [0.35, 2.7, 16], [-1.5, 1.65, 3], wallMat);
+                addBox('partition-2', [14, 2.7, 0.35], [-7, 1.65, 2.2], wallMat);
+                addBox('partition-3', [15, 2.7, 0.35], [8, 1.65, 1.2], wallMat);
+                addBox('balcony-glass', [13, 2.6, 0.18], [-8, 1.6, -10.85], glassMat);
+                addBox('entry-accent', [4, 0.35, 3], [13, 0.66, -7.5], accentMat);
+                return group;
+            }
+
+            if (kind === 'office') {
+                addBox('office-floor', [34, 0.45, 24], [0, 0, 0], floorMat);
+                addBox('open-office', [17, 0.25, 12], [-6, 0.42, -2], new THREE.MeshStandardMaterial({ color: 0xdfe7ef, roughness: 0.76 }));
+                addBox('meeting-room-glass', [9, 3.8, 6], [9, 2, 5], glassMat);
+                addBox('focus-room', [7, 3.4, 5], [-11, 1.9, 7], frameMat);
+                addBox('neon-axis', [28, 0.18, 0.18], [0, 3.1, -8], lightStripMat);
+                return group;
+            }
 
             // Foundation
             const base = new THREE.Mesh(new THREE.BoxGeometry(30, 0.5, 30), floorMat);
@@ -306,6 +521,11 @@
         };
 
         let currentModel = null;
+        currentModel = generateProceduralBuilding();
+        scene.add(currentModel);
+        controls.target.set(0, 5, 0);
+        document.getElementById('status-box').classList.remove('hidden');
+        document.getElementById('status-box').innerHTML = '샘플 3D 미리보기가 표시되어 있습니다. 프롬프트를 입력하면 Google AI Studio/Gemini 3D 건축 이미지가 메인 결과로 표시됩니다.<div class="studio-format-note">구독 권한에서는 JPG 저장을 먼저 제공하고, GLB는 Zenthex 3D Worker 서버 연결 후 제공합니다.</div>';
 
         // Front-end file upload flow
         document.getElementById('drop-zone').onclick = () => document.getElementById('file-input').click();
@@ -328,9 +548,8 @@
 
             try {
                 // Send to Real Unified Backend
-                const response = await fetch("/api/studio/upload", {
+                const response = await zxStudioFetch("/api/studio/upload", {
                     method: "POST",
-                    headers: { "Authorization": `Bearer ${localStorage.getItem("zx_token") || ""}` },
                     body: formData
                 });
                 
@@ -340,16 +559,23 @@
                     loadText.innerText = '3D 모델을 불러오는 중...';
                     
                     if(currentModel) scene.remove(currentModel);
+                    const badge = document.getElementById('sample-badge');
+                    if (badge) badge.classList.add('hidden');
                     
                     // Load a generated preview while the GLB pipeline result is prepared
                     // In a full implementation, you would load result.model_url using GLTFLoader.
                     // Preview generation keeps the workspace responsive:
-                    currentModel = generateProceduralBuilding();
+                    currentModel = generateProceduralBuilding(result.preview || {});
                     scene.add(currentModel);
+                    window.zxRenderResultCard(result.preview);
+                    window.zxRenderGoogleAIStudioImage(result);
                     
                     loader.classList.remove('active');
-                    const lockedMsg = result.preview_only ? '<br><span class="text-amber-300">체험 미리보기는 보기 전용입니다. 다운로드는 구독 후 제공됩니다.</span>' : '<br><span class="text-[#00ffcc]">구독 권한으로 다운로드가 가능합니다.</span>';
-                    document.getElementById('status-box').innerHTML = `3D 생성이 완료되었습니다.<br><span class="text-white">마우스로 공간을 둘러보세요.</span>${lockedMsg}`;
+                    const exportLinks = result.model_url ? `<br><button class="export-button" onclick="window.zxDownloadJpg()">JPG 저장</button><a class="download-link" href="${result.model_url}" download>GLB 3D 모델 다운로드</a><div class="studio-format-note">JPG는 현재 보이는 화면 이미지이고, GLB는 Blender/Three.js에서 여는 실제 3D 모델 파일입니다.</div>` : '';
+                    const providerMsg = result.provider_message ? `<br><span class="text-gray-400">${result.provider_message}</span>` : '';
+                    const workerMsg = !result.worker_ready ? '<br><span class="text-amber-300">Zenthex 자체 3D Worker가 아직 없으므로 Google AI Studio/Gemini 3D 건축 이미지와 JPG 저장을 우선 제공합니다. GLB 파일은 Worker 서버 연결 후 제공합니다.</span>' : '';
+                    const lockedMsg = result.preview_only ? '<br><span class="text-amber-300">체험 미리보기는 보기 전용입니다. JPG/GLB 저장은 구독 후 제공됩니다.</span>' : `<br><span class="text-[#00ffcc]">구독 권한으로 JPG 저장과 GLB 3D 모델 다운로드가 가능합니다.</span>${exportLinks}${workerMsg}`;
+                    document.getElementById('status-box').innerHTML = `3D 생성이 완료되었습니다.<br><span class="text-white">${result.preview?.title || '생성된 공간'}을 마우스로 둘러보세요.</span>${providerMsg}${lockedMsg}`;
                     
                     // Fly-in Camera Animation
                     camera.position.set(60, 50, 60);
@@ -395,9 +621,8 @@
             formData.append("prompt", promptStr);
 
             try {
-                const response = await fetch("/api/studio/generate", {
+                const response = await zxStudioFetch("/api/studio/generate", {
                     method: "POST",
-                    headers: { "Authorization": `Bearer ${localStorage.getItem("zx_token") || ""}` },
                     body: formData
                 });
                 
@@ -407,13 +632,20 @@
                     loadText.innerText = '3D 공간을 구성하는 중...';
                     
                     if(currentModel) scene.remove(currentModel);
+                    const badge = document.getElementById('sample-badge');
+                    if (badge) badge.classList.add('hidden');
                     
-                    currentModel = generateProceduralBuilding();
+                    currentModel = generateProceduralBuilding(result.preview || {});
                     scene.add(currentModel);
+                    window.zxRenderResultCard(result.preview);
+                    window.zxRenderGoogleAIStudioImage(result);
                     
                     loader.classList.remove('active');
-                    const lockedMsg = result.preview_only ? '<br><span class="text-amber-300">체험 미리보기는 보기 전용입니다. 다운로드는 구독 후 제공됩니다.</span>' : '<br><span class="text-[#00ffcc]">구독 권한으로 다운로드가 가능합니다.</span>';
-                    document.getElementById('status-box').innerHTML = `<span class="text-purple-400">프롬프트 기반 3D 생성이 완료되었습니다.<br>공간을 둘러보세요.</span>${lockedMsg}`;
+                    const exportLinks = result.model_url ? `<br><button class="export-button" onclick="window.zxDownloadJpg()">JPG 저장</button><a class="download-link" href="${result.model_url}" download>GLB 3D 모델 다운로드</a><div class="studio-format-note">JPG는 현재 보이는 화면 이미지이고, GLB는 Blender/Three.js에서 여는 실제 3D 모델 파일입니다.</div>` : '';
+                    const providerMsg = result.provider_message ? `<br><span class="text-gray-400">${result.provider_message}</span>` : '';
+                    const workerMsg = !result.worker_ready ? '<br><span class="text-amber-300">Zenthex 자체 3D Worker가 아직 없으므로 Google AI Studio/Gemini 3D 건축 이미지와 JPG 저장을 우선 제공합니다. GLB 파일은 Worker 서버 연결 후 제공합니다.</span>' : '';
+                    const lockedMsg = result.preview_only ? '<br><span class="text-amber-300">체험 미리보기는 보기 전용입니다. JPG/GLB 저장은 구독 후 제공됩니다.</span>' : `<br><span class="text-[#00ffcc]">구독 권한으로 JPG 저장과 GLB 3D 모델 다운로드가 가능합니다.</span>${exportLinks}${workerMsg}`;
+                    document.getElementById('status-box').innerHTML = `<span class="text-purple-400">프롬프트 기반 3D 생성이 완료되었습니다.<br>${result.preview?.title || '생성된 공간'}을 둘러보세요.</span>${providerMsg}${lockedMsg}`;
                     
                     camera.position.set(60, 50, 60);
                     controls.target.set(0, 5, 0);
@@ -428,6 +660,8 @@
     </script>
 </body>
 </html>
+
+
 
 
 

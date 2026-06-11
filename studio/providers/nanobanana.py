@@ -3,7 +3,7 @@ import time
 from pathlib import Path
 
 
-DEFAULT_MODEL = "gemini-2.5-flash-image"
+DEFAULT_MODEL = "gemini-3.1-flash-image"
 
 
 def is_configured() -> bool:
@@ -21,7 +21,7 @@ def _iter_response_parts(response):
 
 
 def _save_inline_image(part, output_path: Path) -> bool:
-    inline_data = getattr(part, "inline_data", None)
+    inline_data = getattr(part, "inline_data", None) or getattr(part, "inlineData", None)
     if not inline_data:
         return False
     if hasattr(part, "as_image"):
@@ -29,6 +29,11 @@ def _save_inline_image(part, output_path: Path) -> bool:
         image.save(output_path)
         return True
     data = getattr(inline_data, "data", None)
+    if isinstance(data, str):
+        import base64
+
+        output_path.write_bytes(base64.b64decode(data))
+        return True
     if data:
         output_path.write_bytes(data)
         return True
@@ -55,19 +60,23 @@ def _build_studio_prompt(prompt: str, has_reference: bool) -> str:
 def generate_preview_image(prompt: str, output_dir: str = "static/models", reference_image_path: str | None = None) -> dict:
     api_key = (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or "").strip()
     if not api_key:
-        return {"status": "skipped", "message": "GEMINI_API_KEY가 없어 NanoBanana/Gemini 3D 이미지 생성을 건너뛰었습니다."}
+        return {"status": "skipped", "message": "GEMINI_API_KEY is missing, so Google AI Studio/Gemini image generation was skipped."}
 
     try:
         from google import genai
     except Exception as exc:
         return {
             "status": "unavailable",
-            "message": f"google-genai 패키지가 없어 NanoBanana/Gemini를 호출하지 못했습니다: {exc}",
+            "message": f"google-genai package is unavailable, so Google AI Studio/Gemini could not be called: {exc}",
         }
 
-    model = (os.getenv("ZENTHEX_NANOBANANA_MODEL") or DEFAULT_MODEL).strip()
+    model = (
+        os.getenv("ZENTHEX_GOOGLE_AI_STUDIO_MODEL")
+        or os.getenv("ZENTHEX_NANOBANANA_MODEL")
+        or DEFAULT_MODEL
+    ).strip()
     Path(output_dir).mkdir(parents=True, exist_ok=True)
-    filename = f"nanobanana_{int(time.time())}.png"
+    filename = f"google_ai_studio_{int(time.time())}.png"
     output_path = Path(output_dir) / filename
     studio_prompt = _build_studio_prompt(prompt, bool(reference_image_path))
 
@@ -85,7 +94,7 @@ def generate_preview_image(prompt: str, output_dir: str = "static/models", refer
             except Exception as exc:
                 return {
                     "status": "error",
-                    "message": f"NanoBanana/Gemini 참고 이미지 준비 실패: {exc}",
+                    "message": f"Google AI Studio/Gemini reference image preparation failed: {exc}",
                 }
 
         response = client.models.generate_content(model=model, contents=contents)
@@ -93,14 +102,14 @@ def generate_preview_image(prompt: str, output_dir: str = "static/models", refer
             if _save_inline_image(part, output_path):
                 return {
                     "status": "success",
-                    "provider": "nanobanana",
+                    "provider": "google_ai_studio",
                     "model": model,
                     "image_url": f"/static/models/{filename}",
-                    "message": "NanoBanana/Gemini 3D 건축 이미지 생성 완료",
+                    "message": "Google AI Studio/Gemini 3D architectural image generated.",
                 }
         return {
             "status": "empty",
-            "message": "NanoBanana/Gemini 응답에 이미지 데이터가 없습니다. API 키, 모델명, 이미지 생성 권한을 확인하세요.",
+            "message": "Google AI Studio/Gemini returned no image data. Check API key, model name, and image-generation access.",
         }
     except Exception as exc:
-        return {"status": "error", "message": f"NanoBanana/Gemini 호출 실패: {exc}"}
+        return {"status": "error", "message": f"Google AI Studio/Gemini call failed: {exc}"}
