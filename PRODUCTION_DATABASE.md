@@ -1,45 +1,97 @@
-# Zenthex Production Database Plan
+﻿from fastapi import FastAPI, File, UploadFile, Form, Request
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+import pyupbit
+import asyncio
+import time
+import uvicorn
+import os
+import shutil
+from database.session import engine, Base
+from database.migrations import ensure_sqlite_schema
+from auth.router import router as auth_router
+from studio.router import router as studio_router
+from trading.router import router as trading_router
+from mobile.push import router as mobile_router
+from billing.router import router as billing_router
+from admin.router import router as admin_router
+from support.router import router as support_router
 
-GitHub deploys must update code only. User accounts, passwords, subscriptions, receipts, Studio jobs, Trading settings, and encrypted exchange-key records must remain in a persistent production database.
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
-## Required Production Setup
+limiter = Limiter(key_func=get_remote_address)
+app = FastAPI()
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-Use PostgreSQL before charging real users.
+# Create DB tables
+Base.metadata.create_all(bind=engine)
+ensure_sqlite_schema()
 
-```env
-ZENTHEX_DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DBNAME
-```
+# Include Routers
+app.include_router(auth_router)
+app.include_router(studio_router)
+app.include_router(trading_router)
+app.include_router(mobile_router)
+app.include_router(billing_router)
+app.include_router(admin_router)
+app.include_router(support_router)
 
-Many hosting providers expose `postgres://...`; the app normalizes that automatically.
+# Mount static folders
+os.makedirs("uploads", exist_ok=True)
+os.makedirs("static/models", exist_ok=True)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
-## Why This Matters
+# Serve frontend pages
+@app.get("/", response_class=HTMLResponse)
+@app.get("/index.html", response_class=HTMLResponse)
+async def serve_index():
+    with open("static/index.html", "r", encoding="utf-8") as f:
+        return f.read()
 
-Local SQLite creates `zenthex.db` on the running server. If a new deploy server starts with a fresh SQLite file, old accounts will not exist even though the browser still has a login token.
+@app.get("/login.html", response_class=HTMLResponse)
+async def serve_login():
+    with open("static/login.html", "r", encoding="utf-8") as f:
+        return f.read()
 
-PostgreSQL keeps the data outside GitHub upload files, so code updates do not delete:
+@app.get("/finance.html", response_class=HTMLResponse)
+async def serve_finance():
+    with open("static/finance.html", "r", encoding="utf-8") as f:
+        return f.read()
 
-- user accounts
-- subscription state
-- monthly renewal status
-- payment receipts
-- Studio history
-- Trading settings
+@app.get("/admin.html", response_class=HTMLResponse)
+async def serve_admin():
+    with open("static/admin.html", "r", encoding="utf-8") as f:
+        return f.read()
 
-## Subscription Storage
+@app.get("/studio.html", response_class=HTMLResponse)
+async def serve_studio():
+    with open("static/studio.html", "r", encoding="utf-8") as f:
+        return f.read()
 
-`billing_history` stores receipts.
 
-`subscriptions` stores the current subscription:
 
-- plan
-- active/inactive/owner status
-- provider
-- provider subscription id
-- next billing date
-- last payment status
+@app.get("/account.html", response_class=HTMLResponse)
+async def serve_account():
+    with open("static/account.html", "r", encoding="utf-8") as f:
+        return f.read()
 
-Monthly auto-renewal should be connected later through:
+@app.get("/customer.html", response_class=HTMLResponse)
+async def serve_customer():
+    with open("static/customer.html", "r", encoding="utf-8") as f:
+        return f.read()
 
-- Toss Payments billing key for Korea
-- Stripe subscriptions for global cards
-- payment webhooks for success, failure, cancellation, and refund events
+# FINANCE ENGINE is now modularized in trading/router.py
+
+
+# STUDIO ENGINE is now modularized in studio/router.py
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8080)
+
+
+
+

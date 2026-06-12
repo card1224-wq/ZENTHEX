@@ -1,168 +1,414 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Zenthex SaaS Platform</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
-    :root {
-      --bg:#06070a;
-      --panel:#0f1117;
-      --line:rgba(255,255,255,.12);
-      --muted:#a1a1aa;
-      --text:#f8fafc;
-      --mint:#00e6c3;
-      --steel:#91a7ff;
-      --gold:#f6c66a;
-    }
-    * { box-sizing:border-box; }
-    body { margin:0; min-height:100vh; background:var(--bg); color:var(--text); font-family:Inter,system-ui,sans-serif; }
-    body::before {
-      content:""; position:fixed; inset:0; pointer-events:none;
-      background:
-        linear-gradient(180deg, rgba(255,255,255,.035), transparent 260px),
-        radial-gradient(circle at 50% -10%, rgba(145,167,255,.20), transparent 32%),
-        radial-gradient(circle at 82% 18%, rgba(0,230,195,.10), transparent 22%);
-    }
-    body::after {
-      content:"Z"; position:fixed; left:50%; top:50%; transform:translate(-50%,-50%);
-      z-index:0; pointer-events:none; color:rgba(255,255,255,.028); font-size:min(58vw, 720px); font-weight:900; line-height:.8;
-      text-shadow:0 0 120px rgba(0,230,195,.10);
-    }
-    .nav { position:sticky; top:0; z-index:20; height:74px; padding:0 32px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--line); background:rgba(6,7,10,.86); backdrop-filter:blur(18px); }
-    .brand { display:flex; align-items:center; gap:12px; font-weight:900; letter-spacing:3px; }
-    .mark-small { width:34px; height:34px; }
-    .nav-actions { display:flex; gap:10px; align-items:center; }
-    .nav a { color:white; text-decoration:none; border:1px solid var(--line); background:rgba(255,255,255,.04); padding:10px 14px; border-radius:8px; font-size:13px; font-weight:800; }
-    .owner-pill { display:none; color:#ffe1a1 !important; border-color:rgba(246,198,106,.45) !important; }
-    .shell { position:relative; z-index:1; width:min(1180px, calc(100% - 40px)); margin:0 auto; padding:46px 0 36px; }
-    .hero { position:relative; min-height:calc(100vh - 210px); display:flex; align-items:center; justify-content:center; text-align:center; overflow:hidden; border:1px solid rgba(255,255,255,.08); border-radius:18px; background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.018)); }
-    .hero-mark { position:absolute; inset:0; display:grid; place-items:center; opacity:.30; pointer-events:none; }
-    .hero-mark img { width:min(72vw, 760px); height:auto; filter:drop-shadow(0 40px 90px rgba(0,230,195,.10)); }
-    .hero-content { position:relative; z-index:2; width:min(820px, calc(100% - 32px)); padding:74px 0; }
-    .eyebrow { display:inline-flex; gap:8px; align-items:center; color:#d7defe; border:1px solid rgba(145,167,255,.28); background:rgba(145,167,255,.08); padding:8px 11px; border-radius:999px; font-size:11px; font-weight:900; letter-spacing:1.4px; text-transform:uppercase; }
-    h1 { margin:22px 0 18px; font-size:72px; line-height:.92; letter-spacing:-1px; }
-    .lead { color:#d4d4d8; line-height:1.75; font-size:18px; margin:0 auto 26px; max-width:690px; }
-    .actions { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:28px; justify-content:center; }
-    .cta { min-height:46px; display:inline-flex; align-items:center; justify-content:center; padding:0 18px; border-radius:8px; text-decoration:none; font-size:14px; font-weight:900; border:0; cursor:pointer; }
-    .cta.main { background:white; color:#050507; }
-    .cta.trade { background:var(--mint); color:#03100d; }
-    .cta.sub { color:white; background:rgba(255,255,255,.04); border:1px solid var(--line); }
-    .trust { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:10px; max-width:760px; margin:0 auto; text-align:left; }
-    .trust div { border:1px solid var(--line); background:rgba(255,255,255,.035); border-radius:8px; padding:13px; }
-    .trust strong { display:block; font-size:13px; margin-bottom:5px; }
-    .trust span { color:var(--muted); font-size:12px; line-height:1.5; }
-    .products { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:28px; }
-    .product { border:1px solid var(--line); background:rgba(255,255,255,.035); border-radius:10px; padding:20px; }
-    .product .kicker { color:#cbd5e1; font-size:11px; font-weight:900; letter-spacing:1.4px; text-transform:uppercase; }
-    .product h3 { margin:10px 0 8px; font-size:24px; }
-    .product p { margin:0 0 16px; color:#b8bcc7; line-height:1.65; font-size:14px; }
-    .chips { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:16px; }
-    .chips span { color:#e5e7eb; border:1px solid rgba(255,255,255,.10); background:rgba(255,255,255,.04); padding:7px 9px; border-radius:7px; font-size:12px; font-weight:800; }
-    .policy { margin-top:20px; color:#8f96a3; font-size:12px; line-height:1.65; }
-    .modal { display:none; position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.72); align-items:center; justify-content:center; padding:24px; }
-    .modal.open { display:flex; }
-    .modal-card { width:min(760px,100%); background:#101014; border:1px solid var(--line); border-radius:10px; padding:28px; box-shadow:0 30px 80px rgba(0,0,0,.45); }
-    .modal-head { display:flex; justify-content:space-between; gap:16px; align-items:start; margin-bottom:16px; }
-    .modal h2 { margin:0; font-size:28px; }
-    .close { width:36px; height:36px; border:1px solid var(--line); background:#17171d; color:white; border-radius:8px; cursor:pointer; font-weight:900; }
-    .modal p, .modal li { color:#d4d4d8; line-height:1.8; }
-    @media (max-width:900px) {
-      .nav { padding:0 18px; }
-      .brand span { display:none; }
-      .shell { width:min(100% - 28px, 1180px); padding-top:34px; }
-      .hero { min-height:auto; }
-      .hero-content { padding:52px 0; }
-      h1 { font-size:46px; }
-      .trust, .products { grid-template-columns:1fr; }
-      .hero-mark img { width:120vw; }
-    }
-  </style>
-</head>
-<body>
-  <nav class="nav">
-    <div class="brand">
-      <svg class="mark-small" viewBox="0 0 120 120" aria-hidden="true">
-        <path d="M60 8 104 33v54L60 112 16 87V33L60 8Z" fill="#10141d" stroke="#dbeafe" stroke-width="5"/>
-        <path d="M31 38h44L45 82h44" fill="none" stroke="#00e6c3" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M60 8v32M16 33l31 18M104 33 73 51" stroke="#91a7ff" stroke-width="4" opacity=".85"/>
-      </svg>
-      <span>ZENTHEX</span>
-    </div>
-    <div class="nav-actions">
-      <a id="owner-link" class="owner-pill" href="admin.html">CEO Dashboard</a>
-      <a id="account-link" style="display:none" href="account.html">마이페이지</a>
-      <a href="login.html" id="nav-auth-btn">로그인</a>
-    </div>
-  </nav>
+﻿from fastapi import APIRouter, Depends, HTTPException, Header, Request, status
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+from database.session import get_db
+from database.models import User
+from auth.schemas import (
+    EmailRequest,
+    PasswordHintRequest,
+    PasswordResetRequest,
+    PhoneCodeRequest,
+    PhoneVerifyRequest,
+    UserCreate,
+    UserLogin,
+    Token,
+    UserResponse,
+    VerifyEmailRequest,
+)
+from auth.hash import get_password_hash, verify_password
+import os
+import random
+import smtplib
+import ssl
+import uuid
+import hmac
+import hashlib
+import base64
+import time
+from email.message import EmailMessage
 
-  <main class="shell">
-    <section class="hero">
-      <div class="hero-mark"><img src="static/zenthex-mark.svg" alt="" /></div>
-      <div class="hero-content">
-        <span class="eyebrow">AI Studio + Signal Guard SaaS</span>
-        <h1>Zenthex</h1>
-        <p class="lead">AI 3D 제작과 자동매매 전략 검증을 하나의 계정, 하나의 구독, 하나의 운영 시스템으로 제공하는 SaaS 플랫폼입니다.</p>
-        <div class="actions">
-          <a class="cta main" href="studio.html?trial=1">Studio 1회 체험</a>
-          <a class="cta trade" href="finance.html?trial=1">Trading 구조 보기</a>
-          <button class="cta sub" onclick="openModal('platform-modal')">플랫폼 설명</button>
-        </div>
-        <div class="trust">
-          <div><strong>체험 보호</strong><span>Studio는 하루 1회 보기 전용 체험 후 구독 전환</span></div>
-          <div><strong>실거래 잠금</strong><span>Trading API 키는 로그인과 구독 권한 뒤에서만 표시</span></div>
-          <div><strong>운영 통제</strong><span>대표 대시보드, 사용량, 결제내역, 긴급 정지 구조</span></div>
-        </div>
-      </div>
-    </section>
+router = APIRouter(prefix="/api/auth", tags=["auth"])
+SESSION_TOKENS = {}
+DEFAULT_OWNER_EMAILS = {"7foliath@naver.com"}
+DEV_EMAIL_OUTBOX = []
+PHONE_VERIFICATION_CODES = {}
+PHONE_VERIFIED_NUMBERS = set()
+DEV_PHONE_OUTBOX = []
+TEST_PHONE_CODE = "122492"
+TEST_EMAIL_CODE = "122492"
 
-    <section class="products">
-      <article class="product">
-        <span class="kicker">Zenthex Studio</span>
-        <h3>프롬프트와 도면을 3D로</h3>
-        <p>문장 또는 2D 도면을 기반으로 3D 공간을 미리보고, 구독 후 GLB 다운로드와 저장 기능을 제공합니다.</p>
-        <div class="chips"><span>프롬프트 → 3D</span><span>2D 도면 분석</span><span>보기 전용 체험</span></div>
-        <a class="cta main" href="studio.html?trial=1">Studio 체험</a>
-      </article>
-      <article class="product">
-        <span class="kicker">Zenthex Trading</span>
-        <h3>단타 신호 구조를 확인</h3>
-        <p>24시간 강한 후보를 거르고 1분·3분·5분 단타 신호를 점수화합니다. 실거래는 구독 권한 후에만 열립니다.</p>
-        <div class="chips"><span>Signal Guard</span><span>API 키 보호</span><span>Upbit 우선</span><span>Binance 확장</span></div>
-        <a class="cta trade" href="finance.html?trial=1">Trading 구조 보기</a>
-      </article>
-    </section>
-    <p class="policy">Zenthex Trading은 자동매매 보조 도구이며 투자 자문 또는 수익 보장 서비스가 아닙니다. 모든 투자 판단과 손익 책임은 사용자 본인에게 있습니다.</p>
-  </main>
+def normalize_email(email: str) -> str:
+    return (email or "").strip().lower()
 
-  <div class="modal" id="platform-modal">
-    <div class="modal-card">
-      <div class="modal-head"><h2>Zenthex 플랫폼</h2><button class="close" onclick="closeModal('platform-modal')">X</button></div>
-      <p>Zenthex는 Studio와 Trading을 분리된 제품처럼 보여주기보다, 하나의 SaaS 계정 안에서 체험, 구독, 사용량, 결제, 운영을 관리하는 플랫폼입니다.</p>
-      <ul>
-        <li>Studio 체험은 보기 전용이며 다운로드는 구독 후 제공됩니다.</li>
-        <li>Trading 체험판에는 API 키 입력이 노출되지 않습니다.</li>
-        <li>실거래는 로그인, 구독 권한, 위험 동의 뒤에서만 실행됩니다.</li>
-      </ul>
-    </div>
-  </div>
+def normalize_phone(phone_number: str) -> str:
+    return "".join(ch for ch in (phone_number or "") if ch.isdigit())
 
-  <script>
-    function openModal(id){ document.getElementById(id).classList.add('open'); }
-    function closeModal(id){ document.getElementById(id).classList.remove('open'); }
-    const token = localStorage.getItem('zx_token');
-    const user = JSON.parse(localStorage.getItem('zx_user') || 'null');
-    const authBtn = document.getElementById('nav-auth-btn');
-    const ownerLink = document.getElementById('owner-link');
-    const accountLink = document.getElementById('account-link');
-    if(token){
-      accountLink.style.display='inline-flex';
-      authBtn.innerText='로그아웃';
-      authBtn.href='#';
-      authBtn.onclick=()=>{ localStorage.removeItem('zx_token'); localStorage.removeItem('zx_user'); location.reload(); };
-      if(user && ['owner','admin'].includes(user.role)) ownerLink.style.display='inline-flex';
+def normalize_hint_answer(answer: str) -> str:
+    return " ".join((answer or "").strip().lower().split())
+
+def find_user_by_email(db: Session, email: str):
+    return db.query(User).filter(func.lower(User.email) == normalize_email(email)).first()
+
+def get_owner_emails():
+    configured = os.getenv("ZENTHEX_OWNER_EMAILS", "")
+    emails = {normalize_email(email) for email in configured.split(",") if email.strip()}
+    return DEFAULT_OWNER_EMAILS | emails
+
+def resolve_role(email: str) -> str:
+    return "owner" if normalize_email(email) in get_owner_emails() else "user"
+
+def make_code() -> str:
+    return f"{random.randint(100000, 999999)}"
+
+def is_local_request(request: Request) -> bool:
+    if not request.client:
+        return False
+    return request.client.host in {"127.0.0.1", "localhost", "::1"}
+
+def smtp_configured() -> bool:
+    host = (os.getenv("ZENTHEX_SMTP_HOST") or "").strip()
+    user = (os.getenv("ZENTHEX_SMTP_USER") or "").strip()
+    password = (os.getenv("ZENTHEX_SMTP_PASSWORD") or "").strip()
+    if not host or not user or not password:
+        return False
+    blocked_values = {"smtp.example.com", "no-reply@example.com", "change-me"}
+    return host not in blocked_values and user not in blocked_values and password not in blocked_values
+
+def send_account_email(to_email: str, subject: str, body: str):
+    smtp_host = os.getenv("ZENTHEX_SMTP_HOST")
+    smtp_port = int(os.getenv("ZENTHEX_SMTP_PORT", "587"))
+    smtp_user = os.getenv("ZENTHEX_SMTP_USER")
+    smtp_password = os.getenv("ZENTHEX_SMTP_PASSWORD")
+    smtp_from = os.getenv("ZENTHEX_SMTP_FROM", smtp_user or "no-reply@zenthex.com")
+    use_ssl = os.getenv("ZENTHEX_SMTP_SSL", "false").lower() == "true"
+
+    message = EmailMessage()
+    message["From"] = smtp_from
+    message["To"] = to_email
+    message["Subject"] = subject
+    message.set_content(body)
+
+    if smtp_configured():
+        try:
+            if use_ssl:
+                context = ssl.create_default_context()
+                with smtplib.SMTP_SSL(smtp_host, smtp_port, context=context) as server:
+                    server.login(smtp_user, smtp_password)
+                    server.send_message(message)
+            else:
+                with smtplib.SMTP(smtp_host, smtp_port) as server:
+                    server.starttls(context=ssl.create_default_context())
+                    server.login(smtp_user, smtp_password)
+                    server.send_message(message)
+            print(f"[Zenthex Mail] sent to={to_email} subject={subject}")
+            return {"sent": True, "mode": "smtp"}
+        except Exception as exc:
+            print(f"[Zenthex Mail] SMTP failed: {exc}. Falling back to dev outbox.")
+
+    DEV_EMAIL_OUTBOX.append({"to": to_email, "subject": subject, "body": body})
+    print(f"[Zenthex Mail:DEV] to={to_email} subject={subject} body={body}")
+    return {"sent": False, "mode": "dev_outbox"}
+
+def token_secret() -> str:
+    return os.getenv("ZENTHEX_TOKEN_SECRET", "zenthex-local-dev-token-secret")
+
+def sign_token_payload(payload: str) -> str:
+    return hmac.new(token_secret().encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).hexdigest()
+
+def session_ttl_seconds() -> int:
+    hours = float(os.getenv("ZENTHEX_SESSION_HOURS", "24") or 24)
+    return max(1, int(hours * 3600))
+
+def make_signed_token(user_id: int) -> str:
+    issued_at = int(time.time())
+    payload = f"{user_id}:{issued_at}:{uuid.uuid4().hex}"
+    signature = sign_token_payload(payload)
+    raw = f"{payload}:{signature}".encode("utf-8")
+    return "zx." + base64.urlsafe_b64encode(raw).decode("utf-8").rstrip("=")
+
+def read_signed_token(token: str):
+    if not token or not token.startswith("zx."):
+        return None
+    encoded = token[3:]
+    encoded += "=" * (-len(encoded) % 4)
+    try:
+        raw = base64.urlsafe_b64decode(encoded.encode("utf-8")).decode("utf-8")
+        user_id, issued_at, nonce, signature = raw.split(":", 3)
+    except Exception:
+        return None
+    payload = f"{user_id}:{issued_at}:{nonce}"
+    if not hmac.compare_digest(sign_token_payload(payload), signature):
+        return None
+    try:
+        if int(time.time()) - int(issued_at) > session_ttl_seconds():
+            return None
+    except ValueError:
+        return None
+    try:
+        return int(user_id)
+    except ValueError:
+        return None
+
+def issue_user_token(user: User):
+    access_token = make_signed_token(user.id)
+    SESSION_TOKENS[access_token] = {"user_id": user.id, "expires_at": int(time.time()) + session_ttl_seconds()}
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "expires_in": session_ttl_seconds(),
+        "user_info": UserResponse.model_validate(user),
     }
-  </script>
-</body>
-</html>
+
+def apply_owner_privileges(user: User):
+    user.role = "owner"
+    user.plan = "ultimate"
+    user.studio_generations_left = 999999
+    user.approval_status = "approved"
+    user.is_active = True
+
+@router.post("/phone/send-code")
+def send_phone_verification(req: PhoneCodeRequest, request: Request):
+    phone_number = normalize_phone(req.phone_number)
+    if len(phone_number) < 10:
+        raise HTTPException(status_code=400, detail="Please enter a valid phone number.")
+    sms_configured = all(os.getenv(key) for key in [
+        "ZENTHEX_SMS_PROVIDER",
+        "ZENTHEX_SMS_ACCESS_KEY",
+        "ZENTHEX_SMS_SECRET_KEY",
+        "ZENTHEX_SMS_FROM",
+    ])
+    code = make_code() if sms_configured else TEST_PHONE_CODE
+    PHONE_VERIFICATION_CODES[phone_number] = code
+    DEV_PHONE_OUTBOX.append({"phone_number": phone_number, "code": code})
+    response = {"status": "success", "message": "Phone verification code has been sent."}
+    if is_local_request(request) or not sms_configured or os.getenv("ZENTHEX_ENABLE_DEV_OUTBOX", "false").lower() == "true":
+        response["dev_code"] = code
+        response["message"] = "Test phone verification code is available."
+    return response
+
+@router.post("/phone/verify")
+def verify_phone(req: PhoneVerifyRequest):
+    phone_number = normalize_phone(req.phone_number)
+    if not phone_number or PHONE_VERIFICATION_CODES.get(phone_number) != req.code.strip():
+        raise HTTPException(status_code=400, detail="Invalid phone verification code.")
+    PHONE_VERIFIED_NUMBERS.add(phone_number)
+    PHONE_VERIFICATION_CODES.pop(phone_number, None)
+    return {"status": "success", "message": "Phone verification completed."}
+
+@router.post("/signup", response_model=UserResponse)
+def signup(user: UserCreate, db: Session = Depends(get_db)):
+    email = normalize_email(user.email)
+    if find_user_by_email(db, email):
+        raise HTTPException(status_code=400, detail="This email is already registered.")
+
+    role = resolve_role(email)
+    verification_code = make_code() if smtp_configured() else TEST_EMAIL_CODE
+    hint_answer = normalize_hint_answer(user.password_hint_answer)
+    phone_number = normalize_phone(user.phone_number or "")
+
+    if len(user.full_name.strip()) < 2:
+        raise HTTPException(status_code=400, detail="Please enter your name.")
+    if len(user.birth_date or "") < 8:
+        raise HTTPException(status_code=400, detail="Please enter your birth date.")
+    if len(phone_number) < 10:
+        raise HTTPException(status_code=400, detail="Please enter your phone number.")
+    if role != "owner" and phone_number not in PHONE_VERIFIED_NUMBERS:
+        raise HTTPException(status_code=400, detail="Please complete phone verification.")
+    if len(user.password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters.")
+    if not user.password_hint_question.strip() or len(hint_answer) < 2:
+        raise HTTPException(status_code=400, detail="Please enter a password hint question and answer.")
+
+    new_user = User(
+        full_name=user.full_name.strip()[:80],
+        email=email,
+        hashed_password=get_password_hash(user.password),
+        birth_date=(user.birth_date or "").strip()[:20],
+        phone_number=phone_number[:30],
+        phone_verified=True,
+        phone_verification_code=None,
+        password_hint_question=user.password_hint_question.strip()[:120],
+        password_hint_answer_hash=get_password_hash(hint_answer),
+        role=role,
+        plan="ultimate" if role == "owner" else "free",
+        studio_generations_left=999999 if role == "owner" else 3,
+        approval_status="approved" if role == "owner" else "pending",
+        is_active=True if role == "owner" else False,
+        email_verified=False,
+        email_verification_code=verification_code,
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    send_account_email(email, "Zenthex email verification code", f"Verification code: {verification_code}")
+    PHONE_VERIFIED_NUMBERS.discard(phone_number)
+    return new_user
+
+@router.post("/login", response_model=Token)
+def login(user: UserLogin, db: Session = Depends(get_db)):
+    db_user = find_user_by_email(db, user.email)
+    if not db_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="가입된 이메일이 없습니다. 배포 후 기존 계정이 사라진 것처럼 보이면 서버 DB가 새로 만들어진 상태일 수 있습니다.",
+        )
+    if not verify_password(user.password, db_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="비밀번호가 맞지 않습니다. 비밀번호 찾기에서 힌트 질문 또는 인증 코드로 재설정하세요.",
+        )
+
+    desired_role = resolve_role(db_user.email)
+    if desired_role != "owner" and (db_user.approval_status or "approved") != "approved":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="가입 신청은 완료되었지만 대표 승인 대기 중입니다. 승인 후 로그인할 수 있습니다.",
+        )
+    if desired_role != "owner" and db_user.is_active is False:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="대표 승인 대기 중인 계정입니다. 승인 후 사용할 수 있습니다.",
+        )
+    if db_user.role != desired_role or desired_role == "owner":
+        if desired_role == "owner":
+            apply_owner_privileges(db_user)
+        else:
+            db_user.role = desired_role
+        db.commit()
+        db.refresh(db_user)
+
+    return issue_user_token(db_user)
+
+@router.get("/me", response_model=UserResponse)
+def me(Authorization: str = Header(None), db: Session = Depends(get_db)):
+    if not Authorization:
+        raise HTTPException(status_code=401, detail="Login required.")
+    token = Authorization.replace("Bearer ", "")
+    user = get_current_user(token, db)
+    if resolve_role(user.email) == "owner" and (user.role != "owner" or user.plan != "ultimate"):
+        apply_owner_privileges(user)
+        db.commit()
+        db.refresh(user)
+    return user
+
+@router.post("/email/resend")
+def resend_verification(request: Request, Authorization: str = Header(None), db: Session = Depends(get_db)):
+    user = require_current_user(Authorization, db)
+    if user.email_verified:
+        return {"status": "success", "message": "Email is already verified."}
+    if resolve_role(user.email) == "owner":
+        apply_owner_privileges(user)
+    user.email_verification_code = make_code() if smtp_configured() else TEST_EMAIL_CODE
+    db.commit()
+    send_account_email(user.email, "Zenthex email verification code", f"Verification code: {user.email_verification_code}")
+    response = {"status": "success", "message": "Verification code has been sent."}
+    if is_local_request(request) or not smtp_configured() or os.getenv("ZENTHEX_ENABLE_DEV_OUTBOX", "false").lower() == "true":
+        response["dev_code"] = user.email_verification_code
+    return response
+
+@router.post("/email/verify")
+def verify_email(req: VerifyEmailRequest, Authorization: str = Header(None), db: Session = Depends(get_db)):
+    user = require_current_user(Authorization, db)
+    if user.email_verified:
+        return {"status": "success", "message": "Email is already verified."}
+    if not user.email_verification_code or user.email_verification_code != req.code:
+        raise HTTPException(status_code=400, detail="Invalid verification code.")
+    if resolve_role(user.email) == "owner":
+        apply_owner_privileges(user)
+    user.email_verified = True
+    user.email_verification_code = None
+    db.commit()
+    return {"status": "success", "message": "Email verification completed."}
+
+@router.post("/find-id")
+def find_id(req: EmailRequest, db: Session = Depends(get_db)):
+    user = find_user_by_email(db, req.email)
+    if user:
+        send_account_email(user.email, "Zenthex ID notice", f"Your Zenthex ID is your email address: {user.email}")
+    return {"status": "success", "message": "If an account exists, ID information has been sent by email."}
+
+@router.post("/password/request-reset")
+def request_password_reset(req: EmailRequest, request: Request, db: Session = Depends(get_db)):
+    user = find_user_by_email(db, req.email)
+    dev_code = None
+    if user:
+        user.password_reset_code = make_code() if smtp_configured() else TEST_EMAIL_CODE
+        dev_code = user.password_reset_code
+        db.commit()
+        hint_text = f"\nPassword hint question: {user.password_hint_question}" if user.password_hint_question else ""
+        send_account_email(user.email, "Zenthex password reset code", f"Reset code: {user.password_reset_code}{hint_text}")
+    response = {"status": "success", "message": "If an account exists, reset instructions have been sent by email."}
+    if dev_code and (is_local_request(request) or not smtp_configured() or os.getenv("ZENTHEX_ENABLE_DEV_OUTBOX", "false").lower() == "true"):
+        response["dev_code"] = dev_code
+    return response
+
+@router.post("/password/question")
+def get_password_hint_question(req: EmailRequest, db: Session = Depends(get_db)):
+    user = find_user_by_email(db, req.email)
+    if not user:
+        raise HTTPException(status_code=404, detail="No account found for this email.")
+    if not user.password_hint_question or not user.password_hint_answer_hash:
+        return {"status": "success", "password_hint_question": "湲곗〈 怨꾩젙?낅땲?? ?대찓???몄쬆 肄붾뱶濡?鍮꾨?踰덊샇瑜??ъ꽕?뺥븯?몄슂.", "reset_without_hint": True}
+    return {"status": "success", "password_hint_question": user.password_hint_question, "reset_without_hint": False}
+
+@router.post("/password/hint")
+def check_password_hint(req: PasswordHintRequest, db: Session = Depends(get_db)):
+    user = find_user_by_email(db, req.email)
+    if (
+        not user
+        or not user.password_hint_question
+        or not user.password_hint_answer_hash
+        or user.password_hint_question.strip() != req.password_hint_question.strip()
+        or not verify_password(normalize_hint_answer(req.password_hint_answer), user.password_hint_answer_hash)
+    ):
+        raise HTTPException(status_code=400, detail="Password hint does not match.")
+    user.password_reset_code = make_code() if smtp_configured() else TEST_EMAIL_CODE
+    db.commit()
+    send_account_email(user.email, "Zenthex password reset code", f"Reset code: {user.password_reset_code}")
+    return {"status": "success", "message": "Hint verified. Reset code has been sent.", "dev_code": user.password_reset_code if not smtp_configured() else None}
+
+@router.post("/password/reset")
+def reset_password(req: PasswordResetRequest, db: Session = Depends(get_db)):
+    user = find_user_by_email(db, req.email)
+    if not user or not user.password_reset_code or user.password_reset_code != req.code:
+        raise HTTPException(status_code=400, detail="Invalid reset code.")
+    if len(req.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters.")
+    user.hashed_password = get_password_hash(req.new_password)
+    user.password_reset_code = None
+    db.commit()
+    return {"status": "success", "message": "Password has been changed."}
+
+@router.get("/dev/outbox")
+def dev_outbox():
+    if os.getenv("ZENTHEX_ENABLE_DEV_OUTBOX", "false").lower() != "true":
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"messages": DEV_EMAIL_OUTBOX[-20:], "phone_messages": DEV_PHONE_OUTBOX[-20:]}
+
+def require_current_user(Authorization: str, db: Session):
+    if not Authorization:
+        raise HTTPException(status_code=401, detail="Login required.")
+    token = Authorization.replace("Bearer ", "")
+    return get_current_user(token, db)
+
+def get_current_user(token: str, db: Session = Depends(get_db)):
+    session = SESSION_TOKENS.get(token)
+    user_id = None
+    if isinstance(session, dict):
+        if int(time.time()) <= int(session.get("expires_at") or 0):
+            user_id = session.get("user_id")
+        else:
+            SESSION_TOKENS.pop(token, None)
+    if not user_id:
+        user_id = read_signed_token(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Login session expired. Please log in again.")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="濡쒓렇???좏겙? ?⑥븘 ?덉?留??쒕쾭??怨꾩젙 ?곗씠?곌? ?놁뒿?덈떎. 諛고룷 怨쇱젙?먯꽌 DB媛 珥덇린?붾릱??媛?μ꽦???쎈땲?? ?ㅼ떆 濡쒓렇?명븯嫄곕굹 怨꾩젙???ㅼ떆 ?앹꽦?댁빞 ?⑸땲??",
+        )
+    return user
+

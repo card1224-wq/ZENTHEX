@@ -1,11 +1,26 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-  <meta charset="UTF-8" />
-  <meta http-equiv="refresh" content="0; url=/index.html" />
-  <title>Zenthex</title>
-</head>
-<body>
-  <a href="/index.html">Zenthex로 이동</a>
-</body>
-</html>
+﻿# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.venv/
+venv/
+
+# Secrets and local config
+.env
+.env.*
+!.env.example
+
+# Local database and user files
+zenthex.db
+*.db
+uploads/
+static/models/*.glb
+static/models/*.gltf
+static/models/*.bin
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
