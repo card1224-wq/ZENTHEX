@@ -1,227 +1,356 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Zenthex SaaS Platform</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
-    :root { --bg:#06070a; --panel:#0b0d12; --line:rgba(255,255,255,.12); --muted:#a1a1aa; --text:#f8fafc; --mint:#00e6c3; --steel:#91a7ff; --gold:#f6c66a; }
-    * { box-sizing:border-box; }
-    body { margin:0; min-height:100vh; background:var(--bg); color:var(--text); font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
-    body::before { content:""; position:fixed; inset:0; pointer-events:none; background:linear-gradient(180deg, rgba(255,255,255,.035), transparent 260px), radial-gradient(circle at 50% -12%, rgba(145,167,255,.18), transparent 34%), radial-gradient(circle at 82% 18%, rgba(0,230,195,.10), transparent 24%); }
-    body::after { content:"Z"; position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:0; pointer-events:none; color:rgba(255,255,255,.026); font-size:min(58vw,720px); font-weight:900; line-height:.8; text-shadow:0 0 120px rgba(0,230,195,.10); }
-    a { color:inherit; }
-    .nav { position:sticky; top:0; z-index:20; min-height:74px; padding:12px 32px; display:flex; align-items:center; justify-content:space-between; gap:18px; border-bottom:1px solid var(--line); background:rgba(6,7,10,.86); backdrop-filter:blur(18px); }
-    .brand { display:flex; align-items:center; gap:12px; font-weight:900; letter-spacing:3px; }
-    .mark-small { width:34px; height:34px; flex:0 0 auto; }
-    .nav-actions { display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
-    .nav a, .nav button { color:white; text-decoration:none; border:1px solid var(--line); background:rgba(255,255,255,.04); padding:10px 14px; border-radius:8px; font-size:13px; font-weight:800; cursor:pointer; font-family:inherit; }
-    .nav a:hover, .nav button:hover { border-color:rgba(0,230,195,.42); }
-    .owner-pill { color:#ffe1a1 !important; border-color:rgba(246,198,106,.45) !important; }
-    .shell { position:relative; z-index:1; width:min(1180px, calc(100% - 40px)); margin:0 auto; padding:28px 0 38px; }
-    .hero { position:relative; min-height:58vh; display:flex; align-items:center; justify-content:center; text-align:center; overflow:hidden; border:1px solid rgba(255,255,255,.08); border-radius:18px; background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.018)); }
-    .hero-mark { position:absolute; inset:0; display:grid; place-items:center; opacity:.30; pointer-events:none; }
-    .hero-mark img { width:min(72vw,760px); height:auto; filter:drop-shadow(0 40px 90px rgba(0,230,195,.10)); }
-    .hero-content { position:relative; z-index:2; width:min(850px, calc(100% - 32px)); padding:52px 0; }
-    .eyebrow { display:inline-flex; color:#d7defe; border:1px solid rgba(145,167,255,.28); background:rgba(145,167,255,.08); padding:8px 11px; border-radius:999px; font-size:11px; font-weight:900; letter-spacing:1.4px; text-transform:uppercase; }
-    h1 { margin:18px 0 14px; font-size:64px; line-height:.92; letter-spacing:0; }
-    .lead { color:#d4d4d8; line-height:1.68; font-size:17px; margin:0 auto 20px; max-width:720px; word-break:keep-all; }
-    .actions { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:28px; justify-content:center; }
-    .cta { min-height:46px; display:inline-flex; align-items:center; justify-content:center; padding:0 18px; border-radius:8px; text-decoration:none; font-size:14px; font-weight:900; border:0; cursor:pointer; font-family:inherit; }
-    .cta.main { background:white; color:#050507; }
-    .cta.trade { background:var(--mint); color:#03100d; }
-    .cta.sub { color:white; background:rgba(255,255,255,.04); border:1px solid var(--line); }
-    .trust, .pricing { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:10px; max-width:880px; margin:0 auto; text-align:left; }
-    .trust div, .price-card { border:1px solid var(--line); background:rgba(255,255,255,.035); border-radius:8px; padding:13px; }
-    .trust strong, .price-card strong { display:block; font-size:13px; margin-bottom:5px; }
-    .trust span, .price-card p { color:var(--muted); font-size:12px; line-height:1.5; margin:0; }
-    .price-card .price { color:var(--mint); font-size:17px; font-weight:900; margin:7px 0; }
-    .preview-band { margin-top:14px; display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-    .visual-panel { min-height:220px; border:1px solid var(--line); border-radius:10px; padding:16px; background:#090b10; position:relative; overflow:hidden; }
-    .floor { position:absolute; inset:58px 24px 24px; border:2px solid rgba(0,230,195,.65); transform:perspective(720px) rotateX(58deg) rotateZ(-8deg); transform-origin:center; }
-    .floor span { position:absolute; border:1px solid rgba(145,167,255,.45); background:rgba(255,255,255,.04); }
-    .floor span:nth-child(1){ left:8%; top:8%; width:42%; height:38%; }
-    .floor span:nth-child(2){ left:54%; top:8%; width:36%; height:28%; }
-    .floor span:nth-child(3){ left:8%; top:52%; width:32%; height:34%; }
-    .floor span:nth-child(4){ left:45%; top:44%; width:45%; height:42%; }
-    .signal-list { position:absolute; left:18px; right:18px; bottom:18px; display:grid; gap:8px; }
-    .signal-row { display:grid; grid-template-columns:1fr auto; gap:12px; padding:10px; border-radius:8px; background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.08); font-size:13px; }
-    .signal-row b { color:#99f6e4; }
-    .visual-panel h3 { margin:0; position:relative; z-index:2; }
-    .visual-panel p { color:#a1a1aa; position:relative; z-index:2; font-size:13px; line-height:1.55; max-width:420px; word-break:keep-all; }
-    .products { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:28px; }
-    .product { border:1px solid var(--line); background:rgba(255,255,255,.035); border-radius:10px; padding:20px; }
-    .product .kicker { color:#cbd5e1; font-size:11px; font-weight:900; letter-spacing:1.4px; text-transform:uppercase; }
-    .product h3 { margin:10px 0 8px; font-size:24px; letter-spacing:0; }
-    .product p { margin:0 0 16px; color:#b8bcc7; line-height:1.65; font-size:14px; word-break:keep-all; }
-    .chips { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:16px; }
-    .chips span { color:#e5e7eb; border:1px solid rgba(255,255,255,.10); background:rgba(255,255,255,.04); padding:7px 9px; border-radius:7px; font-size:12px; font-weight:800; }
-    .section-title { margin:30px 0 12px; font-size:18px; font-weight:900; }
-    .policy { margin:20px 0; color:#8f96a3; font-size:12px; line-height:1.65; word-break:keep-all; }
-    .modal { display:none; position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.72); align-items:center; justify-content:center; padding:24px; }
-    .modal.open { display:flex; }
-    .modal-card { width:min(760px,100%); background:#101014; border:1px solid var(--line); border-radius:10px; padding:28px; box-shadow:0 30px 80px rgba(0,0,0,.45); }
-    .modal-head { display:flex; justify-content:space-between; gap:16px; align-items:start; margin-bottom:16px; }
-    .modal h2 { margin:0; font-size:28px; }
-    .close { width:36px; height:36px; border:1px solid var(--line); background:#17171d; color:white; border-radius:8px; cursor:pointer; font-weight:900; }
-    .modal p, .modal li { color:#d4d4d8; line-height:1.8; word-break:keep-all; }
-    @media (max-width:900px) {
-      .nav { padding:12px 18px; }
-      .brand span { display:none; }
-      .shell { width:min(100% - 28px,1180px); padding-top:34px; }
-      .hero { min-height:auto; }
-      .hero-content { padding:52px 0; }
-      h1 { font-size:46px; }
-      .trust, .products, .pricing, .preview-band { grid-template-columns:1fr; }
-      .hero-mark img { width:120vw; }
-    }
-  </style>
-</head>
-<body>
-  <nav class="nav">
-    <div class="brand">
-      <svg class="mark-small" viewBox="0 0 120 120" aria-hidden="true">
-        <path d="M60 8 104 33v54L60 112 16 87V33L60 8Z" fill="#10141d" stroke="#dbeafe" stroke-width="5"/>
-        <path d="M31 38h44L45 82h44" fill="none" stroke="#00e6c3" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M60 8v32M16 33l31 18M104 33 73 51" stroke="#91a7ff" stroke-width="4" opacity=".85"/>
-      </svg>
-      <span>ZENTHEX</span>
-    </div>
-    <div class="nav-actions" id="nav-actions">
-      <a href="customer.html">고객센터</a>
-      <a href="login.html">로그인</a>
-    </div>
-  </nav>
+# Zenthex SaaS Master Plan
 
-  <main class="shell">
-    <section class="hero">
-      <div class="hero-mark"><img src="/static/zenthex-mark.svg" alt="" /></div>
-      <div class="hero-content">
-        <span class="eyebrow">AI Studio + Signal Guard SaaS</span>
-        <h1>Zenthex</h1>
-        <p class="lead">Zenthex는 프롬프트와 2D 도면을 3D 공간으로 변환하는 AI 스튜디오와, 사용자 설정 기반 자동매매 엔진을 제공하는 구독형 SaaS 플랫폼입니다.</p>
-        <div class="actions">
-          <a class="cta main" href="studio.html">Studio 열기</a>
-          <a class="cta trade" href="finance.html">Trading 열기</a>
-          <a class="cta sub" href="#pricing">구독 가격</a>
-          <button class="cta sub" type="button" onclick="openModal('platform-modal')">Zenthex란?</button>
-        </div>
-        <div class="trust">
-          <div><strong>Studio 체험</strong><span>비로그인도 하루 1회 보기 전용 체험 후 구독을 선택할 수 있습니다.</span></div>
-          <div><strong>Trading 보호</strong><span>체험 화면에서는 API 키를 받지 않고, 실거래는 구독 권한 뒤에만 열립니다.</span></div>
-          <div><strong>SaaS 운영</strong><span>계정, 구독, 결제내역, 영수증과 고객 지원을 한 흐름으로 관리합니다.</span></div>
-        </div>
-      </div>
-    </section>
+이 문서는 현재 Zenthex 설계도와 대표 추가 수정사항을 합친 최신 마스터 플랜입니다.
 
-    <section class="preview-band">
-      <article class="visual-panel">
-        <h3>Zenthex Studio Preview</h3>
-        <p>프롬프트와 도면을 3D 공간으로 바꾸는 흐름을 첫 화면에서 바로 이해할 수 있게 보여줍니다.</p>
-        <div class="floor" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
-      </article>
-      <article class="visual-panel">
-        <h3>Zenthex Trading Signals</h3>
-        <p>실거래는 로그인, 구독, 키 인증 후 열리고 후보 코인은 서버에서 점수화합니다.</p>
-        <div class="signal-list" aria-hidden="true">
-          <div class="signal-row"><span>KRW-BTC</span><b>+0.42%</b></div>
-          <div class="signal-row"><span>KRW-ETH</span><b>+0.36%</b></div>
-          <div class="signal-row"><span>KRW-SOL</span><b>+0.31%</b></div>
-        </div>
-      </article>
-    </section>
+## 1. 서비스 정의
 
-    <section class="products">
-      <article class="product">
-        <span class="kicker">Zenthex Studio</span>
-        <h3>프롬프트와 도면을 3D로</h3>
-        <p>문장 또는 2D 도면을 기반으로 3D 공간을 미리보고, Studio Pro 또는 Ultimate 구독 후 JPG 저장, GLB 다운로드와 작업 보관을 사용할 수 있습니다.</p>
-        <div class="chips"><span>Prompt to 3D</span><span>2D 도면 분석</span><span>JPG 저장</span><span>GLB 3D 모델</span></div>
-        <a class="cta main" href="studio.html">Studio 열기</a>
-      </article>
-      <article class="product">
-        <span class="kicker">Zenthex Trading</span>
-        <h3>자동매매 구조와 실거래 권한</h3>
-        <p>업비트 KRW 마켓의 강한 후보를 필터링하고 단기 신호를 점수화합니다. 실제 주문은 Trading Pro 또는 Ultimate 권한과 위험 동의 후에만 실행합니다.</p>
-        <div class="chips"><span>Signal Guard</span><span>Upbit 우선</span><span>API 키 보호</span><span>Binance 확장 예정</span></div>
-        <a class="cta trade" href="finance.html">Trading 열기</a>
-      </article>
-    </section>
+Zenthex는 AI 기반 SaaS 플랫폼 회사입니다.
 
-    <h2 class="section-title" id="pricing">구독 가격</h2>
-    <section class="pricing">
-      <article class="price-card"><strong>Studio Pro</strong><div class="price">월 49,000원</div><p>Studio 생성, JPG 저장, GLB 다운로드, 작업 히스토리</p></article>
-      <article class="price-card"><strong>Trading Pro</strong><div class="price">월 99,000원</div><p>Trading 실거래 권한, Signal Guard, 목표 수익률 자동 종료</p></article>
-      <article class="price-card"><strong>Zenthex Ultimate</strong><div class="price">월 149,000원</div><p>Studio + Trading 통합 권한, 우선 처리, 모바일 알림</p></article>
-    </section>
+- Zenthex Studio: 프롬프트와 2D 도면을 3D 공간, JPG, GLB 결과로 만드는 AI 스튜디오
+- Zenthex Trading: 사용자 설정 기반 자동매매 도구와 Signal Guard
+- Customer Center: 계정, 구독, Studio, Trading, Upbit 문의 접수
+- CEO 대시보드: 대표 전용 가입자, 구독, 고객 문의, 출시 검토, 긴급 정지 관리
 
-    <p class="policy">Zenthex Trading은 자동매매 도구이며 투자 자문 또는 수익 보장 서비스가 아닙니다. 모든 투자 판단과 손익 책임은 사용자 본인에게 있습니다.</p>
-  </main>
+Zenthex는 설치형 프로그램이 아니라 회원가입, 로그인, 구독, PC/모바일 웹, 클라우드 서버 실행을 기반으로 하는 SaaS입니다.
 
-  <div class="modal" id="platform-modal">
-    <div class="modal-card">
-      <div class="modal-head"><h2>Zenthex란?</h2><button class="close" onclick="closeModal('platform-modal')">X</button></div>
-      <p>Zenthex는 AI 3D 제작과 자동매매 실행 구조를 하나의 계정, 구독, 모바일 제어 흐름으로 제공하는 SaaS 플랫폼입니다.</p>
-      <ul>
-        <li>Studio 체험은 보기 전용이며 다운로드는 구독 후 제공합니다.</li>
-        <li>Trading 체험은 구조 확인용이며 API 키 입력을 요구하지 않습니다.</li>
-        <li>실거래는 로그인, 구독 권한, 위험 동의, API 키 확인 후에만 실행됩니다.</li>
-      </ul>
-    </div>
-  </div>
+## 2. 홈페이지 원칙
 
-  <script>
-    function openModal(id){ document.getElementById(id).classList.add('open'); }
-    function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+홈페이지는 Zenthex를 알리는 공개 브랜드 화면입니다.
 
-    let token = localStorage.getItem('zx_token');
-    let user = JSON.parse(localStorage.getItem('zx_user') || 'null');
-    const navActions = document.getElementById('nav-actions');
+로그인, 대표 계정, 구독 상태에 따라 홈페이지의 핵심 소개 문구와 제품 소개가 바뀌면 안 됩니다. 네이버나 유튜브처럼 메인 브랜드 화면은 안정적으로 유지하고, 로그인 상태는 상단 메뉴와 각 기능 페이지 안에서만 반영합니다.
 
-    function isOwner(u){ return u && u.role === 'owner'; }
+고정되어야 하는 영역:
 
-    function clearSession(){
-      localStorage.removeItem('zx_token');
-      localStorage.removeItem('zx_user');
-      localStorage.removeItem('zx_expires_at');
-      token=null;
-      user=null;
-    }
+- Zenthex 브랜드 소개
+- Studio와 Trading 제품 설명
+- Studio/Trading 시각 미리보기
+- 구독 가격
+- 투자 위험 고지
+- 고객센터 연결
 
-    function renderNav(u){
-      if(!u){
-        navActions.innerHTML='<a href="customer.html">고객센터</a><a href="login.html">로그인</a>';
-        return;
-      }
-      const ownerLink=isOwner(u)?'<a class="owner-pill" href="admin.html">CEO Dashboard</a>':'';
-      navActions.innerHTML=`${ownerLink}<a href="account.html">마이페이지</a><a href="customer.html">고객센터</a><button type="button" onclick="logout()">로그아웃</button>`;
-    }
+로그인 상태에 따라 바뀌어야 하는 영역:
 
-    function logout(){
-      clearSession();
-      renderNav(null);
-    }
+- 상단 메뉴의 로그인, 마이페이지, 고객센터, 로그아웃
+- 대표 계정의 CEO Dashboard 링크
+- 기능 페이지 안의 체험, 구독, 대표 권한 안내
 
-    async function refreshUser(){
-      const expiresAt=Number(localStorage.getItem('zx_expires_at')||0);
-      if(token&&expiresAt&&Date.now()>expiresAt){ clearSession(); renderNav(null); return; }
-      if(!token){ renderNav(null); return; }
-      if(user){ renderNav(user); }
-      try{
-        const res=await fetch('/api/auth/me',{headers:{'Authorization':`Bearer ${token}`}});
-        if(res.ok){
-          user=await res.json();
-          localStorage.setItem('zx_user',JSON.stringify(user));
-          renderNav(user);
-          return;
-        }
-        if(res.status===401){ clearSession(); }
-      }catch(e){ console.error(e); }
-      renderNav(user);
-    }
+홈페이지는 `Zenthex Control` 같은 내부 운영 화면으로 바뀌면 안 됩니다. 대표 운영 기능은 CEO Dashboard에서만 다룹니다.
 
-    refreshUser();
-  </script>
-</body>
-</html>
+## 3. 대표 계정 원칙
+
+대표 이메일은 `7foliath@naver.com`입니다.
+
+대표 계정은 결제 없이 Ultimate 권한을 가집니다. 다만 이메일 인증은 일반 사용자처럼 코드로 진행합니다. 로그인/회원가입 화면에는 대표 계정 문구나 대표 이메일을 노출하지 않습니다.
+
+대표는 다음 기능을 사용할 수 있습니다.
+
+- Studio 전체 사용
+- Trading 전체 사용
+- 가입자 목록 조회
+- 사용자 승인, 거절, 삭제
+- 사용자 플랜과 역할 변경
+- 고객 문의 확인 및 답변
+- 출시 전 검토
+- 긴급 전체 정지
+
+## 3-1. 대표 화면과 구독자 화면 분리
+
+Zenthex는 대표가 운영하는 SaaS이므로 대표 화면과 구독자 화면을 명확히 분리합니다.
+
+공통 화면:
+
+- 공개 홈페이지
+- 로그인 / 회원가입
+- 마이페이지
+- 고객센터
+- Studio 작업 화면
+- Trading 실행 화면
+
+구독자 화면 원칙:
+
+- 구독자는 본인 계정, 본인 구독, 본인 결제내역, 본인 Studio 작업, 본인 Trading 상태만 봅니다.
+- 구독자 화면에는 전체 가입자 수, 전체 매출, 다른 사용자 정보, 전체 엔진 상태, 대표 검토 항목, 긴급 전체 정지 버튼이 보이면 안 됩니다.
+- 구독자는 플랜 권한에 따라 Studio Pro, Trading Pro, Ultimate 기능만 사용합니다.
+
+대표 화면 원칙:
+
+- 대표는 `CEO Dashboard`에서만 운영 기능을 관리합니다.
+- 대표 전용 기능은 가입 승인, 사용자 삭제, 플랜/역할 변경, 고객 문의 관리, 출시 전 검토, 긴급 전체 정지, 서버/고정 IP/NanoBanana/3D Worker 상태 확인입니다.
+- 대표도 Studio와 Trading 작업 화면을 사용할 수 있지만, 운영 정보는 작업 화면이 아니라 CEO Dashboard에 둡니다.
+
+API 원칙:
+
+- 대표 API는 반드시 `require_owner()`로 막습니다.
+- 구독자 API는 본인 계정과 본인 플랜 권한만 기준으로 열립니다.
+- 일반 HTML에 대표 이메일이나 대표 전용 내부 정보가 노출되면 안 됩니다.
+
+## 4. 계정과 인증
+
+사용자는 이메일 주소로 로그인합니다. 이메일 로그인은 아이디 찾기와 비밀번호 재설정에 유리합니다.
+
+회원가입 필드:
+
+- 이름
+- 이메일
+- 비밀번호
+- 비밀번호 확인
+- 생년월일
+- 휴대폰 번호
+- 휴대폰 인증 코드
+- 비밀번호 힌트 질문
+- 비밀번호 힌트 답변
+
+현재 테스트 인증 코드는 `122492`입니다. 정식 출시 전 실제 이메일 발송기와 SMS 발송기를 연결합니다.
+
+일반 사용자는 회원가입 직후 승인 대기 상태가 됩니다. 대표가 CEO Dashboard에서 인적사항을 확인하고 승인 완료로 바꿔야 로그인과 구독 사용이 가능합니다. 대표 계정은 자동 승인됩니다.
+
+## 5. 데이터 보존 원칙
+
+GitHub는 코드 저장소입니다. 회원, 결제, 구독, 문의, API 키 같은 운영 데이터의 저장소가 아닙니다.
+
+GitHub 업로드로 사라지면 안 되는 데이터:
+
+- 회원 계정
+- 비밀번호 해시
+- 이메일/휴대폰 인증 상태
+- 구독 상태
+- 결제내역과 영수증
+- 고객 문의
+- Studio 작업 기록
+- Trading 설정
+- 암호화된 API 키 데이터
+
+정식 유료 서비스 전에는 `ZENTHEX_DATABASE_URL`로 PostgreSQL 같은 영구 DB를 연결해야 합니다.
+
+## 6. Studio 원칙
+
+Studio는 사용자가 한 번은 직접 결과를 봐야 구독할 수 있습니다.
+
+- 비로그인 또는 Free 사용자는 같은 IP 기준 하루 1회 보기 전용 체험
+- 체험에서는 다운로드와 스크린샷 저장을 제한
+- Studio Pro 또는 Ultimate 구독자는 JPG 저장, GLB 다운로드, 작업 히스토리 사용
+- 대표는 제한 없이 사용
+- 화면 상단과 마크는 항상 Zenthex 브랜드 사용
+- 프롬프트 생성은 결과가 체감되어야 하므로 백엔드가 `apartment_32`, `cafe`, `office` 같은 미리보기 프로필을 즉시 반환하고, 프론트는 그 프로필에 맞는 3D 공간으로 화면을 바로 바꿉니다.
+- `GEMINI_API_KEY`가 설정되어 있으면 Zenthex 자체 3D Worker가 준비되기 전까지 Gemini NanoBanana(`gemini-2.5-flash-image`)를 3D 스타일 건축 결과의 1차 공급원으로 사용합니다.
+- 프롬프트와 업로드한 2D 도면은 NanoBanana/Gemini로 보내 프리미엄 isometric 3D floor-plan 이미지, 상단 시점 3D 아파트 렌더, 공간 배치 이미지를 받아와 Studio 화면 중앙의 메인 결과로 크게 보여줍니다.
+- 3D Worker 또는 OpenCV 의존성이 없는 서버에서도 화면 미리보기는 실패하지 않아야 합니다. 이 경우 GLB 파일 생성은 보류하고 사용자에게 Worker 의존성이 필요하다고 안내합니다.
+
+GLB는 실제 3D 모델 파일이고, JPG는 사용자가 바로 이해하기 쉬운 이미지 저장 파일입니다. 사용자 화면에서는 JPG 저장을 먼저 보여주고 GLB는 3D 모델 다운로드로 설명합니다.
+
+Studio 3D 서버 확장 기준:
+
+- 현재 Studio의 즉시 결과는 NanoBanana/Gemini 기반 건축 이미지입니다. 이 결과는 콘셉트 시각화이며, 유료/대표 권한에서는 JPG 이미지 저장을 제공합니다.
+- 진짜 3D 모델(GLB/OBJ), 2D 도면 기반 벽/문/창 해석, 정확한 치수 기반 모델은 이미지 생성 AI만으로 완성되지 않습니다.
+- 도면분석엔진은 OpenCV/OCR/Vision으로 외벽, 내벽, 문, 창, 치수 후보를 추출합니다.
+- 공간구조변환엔진은 도면 선을 방, 벽, 개구부, 바닥 구조 데이터로 변환합니다.
+- 3D Mesh Worker는 구조 데이터를 벽/바닥/천장 mesh로 만들고 GLB/OBJ를 출력합니다.
+- Redis/Celery 작업 Queue로 오래 걸리는 작업을 비동기 처리합니다.
+- 결과검수/재시도 시스템은 GLB 열림 여부, 벽/바닥 존재 여부, 파일 크기, 미리보기 생성 여부를 확인합니다.
+- 초기에는 사무실 장비나 자체 GPU 서버를 구매하지 않습니다. FastAPI, 외부 AI API, CPU Worker, Storage로 시작하고, 유료 사용량이 검증된 뒤 GPU 클라우드 또는 자체 장비를 검토합니다.
+
+## 7. Trading 원칙
+
+Trading은 투자 자문이나 수익 보장 서비스가 아니라 자동매매 도구입니다.
+
+실거래 조건:
+
+- 로그인
+- Trading Pro 또는 Ultimate 구독
+- 대표 계정은 결제 없이 가능
+- 위험 동의
+- Upbit API 키 인증
+- Zenthex 서버 공인 IP를 Upbit 허용 IP에 등록
+- Binance는 계정 생성 후 Testnet/Live 키 인증과 잔고 조회를 즉시 제공
+- Binance 자동주문은 Spot 전용 어댑터로 Upbit와 같은 리스크 매니저에 연결
+
+체험 화면에서는 API 키를 받지 않습니다. 체험은 구조 확인과 전략 이해용입니다.
+
+실거래 권한 사용자는 엔진 시작 전에 Upbit 잔고와 수익률을 Zenthex에서 확인할 수 있습니다. 이때 Access Key와 Secret Key는 DB에 저장하지 않고 요청 시점의 잔고 조회에만 사용합니다.
+
+매수 기준:
+
+- 업비트 KRW 전체 마켓 스캔
+- BTC/ETH 단기 급락 구간이면 신규 매수 보류
+- 1차 필터: 거래대금 1억원 이상, 24시간/6시간 방향성, 과열/급락/변동성 위험 제외
+- 2차 필터: 1분, 3분, 5분 단기 흐름과 거래량 1.1배 이상 또는 단기 돌파/추세 확인
+- 거래량이 늘어도 가격이 함께 오르지 않거나 최근 강한 음봉이면 진입하지 않습니다.
+- 1분, 3분, 5분 흐름이 모두 상승이고 최근 1분봉 3개 중 2개 이상 양봉일 때만 진입 후보로 둡니다.
+- 조건을 통과한 상승 후보가 없으면 완화 진입하지 않고 대기합니다.
+- 24시간 고점 바로 아래에서 추격 매수하는 후보는 보류합니다.
+- 최종 진입 전 현재가가 선정가보다 즉시 밀렸는지, 호가 스프레드가 넓은지, 매수호가 방어가 약한지 확인합니다.
+- 손절한 코인은 일정 시간 쿨다운을 두어 같은 손실 패턴으로 바로 재진입하지 않습니다.
+- 엄격 조건 통과 코인이 없으면 완화 후보를 표시하되 손절/분할 진입/일일 손실 제한은 유지
+- 로그 시간은 한국시간(KST) 기준으로 표시
+
+진입 기준:
+
+- 단일 진입: 설정한 총 투자금을 한 번에 진입
+- 분할 진입: 설정한 총 투자금을 2회, 4회, 5회, 10회로 나누어 진입
+- 추가 진입은 평균 매수가 대비 지정한 수익 구간을 넘어 상승 방향이 확인될 때만 실행
+- 익절과 손절은 각 주문 단위가 아니라 전체 평균 매수가 기준으로 계산
+- 분할 진입은 하락 물타기가 아니며, 최대 진입 횟수와 전체 손절선으로 리스크를 제한
+
+매도 기준:
+
+- 고정 목표 방식: 목표 수익률 도달 시 자동 매도 후 엔진 종료
+- 추적 익절 방식: 최소 수익률을 넘긴 뒤 계속 보유하다가 최고 수익률에서 설정 폭만큼 밀리면 자동 매도 후 엔진 종료
+- 실거래 손절선 도달 시 자동 매도 후 엔진 완전 정지
+- 사용자가 일시정지를 누르면 신규 매수/추가매수/감시는 멈추되 보유 코인은 매도하지 않음
+- 사용자가 전량 매도 후 종료를 누르면 현재 Zenthex 엔진 보유 수량만 시장가 매도 후 엔진 종료
+- 체험 모드에서만 손절 후 재스캔 가능
+- 일일 최대 손실과 연속 손절 제한 적용
+
+단타 기본 목표는 0.3%~1%가 현실적입니다. 10%, 30%, 50%는 단타가 아니라 고위험 목표로 분리해 표시합니다.
+
+투자금 방식:
+
+- KRW 현금 전액: 업비트 원화 잔고만 사용
+- KRW 현금 비율: 원화 잔고 중 일부만 사용
+- 고정 금액: 지정한 금액만 사용
+- 보유 코인 정리 후 전액 재진입: 별도 동의 후 기존 KRW 마켓 보유 코인을 시장가 매도하고 새 후보에 재진입
+- 분할 진입을 선택하면 위 투자금 방식으로 정한 총액을 나누어 사용합니다.
+
+## 8. Upbit 고정 IP 원칙
+
+Upbit 실거래 허용 IP는 사용자 PC나 휴대폰 IP가 아니라 Zenthex FastAPI 실거래 서버의 공인 outbound IP입니다. 운영 실거래에서는 이 IP가 바뀌면 안 됩니다.
+
+- `ZENTHEX_SERVER_PUBLIC_IP`에 고정 서버 IP를 넣은 경우에만 운영용 고정 IP로 봅니다.
+- 현재 Zenthex 운영 고정 IP 기준값은 `74.220.52.254`입니다. Upbit 허용 IP와 서버 환경변수는 이 값으로 맞춥니다.
+- 환경변수가 비어 있어 자동 감지된 IP는 현재 통신 경로를 보여주는 참고값일 뿐이며, 화면에서 경고로 표시합니다.
+- 실거래 전에는 `ZENTHEX_SERVER_PUBLIC_IP` 표시값과 실제 서버 outbound IP를 비교 검증해야 합니다.
+- 두 IP가 다르면 Upbit 실거래를 운영 준비 완료로 보지 않습니다. 이 경우 고정 IP 서버, NAT, 프록시, 배포 환경을 다시 확인합니다.
+- GitHub Pages는 정적 파일 호스팅이므로 실거래 서버 IP가 아닙니다.
+- 다수의 구독자는 같은 Zenthex 서버 IP를 Upbit 허용 IP에 등록하는 구조가 맞습니다.
+
+## 9. Trading 화면 원칙
+
+Trading 전략 설정은 길게 내려보지 않아도 핵심을 이해해야 합니다.
+
+- 상단 요약: 매도 방식, 목표 수익률, 투자금 방식, 코인 선택 방식, 진입 방식
+- 거래소 선택: Upbit와 Binance를 버튼으로 먼저 고르고, 선택한 거래소의 키 인증/실거래 흐름으로 이동
+- 기본 설정: 코인 선택, 목표 수익률, 투자금 방식, 진입 방식만 먼저 노출
+- Desktop 화면은 3단 구조를 사용합니다. 왼쪽은 핵심 실행, 가운데는 실시간 수익률/상태, 오른쪽은 보조 설정입니다.
+- 오른쪽 보조 설정에는 Upbit API 키/IP, Binance 키 인증/잔고 조회, 고급 전략, 자동 선정 기준을 배치합니다.
+- 고급 설정: 추적익절, 고점 대비 하락폭, 분할 진입 세부값, 보유 코인 정리 후 재진입, 위험 설명은 오른쪽 보조 설정에서 필요할 때만 조정
+- 위험 설정을 선택하면 해당 고급 패널은 자동으로 열려야 합니다.
+- 실시간 현황: 선정 코인, 현재가, 현재 수익률, 전체 수익률, 평가손익, 현금 잔고, 보유 코인 평가
+- 종료 버튼: 일시정지(보유 유지)와 전량 매도 후 종료를 분리해 실수로 손실을 확정하지 않도록 함
+- 그래프: Upbit 잔고/상태 조회와 엔진 상태에서 받은 `totalPnlPct`를 기준으로 최근 수익률 흐름을 누적 표시
+
+Upbit 거래내역 원장을 그대로 장기 보관하거나 그래프화하는 기능은 정식 운영 단계에서 별도 권한, 개인정보/거래정보 보관 정책, DB 저장 기간을 정한 뒤 확장합니다. 현재 MVP에서는 키를 저장하지 않고 조회 시점의 잔고/평가손익으로 수익률 흐름을 보여주는 방식을 우선합니다.
+
+## 10. Upbit와 Binance
+
+현재 실거래 우선 연결은 Upbit입니다.
+
+Binance는 다음 실거래 확장 대상입니다. 화면에서는 Binance 준비 상태를 보여줄 수 있지만, 실제 주문은 연결 완료 전까지 실행하지 않습니다.
+
+## 11. 모바일 원칙
+
+Trading 엔진은 사용자 브라우저가 아니라 Zenthex 서버에서 실행됩니다. PC 브라우저를 닫아도 서버가 살아 있으면 휴대폰에서 같은 계정으로 로그인해 실시간 상태, 위험고지, 수익률을 확인할 수 있어야 합니다.
+
+실거래 상태 조회와 중지 기능은 로그인과 Trading 권한이 있는 사용자에게만 허용합니다.
+
+거래소 확장 원칙:
+
+- Upbit는 현재 실거래 자동매매 우선 거래소입니다.
+- Binance는 계정 생성 즉시 키 진단, 키 인증, 잔고 조회를 할 수 있게 준비합니다.
+- Binance 자동주문은 Spot만 먼저 열고, Futures/선물은 출시 전 검증 단계에서 차단합니다.
+- Upbit와 Binance는 최종적으로 공통 Scanner, Risk Manager, 상태 표시, 모바일 모니터링을 공유해야 합니다.
+
+## 12. 고객센터
+
+고객센터는 안내문만 있는 페이지가 아니라 문의 접수 기능이어야 합니다.
+
+문의 유형:
+
+- 계정 / 로그인
+- 구독 / 결제 / 영수증
+- Zenthex Studio
+- Zenthex Trading / Upbit
+- 기타 문의
+
+사용자는 고객센터에서 문의를 남기고, 로그인 사용자는 본인 문의 이력을 확인합니다. 대표는 CEO Dashboard에서 문의 목록을 보고 접수, 확인 중, 답변 완료, 종료 상태로 관리합니다.
+
+## 13. 결제와 구독
+
+구독은 월 자동결제가 기본입니다.
+
+추천 가격:
+
+- Studio Pro: 월 49,000원
+- Trading Pro: 월 99,000원
+- Zenthex Ultimate: 월 149,000원
+
+국내 결제는 Toss Payments, 해외 결제는 글로벌 자동결제용 Stripe를 고려합니다.
+
+사용자는 마이페이지에서 현재 플랜, 구독 상태, 다음 결제일, 결제내역, 영수증 출력을 확인합니다.
+
+## 14. 법적 고지
+
+필수 고지:
+
+`Zenthex Trading은 자동매매 도구이며 투자 자문 또는 수익 보장 서비스가 아닙니다. 모든 투자 판단과 손익 책임은 사용자 본인에게 있습니다.`
+
+금지 표현:
+
+- 수익 보장
+- 무조건 수익
+- 손실 없음
+- 대신 투자
+
+필수 정책:
+
+- 이용약관
+- 개인정보처리방침
+- 환불정책
+- 투자위험고지
+- API 키 보안 정책
+- 데이터 삭제 정책
+
+## 15. 비용 단계
+
+검증 단계:
+
+- 로컬 또는 저비용 서버
+- 테스트 DB
+- 테스트 이메일/SMS 코드
+- Mock 결제
+
+유료 운영 단계:
+
+- 영구 PostgreSQL
+- 고정 IP 서버 또는 고정 outbound IP
+- 실제 이메일/SMS
+- Toss Payments 또는 Stripe 자동결제
+- 모니터링
+- Studio AI/GPU 또는 외부 AI 비용 관리
+
+## 16. 출시 전 필수 검토
+
+출시 전 대표 검토 항목:
+
+- 홈페이지 브랜드 화면 고정
+- 로그인/회원가입
+- 대표 계정 비노출
+- 사용자 승인 흐름
+- 영구 DB 연결
+- 자동결제
+- 결제내역과 영수증
+- 이메일/SMS 실제 발송
+- Studio 체험과 구독 제한
+- Studio JPG/GLB 출력
+- Trading 체험과 실거래 분리
+- Upbit API 키 인증
+- Zenthex 서버 고정 IP
+- Trading 전략 한눈 요약
+- Trading 수익률 그래프
+- Trading 리스크 매니저
+- 고객센터 문의 접수와 대표 답변
+- CEO 대시보드
+- 법적 문서
+
+## 17. 최종 결론
+
+Zenthex는 AI Studio와 자동매매 Trading을 결합한 구독형 SaaS입니다. 홈페이지는 항상 Zenthex 브랜드를 안정적으로 소개하고, 대표/구독/체험 차이는 상단 메뉴와 각 기능 페이지에서 처리합니다. 실제 유료 고객을 받기 전에는 영구 DB, 자동결제, 실제 이메일/SMS, 법적 문서, 고정 IP 실거래 서버, Trading 리스크 검증, 고객 문의 운영 체계를 반드시 완료해야 합니다.
