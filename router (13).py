@@ -1,227 +1,245 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Zenthex SaaS Platform</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
-    :root { --bg:#06070a; --panel:#0b0d12; --line:rgba(255,255,255,.12); --muted:#a1a1aa; --text:#f8fafc; --mint:#00e6c3; --steel:#91a7ff; --gold:#f6c66a; }
-    * { box-sizing:border-box; }
-    body { margin:0; min-height:100vh; background:var(--bg); color:var(--text); font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
-    body::before { content:""; position:fixed; inset:0; pointer-events:none; background:linear-gradient(180deg, rgba(255,255,255,.035), transparent 260px), radial-gradient(circle at 50% -12%, rgba(145,167,255,.18), transparent 34%), radial-gradient(circle at 82% 18%, rgba(0,230,195,.10), transparent 24%); }
-    body::after { content:"Z"; position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:0; pointer-events:none; color:rgba(255,255,255,.026); font-size:min(58vw,720px); font-weight:900; line-height:.8; text-shadow:0 0 120px rgba(0,230,195,.10); }
-    a { color:inherit; }
-    .nav { position:sticky; top:0; z-index:20; min-height:74px; padding:12px 32px; display:flex; align-items:center; justify-content:space-between; gap:18px; border-bottom:1px solid var(--line); background:rgba(6,7,10,.86); backdrop-filter:blur(18px); }
-    .brand { display:flex; align-items:center; gap:12px; font-weight:900; letter-spacing:3px; }
-    .mark-small { width:34px; height:34px; flex:0 0 auto; }
-    .nav-actions { display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
-    .nav a, .nav button { color:white; text-decoration:none; border:1px solid var(--line); background:rgba(255,255,255,.04); padding:10px 14px; border-radius:8px; font-size:13px; font-weight:800; cursor:pointer; font-family:inherit; }
-    .nav a:hover, .nav button:hover { border-color:rgba(0,230,195,.42); }
-    .owner-pill { color:#ffe1a1 !important; border-color:rgba(246,198,106,.45) !important; }
-    .shell { position:relative; z-index:1; width:min(1180px, calc(100% - 40px)); margin:0 auto; padding:28px 0 38px; }
-    .hero { position:relative; min-height:58vh; display:flex; align-items:center; justify-content:center; text-align:center; overflow:hidden; border:1px solid rgba(255,255,255,.08); border-radius:18px; background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.018)); }
-    .hero-mark { position:absolute; inset:0; display:grid; place-items:center; opacity:.30; pointer-events:none; }
-    .hero-mark img { width:min(72vw,760px); height:auto; filter:drop-shadow(0 40px 90px rgba(0,230,195,.10)); }
-    .hero-content { position:relative; z-index:2; width:min(850px, calc(100% - 32px)); padding:52px 0; }
-    .eyebrow { display:inline-flex; color:#d7defe; border:1px solid rgba(145,167,255,.28); background:rgba(145,167,255,.08); padding:8px 11px; border-radius:999px; font-size:11px; font-weight:900; letter-spacing:1.4px; text-transform:uppercase; }
-    h1 { margin:18px 0 14px; font-size:64px; line-height:.92; letter-spacing:0; }
-    .lead { color:#d4d4d8; line-height:1.68; font-size:17px; margin:0 auto 20px; max-width:720px; word-break:keep-all; }
-    .actions { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:28px; justify-content:center; }
-    .cta { min-height:46px; display:inline-flex; align-items:center; justify-content:center; padding:0 18px; border-radius:8px; text-decoration:none; font-size:14px; font-weight:900; border:0; cursor:pointer; font-family:inherit; }
-    .cta.main { background:white; color:#050507; }
-    .cta.trade { background:var(--mint); color:#03100d; }
-    .cta.sub { color:white; background:rgba(255,255,255,.04); border:1px solid var(--line); }
-    .trust, .pricing { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:10px; max-width:880px; margin:0 auto; text-align:left; }
-    .trust div, .price-card { border:1px solid var(--line); background:rgba(255,255,255,.035); border-radius:8px; padding:13px; }
-    .trust strong, .price-card strong { display:block; font-size:13px; margin-bottom:5px; }
-    .trust span, .price-card p { color:var(--muted); font-size:12px; line-height:1.5; margin:0; }
-    .price-card .price { color:var(--mint); font-size:17px; font-weight:900; margin:7px 0; }
-    .preview-band { margin-top:14px; display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-    .visual-panel { min-height:220px; border:1px solid var(--line); border-radius:10px; padding:16px; background:#090b10; position:relative; overflow:hidden; }
-    .floor { position:absolute; inset:58px 24px 24px; border:2px solid rgba(0,230,195,.65); transform:perspective(720px) rotateX(58deg) rotateZ(-8deg); transform-origin:center; }
-    .floor span { position:absolute; border:1px solid rgba(145,167,255,.45); background:rgba(255,255,255,.04); }
-    .floor span:nth-child(1){ left:8%; top:8%; width:42%; height:38%; }
-    .floor span:nth-child(2){ left:54%; top:8%; width:36%; height:28%; }
-    .floor span:nth-child(3){ left:8%; top:52%; width:32%; height:34%; }
-    .floor span:nth-child(4){ left:45%; top:44%; width:45%; height:42%; }
-    .signal-list { position:absolute; left:18px; right:18px; bottom:18px; display:grid; gap:8px; }
-    .signal-row { display:grid; grid-template-columns:1fr auto; gap:12px; padding:10px; border-radius:8px; background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.08); font-size:13px; }
-    .signal-row b { color:#99f6e4; }
-    .visual-panel h3 { margin:0; position:relative; z-index:2; }
-    .visual-panel p { color:#a1a1aa; position:relative; z-index:2; font-size:13px; line-height:1.55; max-width:420px; word-break:keep-all; }
-    .products { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:28px; }
-    .product { border:1px solid var(--line); background:rgba(255,255,255,.035); border-radius:10px; padding:20px; }
-    .product .kicker { color:#cbd5e1; font-size:11px; font-weight:900; letter-spacing:1.4px; text-transform:uppercase; }
-    .product h3 { margin:10px 0 8px; font-size:24px; letter-spacing:0; }
-    .product p { margin:0 0 16px; color:#b8bcc7; line-height:1.65; font-size:14px; word-break:keep-all; }
-    .chips { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:16px; }
-    .chips span { color:#e5e7eb; border:1px solid rgba(255,255,255,.10); background:rgba(255,255,255,.04); padding:7px 9px; border-radius:7px; font-size:12px; font-weight:800; }
-    .section-title { margin:30px 0 12px; font-size:18px; font-weight:900; }
-    .policy { margin:20px 0; color:#8f96a3; font-size:12px; line-height:1.65; word-break:keep-all; }
-    .modal { display:none; position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.72); align-items:center; justify-content:center; padding:24px; }
-    .modal.open { display:flex; }
-    .modal-card { width:min(760px,100%); background:#101014; border:1px solid var(--line); border-radius:10px; padding:28px; box-shadow:0 30px 80px rgba(0,0,0,.45); }
-    .modal-head { display:flex; justify-content:space-between; gap:16px; align-items:start; margin-bottom:16px; }
-    .modal h2 { margin:0; font-size:28px; }
-    .close { width:36px; height:36px; border:1px solid var(--line); background:#17171d; color:white; border-radius:8px; cursor:pointer; font-weight:900; }
-    .modal p, .modal li { color:#d4d4d8; line-height:1.8; word-break:keep-all; }
-    @media (max-width:900px) {
-      .nav { padding:12px 18px; }
-      .brand span { display:none; }
-      .shell { width:min(100% - 28px,1180px); padding-top:34px; }
-      .hero { min-height:auto; }
-      .hero-content { padding:52px 0; }
-      h1 { font-size:46px; }
-      .trust, .products, .pricing, .preview-band { grid-template-columns:1fr; }
-      .hero-mark img { width:120vw; }
-    }
-  </style>
-</head>
-<body>
-  <nav class="nav">
-    <div class="brand">
-      <svg class="mark-small" viewBox="0 0 120 120" aria-hidden="true">
-        <path d="M60 8 104 33v54L60 112 16 87V33L60 8Z" fill="#10141d" stroke="#dbeafe" stroke-width="5"/>
-        <path d="M31 38h44L45 82h44" fill="none" stroke="#00e6c3" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M60 8v32M16 33l31 18M104 33 73 51" stroke="#91a7ff" stroke-width="4" opacity=".85"/>
-      </svg>
-      <span>ZENTHEX</span>
-    </div>
-    <div class="nav-actions" id="nav-actions">
-      <a href="customer.html">고객센터</a>
-      <a href="login.html">로그인</a>
-    </div>
-  </nav>
+﻿import os
+import shutil
+import time
+import uuid
 
-  <main class="shell">
-    <section class="hero">
-      <div class="hero-mark"><img src="/static/zenthex-mark.svg" alt="" /></div>
-      <div class="hero-content">
-        <span class="eyebrow">AI Studio + Signal Guard SaaS</span>
-        <h1>Zenthex</h1>
-        <p class="lead">Zenthex는 프롬프트와 2D 도면을 3D 공간으로 변환하는 AI 스튜디오와, 사용자 설정 기반 자동매매 엔진을 제공하는 구독형 SaaS 플랫폼입니다.</p>
-        <div class="actions">
-          <a class="cta main" href="studio.html">Studio 열기</a>
-          <a class="cta trade" href="finance.html">Trading 열기</a>
-          <a class="cta sub" href="#pricing">구독 가격</a>
-          <button class="cta sub" type="button" onclick="openModal('platform-modal')">Zenthex란?</button>
-        </div>
-        <div class="trust">
-          <div><strong>Studio 체험</strong><span>비로그인도 하루 1회 보기 전용 체험 후 구독을 선택할 수 있습니다.</span></div>
-          <div><strong>Trading 보호</strong><span>체험 화면에서는 API 키를 받지 않고, 실거래는 구독 권한 뒤에만 열립니다.</span></div>
-          <div><strong>SaaS 운영</strong><span>계정, 구독, 결제내역, 영수증과 고객 지원을 한 흐름으로 관리합니다.</span></div>
-        </div>
-      </div>
-    </section>
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Header, HTTPException, Request, UploadFile
+from sqlalchemy.orm import Session
 
-    <section class="preview-band">
-      <article class="visual-panel">
-        <h3>Zenthex Studio Preview</h3>
-        <p>프롬프트와 도면을 3D 공간으로 바꾸는 흐름을 첫 화면에서 바로 이해할 수 있게 보여줍니다.</p>
-        <div class="floor" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
-      </article>
-      <article class="visual-panel">
-        <h3>Zenthex Trading Signals</h3>
-        <p>실거래는 로그인, 구독, 키 인증 후 열리고 후보 코인은 서버에서 점수화합니다.</p>
-        <div class="signal-list" aria-hidden="true">
-          <div class="signal-row"><span>KRW-BTC</span><b>+0.42%</b></div>
-          <div class="signal-row"><span>KRW-ETH</span><b>+0.36%</b></div>
-          <div class="signal-row"><span>KRW-SOL</span><b>+0.31%</b></div>
-        </div>
-      </article>
-    </section>
+from auth.router import get_current_user
+from database.session import get_db
+from studio.providers.nanobanana import generate_preview_image, is_configured as google_ai_studio_is_configured
+try:
+    import cv2
+    import numpy as np
+    from studio.cv_engine import process_image_to_3d
+    STUDIO_WORKER_READY = True
+except Exception as exc:
+    cv2 = None
+    np = None
+    process_image_to_3d = None
+    STUDIO_WORKER_READY = False
+    STUDIO_WORKER_IMPORT_ERROR = str(exc)
 
-    <section class="products">
-      <article class="product">
-        <span class="kicker">Zenthex Studio</span>
-        <h3>프롬프트와 도면을 3D로</h3>
-        <p>문장 또는 2D 도면을 기반으로 3D 공간을 미리보고, Studio Pro 또는 Ultimate 구독 후 JPG 저장, GLB 다운로드와 작업 보관을 사용할 수 있습니다.</p>
-        <div class="chips"><span>Prompt to 3D</span><span>2D 도면 분석</span><span>JPG 저장</span><span>GLB 3D 모델</span></div>
-        <a class="cta main" href="studio.html">Studio 열기</a>
-      </article>
-      <article class="product">
-        <span class="kicker">Zenthex Trading</span>
-        <h3>자동매매 구조와 실거래 권한</h3>
-        <p>업비트 KRW 마켓의 강한 후보를 필터링하고 단기 신호를 점수화합니다. 실제 주문은 Trading Pro 또는 Ultimate 권한과 위험 동의 후에만 실행합니다.</p>
-        <div class="chips"><span>Signal Guard</span><span>Upbit 우선</span><span>API 키 보호</span><span>Binance 확장 예정</span></div>
-        <a class="cta trade" href="finance.html">Trading 열기</a>
-      </article>
-    </section>
+router = APIRouter(prefix="/api/studio", tags=["studio"])
 
-    <h2 class="section-title" id="pricing">구독 가격</h2>
-    <section class="pricing">
-      <article class="price-card"><strong>Studio Pro</strong><div class="price">월 49,000원</div><p>Studio 생성, JPG 저장, GLB 다운로드, 작업 히스토리</p></article>
-      <article class="price-card"><strong>Trading Pro</strong><div class="price">월 99,000원</div><p>Trading 실거래 권한, Signal Guard, 목표 수익률 자동 종료</p></article>
-      <article class="price-card"><strong>Zenthex Ultimate</strong><div class="price">월 149,000원</div><p>Studio + Trading 통합 권한, 우선 처리, 모바일 알림</p></article>
-    </section>
+ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png"}
+MAX_FILE_SIZE = 10 * 1024 * 1024
+TRIAL_USAGE_BY_IP: dict[str, str] = {}
 
-    <p class="policy">Zenthex Trading은 자동매매 도구이며 투자 자문 또는 수익 보장 서비스가 아닙니다. 모든 투자 판단과 손익 책임은 사용자 본인에게 있습니다.</p>
-  </main>
+def generate_3d_task(file_path: str, model_path: str, bg_path: str, style: str, wall_height: float):
+    if not STUDIO_WORKER_READY:
+        print(f"[Studio Worker] Worker unavailable: {STUDIO_WORKER_IMPORT_ERROR}")
+        return
+    try:
+        process_image_to_3d(file_path, model_path, wall_height=wall_height, style=style, output_png_path=bg_path)
+    except Exception as e:
+        print(f"[Studio Worker] Task failed: {e}")
 
-  <div class="modal" id="platform-modal">
-    <div class="modal-card">
-      <div class="modal-head"><h2>Zenthex란?</h2><button class="close" onclick="closeModal('platform-modal')">X</button></div>
-      <p>Zenthex는 AI 3D 제작과 자동매매 실행 구조를 하나의 계정, 구독, 모바일 제어 흐름으로 제공하는 SaaS 플랫폼입니다.</p>
-      <ul>
-        <li>Studio 체험은 보기 전용이며 다운로드는 구독 후 제공합니다.</li>
-        <li>Trading 체험은 구조 확인용이며 API 키 입력을 요구하지 않습니다.</li>
-        <li>실거래는 로그인, 구독 권한, 위험 동의, API 키 확인 후에만 실행됩니다.</li>
-      </ul>
-    </div>
-  </div>
+def get_optional_user(authorization: str | None, db: Session):
+    if not authorization:
+        return None
+    token = authorization.replace("Bearer ", "").strip()
+    if not token:
+        return None
+    try:
+        return get_current_user(token, db)
+    except HTTPException as exc:
+        if exc.status_code == 401:
+            return None
+        raise
 
-  <script>
-    function openModal(id){ document.getElementById(id).classList.add('open'); }
-    function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+def get_client_ip(request: Request) -> str:
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    if request.client:
+        return request.client.host
+    return "unknown"
 
-    let token = localStorage.getItem('zx_token');
-    let user = JSON.parse(localStorage.getItem('zx_user') || 'null');
-    const navActions = document.getElementById('nav-actions');
+def charge_studio_trial_or_quota(user, db: Session, request: Request):
+    if not user or not user_has_studio_access(user):
+        today = time.strftime("%Y-%m-%d")
+        client_ip = get_client_ip(request)
+        if TRIAL_USAGE_BY_IP.get(client_ip) == today:
+            raise HTTPException(
+                status_code=403,
+                detail="오늘의 무료 체험을 이미 사용했습니다. 내일 다시 체험하거나 Studio Pro 또는 Ultimate 구독 후 계속 사용할 수 있습니다.",
+            )
+        TRIAL_USAGE_BY_IP[client_ip] = today
+        return
 
-    function isOwner(u){ return u && u.role === 'owner'; }
+    if user.role == "owner":
+        return
+    if user.studio_generations_left <= 0:
+        raise HTTPException(status_code=403, detail="무료 사용량을 모두 사용했습니다. Studio Pro 또는 Ultimate 구독이 필요합니다.")
+    user.studio_generations_left -= 1
+    db.commit()
 
-    function clearSession(){
-      localStorage.removeItem('zx_token');
-      localStorage.removeItem('zx_user');
-      localStorage.removeItem('zx_expires_at');
-      token=null;
-      user=null;
-    }
+def user_has_studio_access(user) -> bool:
+    if not user:
+        return False
+    return user.role == "owner" or user.plan in ["studio_pro", "ultimate"]
 
-    function renderNav(u){
-      if(!u){
-        navActions.innerHTML='<a href="customer.html">고객센터</a><a href="login.html">로그인</a>';
-        return;
-      }
-      const ownerLink=isOwner(u)?'<a class="owner-pill" href="admin.html">CEO Dashboard</a>':'';
-      navActions.innerHTML=`${ownerLink}<a href="account.html">마이페이지</a><a href="customer.html">고객센터</a><button type="button" onclick="logout()">로그아웃</button>`;
-    }
+def user_can_export(user) -> bool:
+    return user_has_studio_access(user)
 
-    function logout(){
-      clearSession();
-      renderNav(null);
-    }
+def prompt_to_floorplan(prompt: str):
+    if not STUDIO_WORKER_READY:
+        return None
+    img = np.ones((1000, 1500), dtype=np.uint8) * 255
+    lower = prompt.lower()
+    margin = 90
 
-    async function refreshUser(){
-      const expiresAt=Number(localStorage.getItem('zx_expires_at')||0);
-      if(token&&expiresAt&&Date.now()>expiresAt){ clearSession(); renderNav(null); return; }
-      if(!token){ renderNav(null); return; }
-      if(user){ renderNav(user); }
-      try{
-        const res=await fetch('/api/auth/me',{headers:{'Authorization':`Bearer ${token}`}});
-        if(res.ok){
-          user=await res.json();
-          localStorage.setItem('zx_user',JSON.stringify(user));
-          renderNav(user);
-          return;
+    if "32평" in lower or "아파트" in lower:
+        cv2.rectangle(img, (margin, margin), (1410, 910), (0, 0, 0), 10)
+        cv2.line(img, (520, margin), (520, 910), (0, 0, 0), 7)
+        cv2.line(img, (960, margin), (960, 620), (0, 0, 0), 7)
+        cv2.line(img, (520, 430), (1410, 430), (0, 0, 0), 7)
+        cv2.line(img, (960, 620), (1410, 620), (0, 0, 0), 7)
+        cv2.putText(img, "Living", (150, 340), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 0, 0), 3)
+        cv2.putText(img, "Kitchen", (610, 310), cv2.FONT_HERSHEY_SIMPLEX, 1.1, (0, 0, 0), 3)
+        cv2.putText(img, "Room", (1080, 280), cv2.FONT_HERSHEY_SIMPLEX, 1.1, (0, 0, 0), 3)
+        cv2.putText(img, "Bath", (1080, 550), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 0), 3)
+        cv2.putText(img, "Room", (650, 700), cv2.FONT_HERSHEY_SIMPLEX, 1.1, (0, 0, 0), 3)
+    else:
+        cv2.rectangle(img, (100, 100), (1400, 900), (0, 0, 0), 10)
+        cv2.line(img, (520, 100), (520, 900), (0, 0, 0), 6)
+        cv2.line(img, (950, 100), (950, 900), (0, 0, 0), 6)
+        cv2.line(img, (100, 470), (1400, 470), (0, 0, 0), 6)
+    return img
+
+def describe_prompt_preview(prompt: str, source: str = "prompt"):
+    lower = prompt.lower()
+    if "32평" in lower or "아파트" in lower:
+        return {
+            "kind": "apartment_32",
+            "title": "대한민국 32평 아파트",
+            "summary": "거실, 주방, 침실 2개, 욕실, 현관 동선을 가진 아파트형 3D 미리보기입니다.",
+            "rooms": ["거실", "주방", "침실 1", "침실 2", "욕실", "현관"],
         }
-        if(res.status===401){ clearSession(); }
-      }catch(e){ console.error(e); }
-      renderNav(user);
+    if any(word in lower for word in ["카페", "루프탑", "통유리"]):
+        return {
+            "kind": "cafe",
+            "title": "모던 루프탑 카페",
+            "summary": "통유리 전면, 2층 매스, 루프탑 정원을 가진 상업 공간 미리보기입니다.",
+            "rooms": ["라운지", "바", "계단", "루프탑"],
+        }
+    if any(word in lower for word in ["사무실", "오피스", "회의실"]):
+        return {
+            "kind": "office",
+            "title": "업무 공간",
+            "summary": "오픈 업무공간, 회의실, 라운지를 나눈 사무실형 3D 미리보기입니다.",
+            "rooms": ["오픈 오피스", "회의실", "라운지", "포커스룸"],
+        }
+    if source == "upload":
+        return {
+            "kind": "uploaded_plan",
+            "title": "업로드 도면 기반 공간",
+            "summary": "업로드한 2D 도면을 기준으로 벽체와 공간 볼륨을 구성한 미리보기입니다.",
+            "rooms": ["외벽", "내벽", "공간 볼륨"],
+        }
+    return {
+        "kind": "premium",
+        "title": "프리미엄 공간",
+        "summary": "프롬프트를 기준으로 구성한 프리미엄 3D 공간 미리보기입니다.",
+        "rooms": ["메인 공간", "보조 공간", "동선"],
     }
 
-    refreshUser();
-  </script>
-</body>
-</html>
+def build_google_ai_studio_result(prompt: str, reference_image_path: str | None = None):
+    if not google_ai_studio_is_configured():
+        return {"status": "skipped", "message": "GEMINI_API_KEY가 없어 Google AI Studio/Gemini 3D 이미지를 건너뛰고 Studio 기본 미리보기를 사용합니다."}
+    return generate_preview_image(prompt, reference_image_path=reference_image_path)
+
+@router.post("/upload")
+async def upload_floorplan(
+    background_tasks: BackgroundTasks,
+    request: Request,
+    file: UploadFile = File(...),
+    Authorization: str = Header(None),
+    db: Session = Depends(get_db),
+):
+    user = get_optional_user(Authorization, db)
+    charge_studio_trial_or_quota(user, db, request)
+
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    if file_ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail=f"지원하지 않는 파일 형식입니다: {file_ext}. JPG, PNG만 가능합니다.")
+
+    safe_name = f"{int(time.time())}_{uuid.uuid4().hex}{file_ext}"
+    file_path = os.path.join("uploads", safe_name)
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    if os.path.getsize(file_path) > MAX_FILE_SIZE:
+        os.remove(file_path)
+        raise HTTPException(status_code=400, detail="파일이 너무 큽니다. 최대 10MB까지 가능합니다.")
+
+    model_filename = f"{int(time.time())}.glb"
+    model_path = f"static/models/{model_filename}"
+    bg_filename = model_filename.replace(".glb", "_bg.png")
+    bg_path = f"static/models/{bg_filename}"
+    if STUDIO_WORKER_READY:
+        background_tasks.add_task(generate_3d_task, file_path, model_path, bg_path, "premium", 25.0)
+
+    nano = build_google_ai_studio_result(
+        f"업로드한 도면을 기준으로 프리미엄 3D 건축 평면 이미지로 변환해줘. 파일명: {file.filename or 'uploaded floor plan'}",
+        reference_image_path=file_path,
+    )
+    can_export = user_can_export(user)
+    return {
+        "status": "success",
+        "message": "Google AI Studio/Gemini 3D 이미지를 준비했습니다." if nano.get("status") == "success" else ("3D 미리보기를 준비했습니다." if not STUDIO_WORKER_READY else "3D 생성 작업을 시작했습니다."),
+        "preview": describe_prompt_preview(file.filename or "업로드 도면", "upload"),
+        "image_url": nano.get("image_url"),
+        "image_provider": nano.get("provider"),
+        "provider_message": nano.get("message"),
+        "preview_only": not can_export,
+        "export_locked": not can_export,
+        "model_url": f"/static/models/{model_filename}" if can_export and STUDIO_WORKER_READY else None,
+        "bg_url": f"/static/models/{bg_filename}" if can_export and STUDIO_WORKER_READY else None,
+        "worker_ready": STUDIO_WORKER_READY,
+    }
+
+@router.post("/generate")
+async def generate_floorplan(
+    background_tasks: BackgroundTasks,
+    request: Request,
+    prompt: str = Form(...),
+    Authorization: str = Header(None),
+    db: Session = Depends(get_db),
+):
+    user = get_optional_user(Authorization, db)
+    charge_studio_trial_or_quota(user, db, request)
+
+    style = "gallery" if any(word in prompt.lower() for word in ["갤러리", "통유리", "카페"]) else "premium"
+    wall_height = 24.0 if "아파트" in prompt.lower() else 30.0
+    img = prompt_to_floorplan(prompt)
+
+    filename = f"gen_prompt_{int(time.time())}"
+    img_path = f"uploads/{filename}.jpg"
+    if img is not None:
+        cv2.imwrite(img_path, img)
+
+    model_path = f"static/models/{filename}.glb"
+    bg_path = f"static/models/{filename}_bg.png"
+    if STUDIO_WORKER_READY and img is not None:
+        background_tasks.add_task(generate_3d_task, img_path, model_path, bg_path, style, wall_height)
+
+    nano = build_google_ai_studio_result(prompt)
+    can_export = user_can_export(user)
+    return {
+        "status": "success",
+        "message": "Google AI Studio 이미지와 3D 미리보기를 준비했습니다." if nano.get("status") == "success" else ("프롬프트 기반 3D 미리보기를 준비했습니다." if not STUDIO_WORKER_READY else "프롬프트 기반 3D 생성 작업을 시작했습니다."),
+        "preview": describe_prompt_preview(prompt),
+        "image_url": nano.get("image_url"),
+        "image_provider": nano.get("provider"),
+        "provider_message": nano.get("message"),
+        "preview_only": not can_export,
+        "export_locked": not can_export,
+        "model_url": f"/static/models/{filename}.glb" if can_export and STUDIO_WORKER_READY else None,
+        "bg_url": f"/static/models/{filename}_bg.png" if can_export and STUDIO_WORKER_READY else None,
+        "worker_ready": STUDIO_WORKER_READY,
+    }
+
+

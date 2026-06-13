@@ -3,168 +3,122 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Zenthex Trading - Signal Guard</title>
+  <title>Zenthex My Account</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    * { box-sizing: border-box; }
-    body { margin: 0; min-height: 100vh; background: #050507; color: #f4f4f5; font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 24px; }
-    a { color: #a1a1aa; text-decoration: none; font-weight: 800; display: inline-flex; margin-bottom: 24px; }
-    h1, h2, p { margin-top: 0; }
-    header { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 20px; margin-bottom: 24px; border: 1px solid rgba(255,255,255,.10); border-radius: 12px; background: rgba(255,255,255,.035); }
-    .max-w-7xl { max-width: 1280px; margin: 0 auto; }
-    .grid { display: grid; gap: 20px; }
-    body > div > div.grid { grid-template-columns: minmax(280px, 380px) minmax(0, 1fr); }
-    .md\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .md\:grid-cols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-    section { min-width: 0; }
-    section > div, section > div > div, .rounded-xl { border-radius: 12px; }
-    section > div, section > div > div { border: 1px solid rgba(255,255,255,.10); background: rgba(255,255,255,.035); padding: 20px; }
-    label { display: block; color: #a1a1aa; font-size: 12px; font-weight: 800; margin: 14px 0 8px; }
-    input, select { width: 100%; padding: 13px; border-radius: 10px; border: 1px solid rgba(255,255,255,.12); background: #050507; color: white; }
-    button { cursor: pointer; border: 0; }
-    #btn-toggle { width: 100%; margin-top: 20px; padding: 16px; border-radius: 12px; background: #00ffcc; color: #03100d; font-weight: 900; }
-    #log-container { height: 230px; overflow-y: auto; background: #000; border-radius: 10px; padding: 14px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
-    #candidate-list button { color: white; text-align: left; border: 1px solid rgba(255,255,255,.10); background: rgba(0,0,0,.35); border-radius: 10px; padding: 12px; }
-    .hidden { display: none !important; }
-    .text-\[\#00ffcc\], #yield-display { color: #00ffcc; }
-    .text-red-400 { color: #f87171; }
-    .text-green-400 { color: #4ade80; }
-    .text-amber-300 { color: #fcd34d; }
-    .text-gray-400, .text-gray-500 { color: #a1a1aa; }
-    .font-black, strong { font-weight: 900; }
-    @media (max-width: 900px) {
-      body { padding: 16px; }
-      body > div > div.grid, .md\:grid-cols-3, .md\:grid-cols-5 { grid-template-columns: 1fr; }
-      header h1 { font-size: 22px; }
-    }
-  </style>
 </head>
-<body class="bg-[#050507] text-gray-100 min-h-screen p-6">
-  <div class="max-w-7xl mx-auto">
-    <div class="flex gap-3 flex-wrap mb-6">
-      <a href="index.html" class="inline-flex text-gray-400 hover:text-white text-sm font-bold">← Zenthex 메인</a>
-      <button type="button" onclick="goBackHome()" class="text-gray-400 hover:text-white text-sm font-bold bg-transparent border-0 cursor-pointer">이전 화면</button>
+<body class="bg-[#07070a] text-white min-h-screen p-6">
+  <div class="max-w-6xl mx-auto">
+    <div class="flex items-center justify-between mb-6 gap-4 flex-wrap">
+      <a href="index.html" class="text-sm text-gray-400 hover:text-white font-bold">← 메인으로</a>
+      <button onclick="logout()" class="px-4 py-2 rounded-lg bg-white/10 border border-white/10 text-sm font-bold">로그아웃</button>
     </div>
-    <header class="flex justify-between items-center mb-6 bg-white/[.03] border border-white/10 rounded-xl p-5 gap-4 flex-wrap">
-      <div>
-        <p class="text-xs tracking-[.3em] text-[#00ffcc] font-black uppercase">Risk Managed Trading</p>
-        <h1 class="text-2xl font-black mt-1">Zenthex Trading <span class="text-[#00ffcc]">Signal Guard</span></h1>
-      </div>
-      <div class="text-sm font-bold">상태 <span id="status-indicator" class="text-red-400 ml-2">IDLE</span></div>
+
+    <header class="p-6 rounded-xl bg-white/[.03] border border-white/10 mb-6">
+      <p class="text-xs tracking-[.3em] text-[#00ffcc] font-black uppercase">My Account</p>
+      <h1 class="text-3xl font-black tracking-tight mt-2">Zenthex 마이페이지</h1>
+      <p class="text-gray-400 mt-2">계정 인증, 구독 상태, 결제내역과 영수증을 확인합니다.</p>
     </header>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <section class="space-y-6">
-        <div class="bg-yellow-500/[.06] border border-yellow-500/30 rounded-xl p-5">
-          <h2 class="text-yellow-300 text-sm font-black mb-3">투자 위험 고지</h2>
-          <p class="text-xs text-gray-300 leading-6">Zenthex Trading은 자동매매 도구이며 투자 자문 또는 수익 보장 서비스가 아닙니다. 실거래 모드는 실제 업비트 주문이 실행됩니다. 출금 권한이 없는 API 키만 사용하세요.</p>
-        </div>
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+      <div class="p-5 rounded-xl bg-white/[.03] border border-white/10"><p class="text-gray-500 text-xs font-black uppercase">이메일</p><strong id="user-email" class="text-xl mt-2 block break-all">-</strong></div>
+      <div class="p-5 rounded-xl bg-white/[.03] border border-white/10"><p class="text-gray-500 text-xs font-black uppercase">현재 플랜</p><strong id="user-plan" class="text-xl mt-2 block text-[#00ffcc]">-</strong></div>
+      <div class="p-5 rounded-xl bg-white/[.03] border border-white/10"><p class="text-gray-500 text-xs font-black uppercase">이메일 인증</p><strong id="user-verified" class="text-xl mt-2 block">-</strong></div>
+    </section>
 
-        <div class="bg-white/[.03] border border-white/10 rounded-xl p-5">
-          <h2 class="text-[#00ffcc] text-sm font-black mb-4">거래소 연결 상태</h2>
-          <div class="space-y-3 text-xs leading-6">
-            <div class="flex items-center justify-between gap-3 border border-emerald-400/20 bg-emerald-400/[.06] rounded-lg p-3">
-              <span class="font-black text-white">Upbit</span>
-              <span class="text-emerald-300 font-bold">체험/실거래 연결</span>
-            </div>
-            <div class="flex items-center justify-between gap-3 border border-amber-400/20 bg-amber-400/[.06] rounded-lg p-3">
-              <span class="font-black text-white">Binance</span>
-              <span class="text-amber-300 font-bold">다음 실거래 연결 대상</span>
-            </div>
-            <p class="text-gray-400">체험판은 API 키를 받지 않고 자동매매 구조를 설명합니다. 실거래는 로그인·구독·위험동의 후에만 표시되며, 대표 계정은 구독 없이 접근할 수 있습니다.</p>
-          </div>
-        </div>
+    <section id="role-workspace" class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6"></section>
 
-        <div class="bg-white/[.03] border border-white/10 rounded-xl p-5">
-          <h2 class="text-[#00ffcc] text-sm font-black mb-4">Signal Guard 공식</h2>
-          <p class="text-xs text-gray-300 leading-6">업비트 전체 KRW 코인에서 먼저 24시간 강한 후보를 거르고, 실제 진입은 1분·3분·5분 단타 신호로 판단합니다. 거래량 급증, 단기 고점 돌파, 1분 이동평균 추세, 최근 모멘텀을 점수화하고 과열·급락 후보는 제외합니다.</p>
-        </div>
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+      <div class="p-6 rounded-xl bg-white/[.03] border border-white/10">
+        <h2 class="font-black text-xl mb-4">이메일 인증</h2>
+        <div class="flex gap-2 mb-3"><input id="verify-code" class="flex-1 bg-black border border-white/10 rounded-lg p-3" placeholder="인증 코드 입력"/><button onclick="verifyEmail()" class="px-4 rounded-lg bg-[#00ffcc] text-black font-black">인증</button></div>
+        <button id="email-code-btn" onclick="resendCode()" class="w-full py-3 rounded-lg bg-white/10 border border-white/10 font-bold">이메일 인증 코드 보내기</button>
+        <p id="verify-msg" class="text-sm text-gray-400 mt-3"></p>
+      </div>
+      <div class="p-6 rounded-xl bg-white/[.03] border border-white/10">
+        <h2 class="font-black text-xl mb-4">구독 정보</h2>
+        <p id="subscription-note" class="text-sm text-gray-400 leading-6">일반 사용자는 결제 완료 후 결제내역과 영수증이 이 화면에 표시됩니다. 실제 결제 승인은 결제사 연동 단계에서 자동 처리됩니다.</p>
+        <div id="plan-cards" class="mt-4 grid grid-cols-1 gap-3"></div>
+      </div>
+    </section>
 
-        <div class="bg-white/[.03] border border-white/10 rounded-xl p-5">
-          <h2 class="text-[#00ffcc] text-sm font-black mb-4">전략 설정</h2>
+    <section class="p-6 rounded-xl bg-white/[.03] border border-white/10">
+      <h2 class="font-black text-xl mb-4">결제내역</h2>
+      <div id="subscription-box" class="mb-4 p-4 rounded-lg bg-black/30 border border-white/10 text-sm text-gray-300"></div>
+      <div id="billing-list" class="space-y-3 text-sm text-gray-300"></div>
+    </section>
+  </div>
 
-          <label class="text-xs text-gray-400 font-bold">거래 모드</label>
-          <select id="trading-mode" class="w-full mt-2 mb-3 bg-black border border-white/10 rounded-lg p-3" onchange="toggleTradingMode()">
-            <option value="practice" selected>전략 체험 모드</option>
-          </select>
-          <div id="login-required-box" class="mb-4 p-4 rounded-xl border border-white/10 bg-white/[.04]">
-            <p class="text-xs text-gray-300 leading-5 font-bold">실거래 모드는 로그인 후 Trading Pro 또는 Ultimate 구독 상태에서만 표시됩니다.</p>
-            <button id="login-required-action" type="button" onclick="location.href='login.html'" class="mt-3 w-full py-3 rounded-lg bg-white text-black font-black">로그인하고 실거래 보기</button>
-          </div>
-
-          <div id="real-key-box" class="hidden mb-4 p-4 rounded-xl border border-red-500/30 bg-red-500/[.06]">
-            <p id="real-key-note" class="text-xs text-red-300 leading-5 font-bold mb-3">실거래 모드는 실제 돈으로 매수/매도합니다. 업비트 API 키는 조회/주문 권한만 허용하고 출금 권한은 절대 켜지 마세요.</p>
-            <label class="text-xs text-gray-400 font-bold">Upbit Access Key</label>
-            <input id="access-key" class="w-full mt-2 mb-3 bg-black border border-white/10 rounded-lg p-3" autocomplete="off" />
-            <label class="text-xs text-gray-400 font-bold">Upbit Secret Key</label>
-            <input id="secret-key" type="password" class="w-full mt-2 mb-3 bg-black border border-white/10 rounded-lg p-3" autocomplete="off" />
-            <label class="flex gap-2 text-xs text-gray-300 leading-5"><input id="real-accepted" type="checkbox" class="mt-1" /> 출금 권한이 없는 API 키이며, 손실 가능성과 실주문 실행을 이해했습니다.</label>
-          </div>
-
-          <div id="binance-planned-box" class="hidden mb-4 p-4 rounded-xl border border-amber-500/30 bg-amber-500/[.06]">
-            <p class="text-xs text-amber-200 leading-5 font-bold">바이낸스 실거래는 다음 연결 단계입니다. 현재 화면에서는 방향과 전략 체험만 제공하고, 실제 주문은 연결 완료 후 로그인·구독·API 키·위험동의 뒤에 열립니다.</p>
-          </div>
-
-          <label class="text-xs text-gray-400 font-bold">코인 선택 방식</label>
-          <select id="ticker-mode" class="w-full mt-2 mb-3 bg-black border border-white/10 rounded-lg p-3" onchange="toggleTickerMode()">
-            <option value="auto" selected>상승 후보 자동 선정</option>
-            <option value="manual">직접 선택</option>
-          </select>
-
-          <div id="manual-ticker-box" class="hidden mb-4">
-            <label class="text-xs text-gray-400 font-bold">직접 선택 코인</label>
-            <select id="selected-ticker" class="w-full mt-2 bg-black border border-white/10 rounded-lg p-3">
-              <option value="KRW-BTC">비트코인 BTC</option><option value="KRW-ETH">이더리움 ETH</option><option value="KRW-XRP">리플 XRP</option><option value="KRW-SOL">솔라나 SOL</option><option value="KRW-DOGE">도지코인 DOGE</option><option value="KRW-ADA">에이다 ADA</option><option value="KRW-AVAX">아발란체 AVAX</option><option value="KRW-LINK">체인링크 LINK</option><option value="KRW-DOT">폴카닷 DOT</option><option value="KRW-SUI">수이 SUI</option>
-            </select>
-          </div>
-
-          <label class="text-xs text-gray-400 font-bold">목표 수익률</label>
-          <select id="target-yield" class="w-full mt-2 mb-4 bg-black border border-white/10 rounded-lg p-3">
-            <option value="1.003">+0.3% 빠른 단타</option><option value="1.005" selected>+0.5% 기본 단타</option><option value="1.008">+0.8%</option><option value="1.01">+1.0%</option>
-          </select>
-
-          <label class="text-xs text-gray-400 font-bold">투자금 설정</label>
-          <select id="investment-mode" class="w-full mt-2 mb-3 bg-black border border-white/10 rounded-lg p-3" onchange="toggleInvestmentInput()">
-            <option value="fixed" selected>고정 금액</option><option value="ratio">잔고 비율</option>
-          </select>
-          <div id="fixed-input-box"><input id="investment-amount" type="number" value="50000" class="w-full bg-black border border-white/10 rounded-lg p-3" /></div>
-          <div id="ratio-input-box" class="hidden"><input id="investment-ratio" type="number" value="50" class="w-full bg-black border border-white/10 rounded-lg p-3" /></div>
-
-          <button id="btn-toggle" class="w-full mt-5 py-4 rounded-xl bg-[#00ffcc] text-black font-black">전략 체험 시작</button>
-        </div>
-      </section>
-
-      <section class="lg:col-span-2 space-y-6">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="bg-white/[.03] border border-white/10 rounded-xl p-5"><p class="text-xs text-gray-500 font-black uppercase">선정 코인</p><strong id="active-ticker" class="text-2xl mt-2 block">KRW-BTC</strong></div>
-          <div class="bg-white/[.03] border border-white/10 rounded-xl p-5"><p class="text-xs text-gray-500 font-black uppercase">현재가</p><strong id="current-price" class="text-2xl mt-2 block">연결 중</strong></div>
-          <div class="bg-white/[.03] border border-white/10 rounded-xl p-5"><p class="text-xs text-gray-500 font-black uppercase">수익률</p><strong id="yield-display" class="text-2xl mt-2 block text-[#00ffcc]">0.00%</strong></div>
-        </div>
-        <div class="bg-white/[.03] border border-white/10 rounded-xl p-5"><h2 class="text-sm text-gray-400 font-black mb-4">업비트 전체 코인 상승 후보</h2><div id="candidate-list" class="grid grid-cols-1 md:grid-cols-5 gap-3 text-sm"></div></div>
-        <div class="bg-white/[.03] border border-white/10 rounded-xl p-5 h-80 flex flex-col"><h2 class="text-sm text-gray-400 font-black mb-4">System Log</h2><div id="log-container" class="flex-1 overflow-y-auto bg-black rounded-lg p-4 font-mono text-xs space-y-2"><div class="text-gray-500">시작 버튼을 눌러 전체 코인 스캔을 시작하세요.</div></div></div>
-      </section>
+  <div id="receipt-modal" class="hidden fixed inset-0 bg-black/80 p-6 items-center justify-center">
+    <div class="bg-white text-black w-full max-w-2xl rounded-xl p-8">
+      <div id="receipt-content"></div>
+      <div class="flex gap-2 mt-6"><button onclick="window.print()" class="px-4 py-3 rounded-lg bg-black text-white font-black">영수증 출력</button><button onclick="closeReceipt()" class="px-4 py-3 rounded-lg bg-gray-200 font-black">닫기</button></div>
     </div>
   </div>
+
 <script>
-const btnToggle=document.getElementById('btn-toggle'), statusIndicator=document.getElementById('status-indicator'), priceEl=document.getElementById('current-price'), yieldEl=document.getElementById('yield-display'), logBox=document.getElementById('log-container'), targetYieldEl=document.getElementById('target-yield'), modeEl=document.getElementById('investment-mode'), amountEl=document.getElementById('investment-amount'), ratioEl=document.getElementById('investment-ratio'), tickerModeEl=document.getElementById('ticker-mode'), selectedTickerEl=document.getElementById('selected-ticker'), tradingModeEl=document.getElementById('trading-mode'), accessKeyEl=document.getElementById('access-key'), secretKeyEl=document.getElementById('secret-key'), realAcceptedEl=document.getElementById('real-accepted');
-let isRunning=false;
-const token=localStorage.getItem('zx_token');
-const user=JSON.parse(localStorage.getItem('zx_user')||'null');
-function goBackHome(){location.href='index.html'}
-function userCanSeeRealTrade(){if(!token||!user)return false;if(['owner','admin'].includes(user.role))return true;return ['trading_pro','ultimate'].includes(user.plan)}
-function setupTradingModes(){const loginBox=document.getElementById('login-required-box');const action=document.getElementById('login-required-action');tradingModeEl.innerHTML='<option value="practice" selected>전략 체험 모드</option>';if(userCanSeeRealTrade()){tradingModeEl.insertAdjacentHTML('beforeend','<option value="real">업비트 실거래 모드</option><option value="binance_planned">바이낸스 실거래 모드 준비중</option>');loginBox.classList.add('hidden')}else{loginBox.classList.remove('hidden');loginBox.querySelector('p').innerText=token?'실거래 모드는 Trading Pro 또는 Ultimate 구독 후 표시됩니다.':'실거래 모드는 로그인 후 Trading Pro 또는 Ultimate 구독 상태에서만 표시됩니다.';action.innerText=token?'구독 정보 확인하기':'로그인하고 실거래 보기';action.onclick=()=>{location.href=token?'account.html':'login.html'}}tradingModeEl.value='practice'}
-function toggleInvestmentInput(){document.getElementById('fixed-input-box').classList.toggle('hidden',modeEl.value!=='fixed');document.getElementById('ratio-input-box').classList.toggle('hidden',modeEl.value!=='ratio')}
-function toggleTickerMode(){document.getElementById('manual-ticker-box').classList.toggle('hidden',tickerModeEl.value!=='manual')}
-function toggleTradingMode(){const canReal=userCanSeeRealTrade();const isReal=tradingModeEl.value==='real'&&canReal;document.getElementById('real-key-box').classList.toggle('hidden',!isReal);document.getElementById('binance-planned-box').classList.toggle('hidden',tradingModeEl.value!=='binance_planned');btnToggle.disabled=tradingModeEl.value==='binance_planned';btnToggle.innerText=isReal?'업비트 실거래 시작':tradingModeEl.value==='binance_planned'?'바이낸스 연결 준비중':'전략 체험 시작';btnToggle.style.opacity=tradingModeEl.value==='binance_planned'?'.55':'1'}
-function useCandidate(ticker){tickerModeEl.value='manual';toggleTickerMode();selectedTickerEl.value=ticker}
-function renderLogs(logs){logBox.innerHTML='';logs.forEach(msg=>{const div=document.createElement('div');div.className=msg.includes('Real')?'text-amber-300 font-bold':msg.includes('Take Profit')?'text-[#00ffcc] font-bold':msg.includes('Risk')||msg.includes('Stop Loss')||msg.includes('Error')?'text-red-300 font-bold':'text-gray-300';div.innerText=msg;logBox.appendChild(div)});logBox.scrollTop=logBox.scrollHeight}
-function renderCandidates(candidates){const box=document.getElementById('candidate-list');box.innerHTML='';(candidates||[]).forEach(c=>{const item=document.createElement('button');item.type='button';item.className='text-left bg-black/40 border border-white/10 rounded-lg p-3 hover:border-[#00ffcc]/50 transition-colors';item.onclick=()=>useCandidate(c.ticker);item.innerHTML=`<div class="font-black">${c.ticker}</div><div class="text-[#00ffcc] text-xs mt-1">+${(c.momentum*100).toFixed(2)}%</div>`;box.appendChild(item)})}
-async function fetchStatus(){try{const res=await fetch('/api/finance/status');const data=await res.json();isRunning=data.isRunning;document.getElementById('active-ticker').innerText=data.activeTicker||'KRW-BTC';priceEl.innerText=Math.floor(data.currentPrice||data.currentBtcPrice||0).toLocaleString()+'원';yieldEl.innerText=data.avgBuyPrice>0?(((data.currentPrice/data.avgBuyPrice)-1)*100).toFixed(3)+'%':'대기 중';renderLogs(data.logs||[]);renderCandidates(data.signalCandidates||[]);statusIndicator.innerText=data.state+(data.tradingMode==='real'?' / REAL':'');statusIndicator.className=isRunning?'text-green-400 ml-2':'text-red-400 ml-2';btnToggle.innerText=isRunning?'엔진 중지':tradingModeEl.value==='real'?'실거래 시작':'전략 체험 시작';btnToggle.className=isRunning?'w-full mt-5 py-4 rounded-xl bg-white/10 border border-white/20 text-white font-black':'w-full mt-5 py-4 rounded-xl bg-[#00ffcc] text-black font-black'}catch(e){console.error(e)}}
-btnToggle.addEventListener('click',async()=>{if(tradingModeEl.value==='binance_planned'){alert('바이낸스 실거래는 다음 연결 단계입니다. 현재는 전략 체험 또는 업비트 실거래만 사용할 수 있습니다.');return}if(!isRunning){if(tradingModeEl.value==='real'&&!userCanSeeRealTrade()){alert('실거래는 로그인과 Trading Pro 또는 Ultimate 구독이 필요합니다.');location.href=token?'account.html':'login.html';return}if(tradingModeEl.value==='real'&&!realAcceptedEl.checked){alert('실거래 위험 확인 체크가 필요합니다.');return}if(tradingModeEl.value==='real'&&!confirm('실제 업비트 주문이 실행됩니다. 계속할까요?'))return;const res=await fetch('/api/finance/start',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token||''}`},body:JSON.stringify({targetYield:parseFloat(targetYieldEl.value),investmentMode:modeEl.value,investmentAmount:parseFloat(amountEl.value||50000),investmentRatio:parseFloat(ratioEl.value||50)/100,tickerMode:tickerModeEl.value,selectedTicker:selectedTickerEl.value,tradingMode:tradingModeEl.value==='real'?'real':'practice',realAccepted:realAcceptedEl.checked,accessKey:accessKeyEl.value,secretKey:secretKeyEl.value})});const data=await res.json();if(data.status==='error')alert(data.message)}else{await fetch('/api/finance/stop',{method:'POST'})}fetchStatus()});
-setInterval(fetchStatus,1000);setupTradingModes();toggleTickerMode();toggleTradingMode();fetchStatus();
+const token = localStorage.getItem('zx_token');
+let currentUser = JSON.parse(localStorage.getItem('zx_user') || 'null');
+const expiresAt = Number(localStorage.getItem('zx_expires_at') || 0);
+if(token&&expiresAt&&Date.now()>expiresAt){ logout(); }
+if(!token){ alert('로그인이 필요합니다.'); location.href='login.html'; }
+function headers(){ return {'Content-Type':'application/json','Authorization':`Bearer ${token}`}; }
+function logout(){ localStorage.removeItem('zx_token'); localStorage.removeItem('zx_user'); localStorage.removeItem('zx_expires_at'); location.href='index.html'; }
+async function loadMe(){ const res=await fetch('/api/auth/me',{headers:headers()}); const data=await res.json(); if(!res.ok){logout(); return;} currentUser=data; localStorage.setItem('zx_user',JSON.stringify(data)); renderUser(); }
+function isOwner(){ return currentUser && currentUser.role === 'owner'; }
+const planCatalog=[
+  {id:'studio_pro',name:'Studio Pro',price:'월 49,000원',desc:'프롬프트/2D 도면 3D 생성, GLB 다운로드, 작업 히스토리'},
+  {id:'trading_pro',name:'Trading Pro',price:'월 99,000원',desc:'Trading 실거래 권한, Signal Guard, 목표 수익률 자동 종료'},
+  {id:'ultimate',name:'Zenthex Ultimate',price:'월 149,000원',desc:'Studio + Trading 통합 권한, 우선 처리, 모바일 알림'}
+];
+function renderPlans(){
+  const box=document.getElementById('plan-cards');
+  if(isOwner()){
+    box.innerHTML='<div class="p-4 rounded-lg bg-[#00ffcc]/10 border border-[#00ffcc]/30 text-[#00ffcc] font-black">대표 계정은 결제 없이 Ultimate 전체 권한이 적용됩니다.</div>';
+    return;
+  }
+  box.innerHTML=planCatalog.map(plan=>`<div class="p-4 rounded-lg bg-black/30 border border-white/10"><div class="flex justify-between gap-3 items-start"><div><strong class="text-white">${plan.name}</strong><p class="text-xs text-gray-400 mt-1 leading-5">${plan.desc}</p></div><span class="text-[#00ffcc] font-black whitespace-nowrap">${plan.price}</span></div><button onclick="startCheckout('${plan.id}')" class="mt-3 w-full py-3 rounded-lg bg-white text-black font-black">${plan.name} 구독 신청</button></div>`).join('');
+}
+function roleCard(title,body,href,label,accent=false){
+  return `<div class="p-5 rounded-xl bg-white/[.03] border ${accent?'border-[#00ffcc]/30':'border-white/10'}"><h3 class="font-black text-white">${title}</h3><p class="text-sm text-gray-400 leading-6 mt-2">${body}</p><a href="${href}" class="inline-flex mt-4 px-4 py-3 rounded-lg ${accent?'bg-[#00ffcc] text-black':'bg-white/10 text-white border border-white/10'} font-black text-sm">${label}</a></div>`;
+}
+function renderRoleWorkspace(){
+  const box=document.getElementById('role-workspace');
+  if(isOwner()){
+    box.innerHTML=[
+      roleCard('CEO 운영 대시보드','가입 승인, 구독 권한, 고객 문의, 출시 검토, 긴급 정지는 대표 전용 화면에서 관리합니다.','admin.html','CEO Dashboard 열기',true),
+      roleCard('Studio 전체 권한','대표 계정은 결제 없이 Studio 생성, JPG 저장, GLB 다운로드를 검토할 수 있습니다.','studio.html','Studio 검토'),
+      roleCard('Trading 전체 권한','실거래 검증, 서버 IP, 위험제어, 모바일 상태 확인은 Trading 화면에서 테스트합니다.','finance.html','Trading 검토')
+    ].join('');
+    return;
+  }
+  box.innerHTML=[
+    roleCard('내 Studio 작업','구독자는 본인 프롬프트, 도면 변환, JPG 저장, GLB 다운로드만 사용합니다.','studio.html','Studio 열기',currentUser.plan==='studio_pro'||currentUser.plan==='ultimate'),
+    roleCard('내 Trading 엔진','구독자는 본인 API 키와 본인 잔고 기준으로 실거래 엔진을 실행하고 상태를 확인합니다.','finance.html','Trading 열기',currentUser.plan==='trading_pro'||currentUser.plan==='ultimate'),
+    roleCard('고객센터','계정, 결제, Studio, Trading 문의는 고객센터에서 접수하고 답변을 확인합니다.','customer.html','문의하기')
+  ].join('');
+}
+function renderUser(){
+  document.getElementById('user-email').innerText=currentUser.email;
+  document.getElementById('user-plan').innerText=isOwner()?'Owner Ultimate':currentUser.plan;
+  document.getElementById('user-verified').innerText=currentUser.email_verified?'인증 완료':'인증 필요';
+  document.getElementById('user-verified').className=currentUser.email_verified?'text-xl mt-2 block text-[#00ffcc]':'text-xl mt-2 block text-amber-300';
+  document.getElementById('email-code-btn').style.display=currentUser.email_verified?'none':'block';
+  if(isOwner()){
+    document.getElementById('subscription-note').innerText='대표 계정은 구독 결제 없이 Zenthex Ultimate 권한을 사용합니다.';
+  }else{
+    document.getElementById('subscription-note').innerText='구독 전 금액과 권한을 확인하세요. Studio 다운로드는 Studio Pro 또는 Ultimate, Trading 실거래는 Trading Pro 또는 Ultimate 구독 후 열립니다.';
+  }
+  renderRoleWorkspace();
+  renderPlans();
+}
+async function resendCode(){ const res=await fetch('/api/auth/email/resend',{method:'POST',headers:headers()}); const data=await res.json(); document.getElementById('verify-msg').innerText=data.dev_code?`${data.message} 테스트 인증코드: ${data.dev_code}`:(data.detail||data.message); if(res.ok) loadMe(); }
+async function verifyEmail(){ const code=document.getElementById('verify-code').value.trim(); const res=await fetch('/api/auth/email/verify',{method:'POST',headers:headers(),body:JSON.stringify({code})}); const data=await res.json(); document.getElementById('verify-msg').innerText=data.detail||data.message; if(res.ok) loadMe(); }
+async function startCheckout(planId){ const res=await fetch('/api/billing/subscribe',{method:'POST',headers:headers(),body:JSON.stringify({plan_id:planId})}); const data=await res.json(); if(data.status==='owner_unlocked'){ alert('대표 계정 Ultimate 권한이 적용되었습니다.'); loadMe(); return; } if(data.checkout_url){ alert('결제창 연동 주소가 준비되었습니다. 실제 결제사 연결 후 이 주소로 이동합니다.'); return; } alert(data.detail||data.status||'구독 신청이 접수되었습니다.'); }
+async function loadSubscription(){ const box=document.getElementById('subscription-box'); const res=await fetch('/api/billing/subscription',{headers:headers()}); const data=await res.json().catch(()=>null); const sub=data&&data.subscription; if(!sub){ box.innerText='구독 상태를 불러오지 못했습니다.'; return; } const status=sub.status==='active'?'자동결제 활성':sub.status==='owner_unlocked'?'대표 전체 권한':'구독 비활성'; box.innerHTML=`<strong class="text-white block mb-1">현재 구독 상태: ${status}</strong><span>플랜: ${sub.plan_id||'free'} / 다음 결제일: ${sub.next_billing_date||'없음'} / 결제사: ${sub.provider||'미연결'}</span>`; }
+async function loadBilling(){ const res=await fetch('/api/billing/history',{headers:headers()}); const data=await res.json(); const box=document.getElementById('billing-list'); box.innerHTML=''; if(!data.history||!data.history.length){ box.innerHTML='<div class="text-gray-500">결제내역이 없습니다.</div>'; return; } data.history.forEach(item=>{ const row=document.createElement('div'); row.className='p-4 rounded-lg bg-black/30 border border-white/10 flex justify-between gap-4 items-center flex-wrap'; row.innerHTML=`<div><div class="font-black text-white">${item.plan_name}</div><div class="text-gray-400">${item.created_at||''} / ${item.amount_krw.toLocaleString()}원 / ${item.status}</div></div><button class="px-4 py-2 rounded-lg bg-white text-black font-black" onclick="openReceipt(${item.id})">영수증 보기</button>`; box.appendChild(row); }); }
+async function openReceipt(id){ const res=await fetch(`/api/billing/receipt/${id}`,{headers:headers()}); const data=await res.json(); const r=data.receipt; document.getElementById('receipt-content').innerHTML=`<h1 style="font-size:28px;font-weight:900;margin:0 0 20px">Zenthex 영수증</h1><p>영수증 번호: ${r.receipt_no}</p><p>서비스: ${r.plan_name}</p><p>금액: ${r.amount_krw.toLocaleString()}원</p><p>상태: ${r.status}</p><p>결제수단: ${r.payment_method}</p><p>결제일: ${r.created_at||''}</p><hr style="margin:24px 0"><p>Zenthex SaaS Platform</p>`; document.getElementById('receipt-modal').classList.remove('hidden'); document.getElementById('receipt-modal').classList.add('flex'); }
+function closeReceipt(){ document.getElementById('receipt-modal').classList.add('hidden'); document.getElementById('receipt-modal').classList.remove('flex'); }
+loadMe(); loadSubscription(); loadBilling();
 </script>
 </body>
 </html>
-
-
-

@@ -1,235 +1,110 @@
-import base64
-import hashlib
-import hmac
-import json
-import time
-import uuid
-import urllib.error
-import urllib.parse
-import urllib.request
+import cv2
+import numpy as np
+import trimesh
+import os
 
+def process_image_to_3d(img_path, output_glb_path, wall_height=15.0, style="gallery", output_png_path=None):
+    print(f"BIM Parametric Engine: Processing Masterpiece Architecture for {img_path} with style {style}")
+    
+    # 1. Vision Analysis (Extract Spatial Proportions)
+    img = cv2.imread(img_path)
+    if img is None:
+        raise ValueError("AI 이미지를 읽을 수 없습니다. 시스템 오류입니다.")
+    h, w, _ = img.shape
+    aspect = w / h
+    
+    # 2. PRO CAD Blueprint Rendering (2D Masterpiece)
+    bp_w, bp_h = 1000, max(600, int(1000 / aspect))
+    blueprint = np.zeros((bp_h, bp_w, 3), dtype=np.uint8)
+    blueprint[:] = (60, 28, 14) # Premium Navy Blue background BGR
+    
+    # Draw Grid System
+    grid_spacing = 40
+    for x in range(0, bp_w, grid_spacing):
+        thickness = 2 if x % 200 == 0 else 1
+        color = (120, 60, 30) if x % 200 == 0 else (90, 40, 20)
+        cv2.line(blueprint, (x, 0), (x, bp_h), color, thickness)
+    for y in range(0, bp_h, grid_spacing):
+        thickness = 2 if y % 200 == 0 else 1
+        color = (120, 60, 30) if y % 200 == 0 else (90, 40, 20)
+        cv2.line(blueprint, (0, y), (bp_w, y), color, thickness)
+        
+    # Parametric Architectural Metrics
+    margin_x, margin_y = int(bp_w * 0.15), int(bp_h * 0.15)
+    core_w, core_h = bp_w - 2 * margin_x, bp_h - 2 * margin_y
+    
+    # Draft Outer Layout
+    cv2.rectangle(blueprint, (margin_x, margin_y), (bp_w - margin_x, bp_h - margin_y), (255, 255, 255), 3)
+    cv2.rectangle(blueprint, (margin_x - 10, margin_y - 10), (bp_w - margin_x + 10, bp_h - margin_y + 10), (255, 255, 255), 1)
 
-BITHUMB_BASE = "https://api.bithumb.com"
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    if style == "gallery":
+        cv2.rectangle(blueprint, (margin_x, margin_y), (bp_w - margin_x, margin_y + 80), (200, 200, 200), -1)
+        cv2.putText(blueprint, "GALLERY: EXPOSED CONCRETE CORE WITH WATER FEATURE", (margin_x + 20, margin_y + 40), font, 0.5, (40, 20, 10), 2)
+        cv2.putText(blueprint, "FRAMELESS CURTAIN WALL [TRANSMISSION: 0.95]", (margin_x + 20, bp_h - margin_y - 20), font, 0.45, (255, 255, 255), 1)
+    else:
+        cv2.rectangle(blueprint, (margin_x, margin_y), (margin_x + 80, bp_h - margin_y), (200, 200, 200), -1)
+        cv2.rectangle(blueprint, (bp_w - margin_x - 80, margin_y), (bp_w - margin_x, bp_h - margin_y), (200, 200, 200), -1)
+        cv2.putText(blueprint, "STUDIO: PRIVATE CONCRETE BUNKER WITH COURTYARD", (margin_x + 100, margin_y + 40), font, 0.5, (255, 255, 255), 1)
+    
+    cv2.putText(blueprint, f"W: {core_w*10} mm", (bp_w // 2 - 40, margin_y - 25), font, 0.5, (180, 210, 255), 1)
+    cv2.putText(blueprint, f"D: {core_h*10} mm", (margin_x - 110, bp_h // 2), font, 0.5, (180, 210, 255), 1)
+    cv2.putText(blueprint, "NANO BANANA PARAMETRIC PROTOCOL v2.0", (bp_w - 420, bp_h - 20), font, 0.5, (120, 120, 120), 1)
+    
+    if output_png_path:
+        cv2.imwrite(output_png_path, blueprint)
+    
+    # 3. BIM Assembly (3D Flawless Geometry Generation)
+    bim_scene = trimesh.Scene()
+    rm = trimesh.transformations.rotation_matrix(-np.pi/2, [1, 0, 0])
+    
+    # Scaling factor
+    scale_multiplier = 0.05 
+    width_extents = core_w * scale_multiplier
+    depth_extents = core_h * scale_multiplier
+    
+    def add_box(name, extents, translation):
+        box = trimesh.primitives.Box(extents=extents)
+        box.apply_translation(translation)
+        box.apply_transform(rm)
+        bim_scene.add_geometry(box, geom_name=name, node_name=name)
 
+    wall_thickness = 4.0
+    
+    # 3.1 Base Layers
+    if style == "gallery":
+        # Massive floating water feature foundation
+        add_box('layer_floor_water', [width_extents * 2.0, depth_extents * 2.0, 2.0], [0, 0, -3.0])
+        add_box('layer_floor_base', [width_extents * 1.1, depth_extents * 1.1, 1.0], [0, 0, 0.5])
+        
+        # Back Wall
+        add_box('layer_wall_core', [width_extents * 0.95, wall_thickness, wall_height], [0, depth_extents * 0.45, wall_height / 2 + 1.0])
+        # Side Concrete Fins
+        add_box('layer_wall_sideL', [wall_thickness, depth_extents * 0.9, wall_height], [-width_extents * 0.45, 0, wall_height / 2 + 1.0])
+        add_box('layer_wall_sideR', [wall_thickness, depth_extents * 0.9, wall_height], [width_extents * 0.45, 0, wall_height / 2 + 1.0])
+        # Full Glass Front
+        add_box('layer_window_front', [width_extents * 0.85, 1.5, wall_height - 2.0], [0, -depth_extents * 0.45, wall_height / 2 + 1.0])
+        
+        # Massive floating roof
+        add_box('layer_ceiling_roof', [width_extents * 1.4, depth_extents * 1.4, 2.0], [0, -depth_extents * 0.1, wall_height + 2.0])
+    
+    else: # studio (Bunker)
+        add_box('layer_floor_ground', [width_extents * 1.3, depth_extents * 1.3, 4.0], [0, 0, -2.0])
+        add_box('layer_floor_base', [width_extents * 1.0, depth_extents * 1.0, 1.0], [0, 0, 0.5])
+        
+        # U-shape solid bunker
+        add_box('layer_wall_sideL', [wall_thickness * 1.5, depth_extents * 0.95, wall_height], [-width_extents * 0.45, 0, wall_height / 2 + 1.0])
+        add_box('layer_wall_sideR', [wall_thickness * 1.5, depth_extents * 0.95, wall_height], [width_extents * 0.45, 0, wall_height / 2 + 1.0])
+        add_box('layer_wall_back', [width_extents * 0.95, wall_thickness * 1.5, wall_height], [0, depth_extents * 0.45, wall_height / 2 + 1.0])
+        
+        # Front has a thick wall with a small window strip
+        add_box('layer_wall_front_bottom', [width_extents * 0.95, wall_thickness, wall_height * 0.3], [0, -depth_extents * 0.45, wall_height * 0.15 + 1.0])
+        add_box('layer_wall_front_top', [width_extents * 0.95, wall_thickness, wall_height * 0.4], [0, -depth_extents * 0.45, wall_height * 0.8 + 1.0])
+        add_box('layer_window_strip', [width_extents * 0.8, 1.0, wall_height * 0.3], [0, -depth_extents * 0.45, wall_height * 0.45 + 1.0])
+        
+        # Concrete Block Roof
+        add_box('layer_ceiling_roof', [width_extents * 1.05, depth_extents * 1.05, 3.5], [0, 0, wall_height + 2.5])
 
-def clean_key(value: str) -> str:
-    return (value or "").strip().replace("\u200b", "").replace("\ufeff", "")
-
-
-def _b64url(data: bytes) -> str:
-    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
-
-
-def _query_string(params: dict | None) -> str:
-    if not params:
-        return ""
-    return urllib.parse.urlencode(params)
-
-
-def build_bithumb_jwt(access_key: str, secret_key: str, query: str = "") -> str:
-    header = {"alg": "HS256", "typ": "JWT"}
-    payload = {
-        "access_key": access_key,
-        "nonce": str(uuid.uuid4()),
-        "timestamp": int(time.time() * 1000),
-    }
-    if query:
-        payload["query_hash"] = hashlib.sha512(query.encode("utf-8")).hexdigest()
-        payload["query_hash_alg"] = "SHA512"
-
-    signing_input = ".".join(
-        [
-            _b64url(json.dumps(header, separators=(",", ":")).encode("utf-8")),
-            _b64url(json.dumps(payload, separators=(",", ":")).encode("utf-8")),
-        ]
-    )
-    signature = hmac.new(secret_key.encode("utf-8"), signing_input.encode("ascii"), hashlib.sha256).digest()
-    return f"{signing_input}.{_b64url(signature)}"
-
-
-def explain_bithumb_error(raw_error) -> str:
-    text = str(raw_error or "")
-    lowered = text.lower()
-    if "notallowip" in lowered or "ip" in lowered:
-        return "Bithumb API allowed IP does not match. Add the Zenthex server outbound IP in Bithumb API settings."
-    if "out_of_scope" in lowered or "scope" in lowered:
-        return "Bithumb API permission is not enough. Enable asset lookup and order permission only; keep withdrawal disabled."
-    if "jwt" in lowered or "signature" in lowered or "verification" in lowered:
-        return "Bithumb Secret Key or JWT signature is invalid. Reissue the key if the secret may have been copied incorrectly."
-    if "access" in lowered or "key" in lowered or "unauthorized" in lowered or "401" in lowered:
-        return "Bithumb API Key is invalid, expired, or blocked by permission/IP settings."
-    return "Bithumb authentication failed. Check API Key, Secret Key, permissions, and allowed IP."
-
-
-def _request(method: str, path: str, access_key: str = "", secret_key: str = "", params: dict | None = None):
-    query = _query_string(params)
-    url = f"{BITHUMB_BASE}{path}"
-    data = None
-    headers = {"Content-Type": "application/json; charset=utf-8", "accept": "application/json"}
-    if method == "GET" and query:
-        url = f"{url}?{query}"
-    if access_key and secret_key:
-        token = build_bithumb_jwt(access_key, secret_key, query)
-        headers["Authorization"] = f"Bearer {token}"
-    if method in ["POST", "DELETE"]:
-        data = json.dumps(params or {}, separators=(",", ":")).encode("utf-8")
-
-    request = urllib.request.Request(url, data=data, headers=headers, method=method)
-    try:
-        with urllib.request.urlopen(request, timeout=8) as response:
-            body = response.read().decode("utf-8")
-            return response.status, json.loads(body) if body else {}
-    except urllib.error.HTTPError as exc:
-        raw = exc.read().decode("utf-8", errors="replace")
-        try:
-            parsed = json.loads(raw)
-        except Exception:
-            parsed = raw
-        return exc.code, parsed
-    except Exception as exc:
-        return 0, str(exc)
-
-
-def get_bithumb_current_price(ticker: str) -> float:
-    status, data = _request("GET", "/v1/ticker", params={"markets": ticker})
-    if status == 200 and isinstance(data, list) and data:
-        return float(data[0].get("trade_price") or 0)
-    return 0.0
-
-
-class BithumbClient:
-    def __init__(self, access_key: str, secret_key: str):
-        self.access_key = clean_key(access_key)
-        self.secret_key = clean_key(secret_key)
-
-    def get_balances(self):
-        status, data = _request("GET", "/v1/accounts", self.access_key, self.secret_key)
-        if status == 200 and isinstance(data, list):
-            return data
-        return {"error": data, "message": explain_bithumb_error(data)}
-
-    def get_balance(self, currency: str) -> float:
-        balances = self.get_balances()
-        if not isinstance(balances, list):
-            return 0.0
-        target = currency.replace("KRW-", "")
-        for row in balances:
-            if row.get("currency") == target:
-                return float(row.get("balance") or 0)
-        return 0.0
-
-    def buy_market_order(self, ticker: str, amount_krw: float):
-        params = {
-            "market": ticker,
-            "side": "bid",
-            "price": str(int(amount_krw)),
-            "order_type": "price",
-        }
-        status, data = _request("POST", "/v2/orders", self.access_key, self.secret_key, params)
-        if status in [200, 201] and isinstance(data, dict):
-            return data
-        return {"error": data, "message": explain_bithumb_error(data)}
-
-    def sell_market_order(self, ticker: str, volume: float):
-        params = {
-            "market": ticker,
-            "side": "ask",
-            "volume": f"{volume:.12f}".rstrip("0").rstrip("."),
-            "order_type": "market",
-        }
-        status, data = _request("POST", "/v2/orders", self.access_key, self.secret_key, params)
-        if status in [200, 201] and isinstance(data, dict):
-            return data
-        return {"error": data, "message": explain_bithumb_error(data)}
-
-
-def check_bithumb_key(access_key: str, secret_key: str):
-    client = BithumbClient(access_key, secret_key)
-    balances = client.get_balances()
-    if not isinstance(balances, list):
-        return {
-            "status": "error",
-            "message": explain_bithumb_error(balances),
-            "verified": False,
-            "checklist": [
-                "Enable Bithumb asset lookup and order permissions",
-                "Keep withdrawal permission disabled",
-                "Register the Zenthex server outbound IP",
-                "Remove spaces or line breaks around Secret Key",
-            ],
-        }
-
-    krw_balance = 0.0
-    asset_count = 0
-    for row in balances:
-        currency = row.get("currency")
-        balance = float(row.get("balance") or 0)
-        locked = float(row.get("locked") or 0)
-        if currency == "KRW":
-            krw_balance = balance
-        elif balance + locked > 0:
-            asset_count += 1
-
-    return {
-        "status": "success",
-        "message": f"Bithumb key verified. KRW balance is about {krw_balance:,.0f} KRW and held assets are {asset_count}.",
-        "verified": True,
-        "cashBalance": krw_balance,
-        "assetCount": asset_count,
-    }
-
-
-def build_bithumb_account_summary(access_key: str, secret_key: str):
-    client = BithumbClient(access_key, secret_key)
-    balances = client.get_balances()
-    if not isinstance(balances, list):
-        return {"status": "error", "message": explain_bithumb_error(balances)}
-
-    cash_balance = 0.0
-    positions = []
-    for row in balances:
-        currency = row.get("currency")
-        balance = float(row.get("balance") or 0)
-        locked = float(row.get("locked") or 0)
-        total_qty = balance + locked
-        if currency == "KRW":
-            cash_balance = balance
-            continue
-        if not currency or total_qty <= 0:
-            continue
-        ticker = f"KRW-{currency}"
-        price = get_bithumb_current_price(ticker)
-        avg_price = float(row.get("avg_buy_price") or 0)
-        valuation = total_qty * price if price else 0
-        entry_value = avg_price * total_qty if avg_price else 0
-        pnl = valuation - entry_value if entry_value else 0
-        pnl_pct = pnl / entry_value if entry_value else 0
-        positions.append(
-            {
-                "ticker": ticker,
-                "qty": total_qty,
-                "availableQty": balance,
-                "lockedQty": locked,
-                "avgBuyPrice": avg_price,
-                "currentPrice": price,
-                "valuation": valuation,
-                "pnl": pnl,
-                "pnlPct": pnl_pct,
-                "status": "BITHUMB HOLDING",
-            }
-        )
-
-    coin_value = sum(item.get("valuation", 0) for item in positions)
-    invested_value = sum((item.get("avgBuyPrice", 0) or 0) * (item.get("qty", 0) or 0) for item in positions)
-    total_pnl = coin_value - invested_value if invested_value else 0
-    return {
-        "status": "success",
-        "message": "Bithumb account connected.",
-        "cashBalance": cash_balance,
-        "coinValue": coin_value,
-        "estBalance": cash_balance + coin_value,
-        "investedValue": invested_value,
-        "totalPnl": total_pnl,
-        "totalPnlPct": total_pnl / invested_value if invested_value else 0,
-        "positions": positions,
-    }
+    # 4. Flawless Export
+    bim_scene.export(output_glb_path)
+    print(f"BIM Parametric Engine: Successfully exported mathematically perfect architecture to {output_glb_path}")
