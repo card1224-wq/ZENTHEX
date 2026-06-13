@@ -1,414 +1,191 @@
-﻿from fastapi import APIRouter, Depends, HTTPException, Header, Request, status
-from sqlalchemy import func
-from sqlalchemy.orm import Session
-from database.session import get_db
-from database.models import User
-from auth.schemas import (
-    EmailRequest,
-    PasswordHintRequest,
-    PasswordResetRequest,
-    PhoneCodeRequest,
-    PhoneVerifyRequest,
-    UserCreate,
-    UserLogin,
-    Token,
-    UserResponse,
-    VerifyEmailRequest,
-)
-from auth.hash import get_password_hash, verify_password
-import os
-import random
-import smtplib
-import ssl
-import uuid
-import hmac
-import hashlib
-import base64
-import time
-from email.message import EmailMessage
+﻿# Zenthex SaaS
 
-router = APIRouter(prefix="/api/auth", tags=["auth"])
-SESSION_TOKENS = {}
-DEFAULT_OWNER_EMAILS = {"7foliath@naver.com"}
-DEV_EMAIL_OUTBOX = []
-PHONE_VERIFICATION_CODES = {}
-PHONE_VERIFIED_NUMBERS = set()
-DEV_PHONE_OUTBOX = []
-TEST_PHONE_CODE = "122492"
-TEST_EMAIL_CODE = "122492"
+Zenthex is an AI SaaS platform with Zenthex Studio and Zenthex Trading.
 
-def normalize_email(email: str) -> str:
-    return (email or "").strip().lower()
+## Features
 
-def normalize_phone(phone_number: str) -> str:
-    return "".join(ch for ch in (phone_number or "") if ch.isdigit())
+- Zenthex Studio: prompt and 2D drawing to AI 3D workspace
+- Studio Google AI Studio/Gemini image generation appears as the main result; true GLB/OBJ output is the later 3D Worker server stage
+- Studio trial: anonymous users get 1 generation per IP per day
+- Studio preview protection: trial/free users receive view-only previews without download URLs
+- Zenthex Trading: risk-managed strategy experience and Signal Guard
+- Trading split entry: divide a configured total budget into multiple entries and calculate take-profit/stop-loss from the average buy price
+- Trading stop controls: pause keeps holdings, while sell-and-stop market-sells the current Zenthex position before ending the engine
+- Trading logs use KST and the screen explains the automatic selection filters before entry
+- Trading desktop layout uses three columns: quick execution, live monitor, and auxiliary settings
+- Trading scanner rejects price-falling volume spikes, strong recent red candles, and late 24h-high chase entries
+- Trading entry guard blocks broad BTC/ETH short-term selloffs, weak orderbooks, instant post-signal price drops, and repeat entries into recently stopped-out coins
+- Upbit: live market scan, strategy experience, and gated real trading
+- Binance: connector-ready key verification and balance lookup, with Spot-only auto-ordering as the next engine attachment
+- Owner dashboard for the email configured in `ZENTHEX_OWNER_EMAILS`
+- Email verification, phone verification, ID lookup, password reset
+- My Page with billing history and receipt print view
+- SMTP mail delivery through environment variables
+- Protected dev outbox and mock payment controls for safer public uploads
+- Owner launch review system in the CEO dashboard
+- Owner subscriber management: view accounts, change plan/role, and delete duplicate accounts
+- Customer inquiry system: users can submit support tickets and the owner can manage status/replies in the CEO dashboard
+- Owner account receives Ultimate access without payment, but still needs email code verification
 
-def normalize_hint_answer(answer: str) -> str:
-    return " ".join((answer or "").strip().lower().split())
+Login tokens are signed so new logins continue to work after a server restart or redeploy. If an older browser token is still present from a previous build, Studio clears it and retries as a one-day trial instead of blocking the prompt flow with an invalid-token error. Real trading still requires a fresh valid login because it can place real orders.
 
-def find_user_by_email(db: Session, email: str):
-    return db.query(User).filter(func.lower(User.email) == normalize_email(email)).first()
+Login sessions expire automatically. The default session lifetime is 24 hours and can be changed with `ZENTHEX_SESSION_HOURS`. Closing the browser does not immediately log out by itself because the app keeps a signed session for normal SaaS convenience, but expired sessions are rejected by the backend and cleared by the main pages.
 
-def get_owner_emails():
-    configured = os.getenv("ZENTHEX_OWNER_EMAILS", "")
-    emails = {normalize_email(email) for email in configured.split(",") if email.strip()}
-    return DEFAULT_OWNER_EMAILS | emails
+Accounts are stored in the database, not in the static GitHub files. If the deployment starts with a new empty `zenthex.db`, an old browser login token can remain while the matching account no longer exists on the server. In that case the app now clears stale sessions and the login screen shows whether the email does not exist or the password is wrong. Production should use a persistent database through `ZENTHEX_DATABASE_URL`.
 
-def resolve_role(email: str) -> str:
-    return "owner" if normalize_email(email) in get_owner_emails() else "user"
+For paid launch, the deployment rule is: GitHub updates application code only; user accounts, passwords, subscriptions, receipts, Studio jobs, Trading settings, and encrypted API-key records stay in the persistent production database. Do not rely on a newly created server-local SQLite file after real users or payments exist.
 
-def make_code() -> str:
-    return f"{random.randint(100000, 999999)}"
+Subscriptions should be monthly auto-renewal. Recommended providers are Toss Payments billing-key auto-payment for Korea and Stripe subscriptions for overseas cards. Payment webhooks should update subscription status, next billing date, failed-payment grace periods, cancellations, refunds, and receipt history.
 
-def is_local_request(request: Request) -> bool:
-    if not request.client:
-        return False
-    return request.client.host in {"127.0.0.1", "localhost", "::1"}
+The code supports PostgreSQL through `ZENTHEX_DATABASE_URL` and includes the PostgreSQL driver in `requirements.txt`. SQLite-only compatibility migrations are skipped automatically when PostgreSQL is used. See `PRODUCTION_DATABASE.md` for the production database checklist.
 
-def smtp_configured() -> bool:
-    host = (os.getenv("ZENTHEX_SMTP_HOST") or "").strip()
-    user = (os.getenv("ZENTHEX_SMTP_USER") or "").strip()
-    password = (os.getenv("ZENTHEX_SMTP_PASSWORD") or "").strip()
-    if not host or not user or not password:
-        return False
-    blocked_values = {"smtp.example.com", "no-reply@example.com", "change-me"}
-    return host not in blocked_values and user not in blocked_values and password not in blocked_values
+Cost review is part of the CEO launch gate. The project can stay low-cost during validation, but paid launch needs budget planning for database, hosting, storage, Studio AI/GPU work, email/SMS, monitoring, and payment fees. The current end-to-end architecture is summarized in `ZENTHEX_MASTER_PLAN.md`.
 
-def send_account_email(to_email: str, subject: str, body: str):
-    smtp_host = os.getenv("ZENTHEX_SMTP_HOST")
-    smtp_port = int(os.getenv("ZENTHEX_SMTP_PORT", "587"))
-    smtp_user = os.getenv("ZENTHEX_SMTP_USER")
-    smtp_password = os.getenv("ZENTHEX_SMTP_PASSWORD")
-    smtp_from = os.getenv("ZENTHEX_SMTP_FROM", smtp_user or "no-reply@zenthex.com")
-    use_ssl = os.getenv("ZENTHEX_SMTP_SSL", "false").lower() == "true"
+Studio and Trading refresh the current account on page load. Owner and paid users see full-access language inside the product screens according to their plan, while free or anonymous users see trial/subscription guidance. Product headers use Zenthex branding consistently.
 
-    message = EmailMessage()
-    message["From"] = smtp_from
-    message["To"] = to_email
-    message["Subject"] = subject
-    message.set_content(body)
+The homepage hero stays as a public Zenthex brand introduction for every visitor, including the owner account. Owner operations are exposed through dashboard links and owner-only cards, not by replacing the main brand headline.
 
-    if smtp_configured():
-        try:
-            if use_ssl:
-                context = ssl.create_default_context()
-                with smtplib.SMTP_SSL(smtp_host, smtp_port, context=context) as server:
-                    server.login(smtp_user, smtp_password)
-                    server.send_message(message)
-            else:
-                with smtplib.SMTP(smtp_host, smtp_port) as server:
-                    server.starttls(context=ssl.create_default_context())
-                    server.login(smtp_user, smtp_password)
-                    server.send_message(message)
-            print(f"[Zenthex Mail] sent to={to_email} subject={subject}")
-            return {"sent": True, "mode": "smtp"}
-        except Exception as exc:
-            print(f"[Zenthex Mail] SMTP failed: {exc}. Falling back to dev outbox.")
+Owner and subscriber workspaces are separated. Subscribers use My Page for their own subscription, receipts, Studio, Trading, and support. The owner uses CEO Dashboard for user approval, plan changes, support management, launch review, emergency stop, and operational checks. Owner-only metrics or controls must not appear in subscriber screens.
 
-    DEV_EMAIL_OUTBOX.append({"to": to_email, "subject": subject, "body": body})
-    print(f"[Zenthex Mail:DEV] to={to_email} subject={subject} body={body}")
-    return {"sent": False, "mode": "dev_outbox"}
+Logged-in users see My Page, Customer Center, and Logout in the homepage navigation. The owner also sees CEO Dashboard. Logged-in users should not see only the anonymous Login/Trial navigation.
 
-def token_secret() -> str:
-    return os.getenv("ZENTHEX_TOKEN_SECRET", "zenthex-local-dev-token-secret")
+Role separation:
 
-def sign_token_payload(payload: str) -> str:
-    return hmac.new(token_secret().encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).hexdigest()
+- Owner: can access CEO dashboard, subscriber management, launch review, emergency stop, Studio, and Trading without payment.
+- Studio Pro: can use Studio generation/export features only.
+- Trading Pro: can use Trading real-mode features only.
+- Ultimate: can use Studio and Trading, but not CEO operations.
+- Free or anonymous users: can access limited trial/structure views only.
 
-def session_ttl_seconds() -> int:
-    hours = float(os.getenv("ZENTHEX_SESSION_HOURS", "24") or 24)
-    return max(1, int(hours * 3600))
+## Account Verification
 
-def make_signed_token(user_id: int) -> str:
-    issued_at = int(time.time())
-    payload = f"{user_id}:{issued_at}:{uuid.uuid4().hex}"
-    signature = sign_token_payload(payload)
-    raw = f"{payload}:{signature}".encode("utf-8")
-    return "zx." + base64.urlsafe_b64encode(raw).decode("utf-8").rstrip("=")
+Signup collects name, email, password confirmation, birth date, phone number, and password hint question/answer. Phone verification is required before a normal user can complete signup. If SMS provider keys are not configured, the test build uses the fixed verification code `122492` so testing is not blocked. A production SMS provider such as Naver Cloud SENS, Aligo, or Twilio should be connected before public launch.
 
-def read_signed_token(token: str):
-    if not token or not token.startswith("zx."):
-        return None
-    encoded = token[3:]
-    encoded += "=" * (-len(encoded) % 4)
-    try:
-        raw = base64.urlsafe_b64decode(encoded.encode("utf-8")).decode("utf-8")
-        user_id, issued_at, nonce, signature = raw.split(":", 3)
-    except Exception:
-        return None
-    payload = f"{user_id}:{issued_at}:{nonce}"
-    if not hmac.compare_digest(sign_token_payload(payload), signature):
-        return None
-    try:
-        if int(time.time()) - int(issued_at) > session_ttl_seconds():
-            return None
-    except ValueError:
-        return None
-    try:
-        return int(user_id)
-    except ValueError:
-        return None
+Normal users enter an owner-approval pending state after signup. The owner reviews identity details in the CEO dashboard and changes the account to approved before the user can log in and use paid services. The owner email remains automatically approved.
 
-def issue_user_token(user: User):
-    access_token = make_signed_token(user.id)
-    SESSION_TOKENS[access_token] = {"user_id": user.id, "expires_at": int(time.time()) + session_ttl_seconds()}
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "expires_in": session_ttl_seconds(),
-        "user_info": UserResponse.model_validate(user),
-    }
+## Launch Review
 
-def apply_owner_privileges(user: User):
-    user.role = "owner"
-    user.plan = "ultimate"
-    user.studio_generations_left = 999999
-    user.approval_status = "approved"
-    user.is_active = True
+The CEO dashboard includes a "출시 전 검토" panel. It checks core release risks such as owner account exposure, signup fields, phone verification, Studio trial lock, Trading real-trade lock, mock payment protection, and required database columns.
 
-@router.post("/phone/send-code")
-def send_phone_verification(req: PhoneCodeRequest, request: Request):
-    phone_number = normalize_phone(req.phone_number)
-    if len(phone_number) < 10:
-        raise HTTPException(status_code=400, detail="Please enter a valid phone number.")
-    sms_configured = all(os.getenv(key) for key in [
-        "ZENTHEX_SMS_PROVIDER",
-        "ZENTHEX_SMS_ACCESS_KEY",
-        "ZENTHEX_SMS_SECRET_KEY",
-        "ZENTHEX_SMS_FROM",
-    ])
-    code = make_code() if sms_configured else TEST_PHONE_CODE
-    PHONE_VERIFICATION_CODES[phone_number] = code
-    DEV_PHONE_OUTBOX.append({"phone_number": phone_number, "code": code})
-    response = {"status": "success", "message": "Phone verification code has been sent."}
-    if is_local_request(request) or not sms_configured or os.getenv("ZENTHEX_ENABLE_DEV_OUTBOX", "false").lower() == "true":
-        response["dev_code"] = code
-        response["message"] = "Test phone verification code is available."
-    return response
+Detailed review criteria are in `PROJECT_REVIEW.md`.
 
-@router.post("/phone/verify")
-def verify_phone(req: PhoneVerifyRequest):
-    phone_number = normalize_phone(req.phone_number)
-    if not phone_number or PHONE_VERIFICATION_CODES.get(phone_number) != req.code.strip():
-        raise HTTPException(status_code=400, detail="Invalid phone verification code.")
-    PHONE_VERIFIED_NUMBERS.add(phone_number)
-    PHONE_VERIFICATION_CODES.pop(phone_number, None)
-    return {"status": "success", "message": "Phone verification completed."}
+The full representative master plan is in `ZENTHEX_MASTER_PLAN.md`.
 
-@router.post("/signup", response_model=UserResponse)
-def signup(user: UserCreate, db: Session = Depends(get_db)):
-    email = normalize_email(user.email)
-    if find_user_by_email(db, email):
-        raise HTTPException(status_code=400, detail="This email is already registered.")
+## Customer Center
 
-    role = resolve_role(email)
-    verification_code = make_code() if smtp_configured() else TEST_EMAIL_CODE
-    hint_answer = normalize_hint_answer(user.password_hint_answer)
-    phone_number = normalize_phone(user.phone_number or "")
+The Customer Center is not only an information page. Users can submit account, billing, Studio, Trading, Upbit, or general inquiries through `/customer.html`. Logged-in users can also view their own recent tickets. The owner can review incoming tickets, change status, and leave an internal reply from `/admin.html`.
 
-    if len(user.full_name.strip()) < 2:
-        raise HTTPException(status_code=400, detail="Please enter your name.")
-    if len(user.birth_date or "") < 8:
-        raise HTTPException(status_code=400, detail="Please enter your birth date.")
-    if len(phone_number) < 10:
-        raise HTTPException(status_code=400, detail="Please enter your phone number.")
-    if role != "owner" and phone_number not in PHONE_VERIFIED_NUMBERS:
-        raise HTTPException(status_code=400, detail="Please complete phone verification.")
-    if len(user.password) < 6:
-        raise HTTPException(status_code=400, detail="Password must be at least 6 characters.")
-    if not user.password_hint_question.strip() or len(hint_answer) < 2:
-        raise HTTPException(status_code=400, detail="Please enter a password hint question and answer.")
+## Trading Direction
 
-    new_user = User(
-        full_name=user.full_name.strip()[:80],
-        email=email,
-        hashed_password=get_password_hash(user.password),
-        birth_date=(user.birth_date or "").strip()[:20],
-        phone_number=phone_number[:30],
-        phone_verified=True,
-        phone_verification_code=None,
-        password_hint_question=user.password_hint_question.strip()[:120],
-        password_hint_answer_hash=get_password_hash(hint_answer),
-        role=role,
-        plan="ultimate" if role == "owner" else "free",
-        studio_generations_left=999999 if role == "owner" else 3,
-        approval_status="approved" if role == "owner" else "pending",
-        is_active=True if role == "owner" else False,
-        email_verified=False,
-        email_verification_code=verification_code,
-    )
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+Current production test target is Upbit first, with Bithumb added as a second live KRW exchange path. Binance should be added as the next connector with the same safety structure:
 
-    send_account_email(email, "Zenthex email verification code", f"Verification code: {verification_code}")
-    PHONE_VERIFIED_NUMBERS.discard(phone_number)
-    return new_user
+- Public: exchange status, market scan preview, strategy explanation
+- Paid: real trading, API key registration, order execution
+- Required safety: order-only API key, withdrawal permission disabled, risk agreement, owner kill switch
+- Bithumb scope: spot KRW market only, JWT key verification, balance lookup, and market buy/sell through the shared risk manager
+- First Binance scope: spot trading only, small order tests, no futures until risk controls are proven
 
-@router.post("/login", response_model=Token)
-def login(user: UserLogin, db: Session = Depends(get_db)):
-    db_user = find_user_by_email(db, user.email)
-    if not db_user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="가입된 이메일이 없습니다. 배포 후 기존 계정이 사라진 것처럼 보이면 서버 DB가 새로 만들어진 상태일 수 있습니다.",
-        )
-    if not verify_password(user.password, db_user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="비밀번호가 맞지 않습니다. 비밀번호 찾기에서 힌트 질문 또는 인증 코드로 재설정하세요.",
-        )
+Binance connector readiness is now in place for account creation day. Owner or Trading Pro/Ultimate users can select Binance connection, choose Testnet or Live, enter API/Secret keys, run key diagnostics, verify the key, and load balances. This does not yet route automatic orders through Binance; it prepares the verified connector so the next trading-engine step can attach Binance Spot to the same risk manager used by Upbit and Bithumb.
 
-    desired_role = resolve_role(db_user.email)
-    if desired_role != "owner" and (db_user.approval_status or "approved") != "approved":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="가입 신청은 완료되었지만 대표 승인 대기 중입니다. 승인 후 로그인할 수 있습니다.",
-        )
-    if desired_role != "owner" and db_user.is_active is False:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="대표 승인 대기 중인 계정입니다. 승인 후 사용할 수 있습니다.",
-        )
-    if db_user.role != desired_role or desired_role == "owner":
-        if desired_role == "owner":
-            apply_owner_privileges(db_user)
-        else:
-            db_user.role = desired_role
-        db.commit()
-        db.refresh(db_user)
+The Trading screen starts with explicit exchange selection buttons. Upbit and Bithumb open live auto-trading paths after key verification and risk consent, while Binance opens the connection and verification path so a newly created Binance account can be tested immediately.
 
-    return issue_user_token(db_user)
+Upbit real-trading keys require asset lookup and order permissions, and the public IP address of the running Zenthex FastAPI server must be registered on the Upbit Open API key. Bithumb and Binance use the same fixed-IP principle when IP restrictions are enabled. GitHub Pages is not the trading server; it only serves static files. If authentication fails, the UI returns a more specific diagnostic for likely IP, permission, Access Key, or Secret Key problems. The Trading screen shows the configured Zenthex server IP from `ZENTHEX_SERVER_PUBLIC_IP`; if the environment value is empty, Zenthex still displays the intended fixed IP `74.220.52.254` instead of drifting to a random auto-detected value. It includes "업비트 키 진단하기" for troubleshooting and "업비트 키 인증하기" for the live-trading gate. Secret Key is hidden by default, with a temporary view button for paste checks. The backend re-checks the key again when the real engine starts.
 
-@router.get("/me", response_model=UserResponse)
-def me(Authorization: str = Header(None), db: Session = Depends(get_db)):
-    if not Authorization:
-        raise HTTPException(status_code=401, detail="Login required.")
-    token = Authorization.replace("Bearer ", "")
-    user = get_current_user(token, db)
-    if resolve_role(user.email) == "owner" and (user.role != "owner" or user.plan != "ultimate"):
-        apply_owner_privileges(user)
-        db.commit()
-        db.refresh(user)
-    return user
+For real paid trading, the outbound IP should be fixed. Zenthex currently uses `74.220.52.254` as the intended fixed server IP value. The production server must actually route outbound Upbit/Bithumb/Binance requests through this same IP, and `ZENTHEX_SERVER_PUBLIC_IP=74.220.52.254` should be set in the server environment. If the verified outbound IP differs from `74.220.52.254`, the exchange key must either use the verified IP or the server must be moved behind a fixed-IP VPS/NAT/proxy before production trading.
 
-@router.post("/email/resend")
-def resend_verification(request: Request, Authorization: str = Header(None), db: Session = Depends(get_db)):
-    user = require_current_user(Authorization, db)
-    if user.email_verified:
-        return {"status": "success", "message": "Email is already verified."}
-    if resolve_role(user.email) == "owner":
-        apply_owner_privileges(user)
-    user.email_verification_code = make_code() if smtp_configured() else TEST_EMAIL_CODE
-    db.commit()
-    send_account_email(user.email, "Zenthex email verification code", f"Verification code: {user.email_verification_code}")
-    response = {"status": "success", "message": "Verification code has been sent."}
-    if is_local_request(request) or not smtp_configured() or os.getenv("ZENTHEX_ENABLE_DEV_OUTBOX", "false").lower() == "true":
-        response["dev_code"] = user.email_verification_code
-    return response
+The Trading screen includes an outbound-IP verification check. It compares `ZENTHEX_SERVER_PUBLIC_IP` with the actual public IP seen from the FastAPI server. If the two values differ, do not treat the deployment as ready for Upbit live trading.
 
-@router.post("/email/verify")
-def verify_email(req: VerifyEmailRequest, Authorization: str = Header(None), db: Session = Depends(get_db)):
-    user = require_current_user(Authorization, db)
-    if user.email_verified:
-        return {"status": "success", "message": "Email is already verified."}
-    if not user.email_verification_code or user.email_verification_code != req.code:
-        raise HTTPException(status_code=400, detail="Invalid verification code.")
-    if resolve_role(user.email) == "owner":
-        apply_owner_privileges(user)
-    user.email_verified = True
-    user.email_verification_code = None
-    db.commit()
-    return {"status": "success", "message": "Email verification completed."}
+The Trading page keeps the long strategy form readable with a compact top summary for exit mode, target yield, capital mode, and coin selection. It also plots the latest Upbit balance/status `totalPnlPct` as a return-rate chart, so the user can watch profit movement instead of only reading current holdings.
 
-@router.post("/find-id")
-def find_id(req: EmailRequest, db: Session = Depends(get_db)):
-    user = find_user_by_email(db, req.email)
-    if user:
-        send_account_email(user.email, "Zenthex ID notice", f"Your Zenthex ID is your email address: {user.email}")
-    return {"status": "success", "message": "If an account exists, ID information has been sent by email."}
+Studio exports use two formats: GLB is the real 3D model file for 3D viewers/tools, while JPG is a flat image of the current preview screen. Owner, Studio Pro, and Ultimate users can use both export paths.
 
-@router.post("/password/request-reset")
-def request_password_reset(req: EmailRequest, request: Request, db: Session = Depends(get_db)):
-    user = find_user_by_email(db, req.email)
-    dev_code = None
-    if user:
-        user.password_reset_code = make_code() if smtp_configured() else TEST_EMAIL_CODE
-        dev_code = user.password_reset_code
-        db.commit()
-        hint_text = f"\nPassword hint question: {user.password_hint_question}" if user.password_hint_question else ""
-        send_account_email(user.email, "Zenthex password reset code", f"Reset code: {user.password_reset_code}{hint_text}")
-    response = {"status": "success", "message": "If an account exists, reset instructions have been sent by email."}
-    if dev_code and (is_local_request(request) or not smtp_configured() or os.getenv("ZENTHEX_ENABLE_DEV_OUTBOX", "false").lower() == "true"):
-        response["dev_code"] = dev_code
-    return response
+Studio prompt previews can use Google AI Studio/Gemini when `GEMINI_API_KEY` is configured. Until Zenthex's own 3D Worker is ready, Google AI Studio/Gemini is treated as the primary 3D-style architectural result source: prompts and uploaded 2D drawings are sent to Gemini to generate premium isometric 3D floor-plan images like a top-down apartment render. The immediate image preview uses `gemini-3.1-flash-image` by default through `ZENTHEX_GOOGLE_AI_STUDIO_MODEL`, then the local Three.js preview and optional GLB worker continue as the later model layer. If no key is configured, the app falls back to the built-in visual preview instead of failing.
 
-@router.post("/password/question")
-def get_password_hint_question(req: EmailRequest, db: Session = Depends(get_db)):
-    user = find_user_by_email(db, req.email)
-    if not user:
-        raise HTTPException(status_code=404, detail="No account found for this email.")
-    if not user.password_hint_question or not user.password_hint_answer_hash:
-        return {"status": "success", "password_hint_question": "湲곗〈 怨꾩젙?낅땲?? ?대찓???몄쬆 肄붾뱶濡?鍮꾨?踰덊샇瑜??ъ꽕?뺥븯?몄슂.", "reset_without_hint": True}
-    return {"status": "success", "password_hint_question": user.password_hint_question, "reset_without_hint": False}
+## Signal Guard Formula
 
-@router.post("/password/hint")
-def check_password_hint(req: PasswordHintRequest, db: Session = Depends(get_db)):
-    user = find_user_by_email(db, req.email)
-    if (
-        not user
-        or not user.password_hint_question
-        or not user.password_hint_answer_hash
-        or user.password_hint_question.strip() != req.password_hint_question.strip()
-        or not verify_password(normalize_hint_answer(req.password_hint_answer), user.password_hint_answer_hash)
-    ):
-        raise HTTPException(status_code=400, detail="Password hint does not match.")
-    user.password_reset_code = make_code() if smtp_configured() else TEST_EMAIL_CODE
-    db.commit()
-    send_account_email(user.email, "Zenthex password reset code", f"Reset code: {user.password_reset_code}")
-    return {"status": "success", "message": "Hint verified. Reset code has been sent.", "dev_code": user.password_reset_code if not smtp_configured() else None}
+The trading experience does not promise profit. It uses 24h strength as a broad filter, then ranks short-term scalping signals:
 
-@router.post("/password/reset")
-def reset_password(req: PasswordResetRequest, db: Session = Depends(get_db)):
-    user = find_user_by_email(db, req.email)
-    if not user or not user.password_reset_code or user.password_reset_code != req.code:
-        raise HTTPException(status_code=400, detail="Invalid reset code.")
-    if len(req.new_password) < 6:
-        raise HTTPException(status_code=400, detail="Password must be at least 6 characters.")
-    user.hashed_password = get_password_hash(req.new_password)
-    user.password_reset_code = None
-    db.commit()
-    return {"status": "success", "message": "Password has been changed."}
+- 24h price change
+- recent 6h momentum
+- 24h traded value
+- 1m / 3m / 5m momentum
+- short-term volume surge
+- short-term breakout
+- 1m moving-average trend
+- BTC/ETH broad-market guard
+- orderbook spread and bid/ask balance
+- post-stop-loss ticker cooldown
+- volatility filter
+- drawdown from 24h high
 
-@router.get("/dev/outbox")
-def dev_outbox():
-    if os.getenv("ZENTHEX_ENABLE_DEV_OUTBOX", "false").lower() != "true":
-        raise HTTPException(status_code=404, detail="Not found")
-    return {"messages": DEV_EMAIL_OUTBOX[-20:], "phone_messages": DEV_PHONE_OUTBOX[-20:]}
+The scanner must not buy coins that are currently falling. Current entry requires 1m, 3m, and 5m momentum to be positive, recent 1m candles to be bullish, price and volume to rise together, and the current price to hold above short moving averages. If no coin passes those rising-confirmation checks, the engine waits instead of using a relaxed entry.
 
-def require_current_user(Authorization: str, db: Session):
-    if not Authorization:
-        raise HTTPException(status_code=401, detail="Login required.")
-    token = Authorization.replace("Bearer ", "")
-    return get_current_user(token, db)
+Default scalping targets should be small, such as +0.3% to +1.0%, with a tight stop loss around -0.6%. In fixed target mode, every selected target yield must trigger sell-and-stop when reached, not only +0.5%. Practice mode can rotate away from weak candidates into stronger candidates. Real rotation requires a separate opt-in and should sell only holdings with clear loss or weak short-term flow before moving cash into stronger rising candidates.
 
-def get_current_user(token: str, db: Session = Depends(get_db)):
-    session = SESSION_TOKENS.get(token)
-    user_id = None
-    if isinstance(session, dict):
-        if int(time.time()) <= int(session.get("expires_at") or 0):
-            user_id = session.get("user_id")
-        else:
-            SESSION_TOKENS.pop(token, None)
-    if not user_id:
-        user_id = read_signed_token(token)
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Login session expired. Please log in again.")
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(
-            status_code=401,
-            detail="濡쒓렇???좏겙? ?⑥븘 ?덉?留??쒕쾭??怨꾩젙 ?곗씠?곌? ?놁뒿?덈떎. 諛고룷 怨쇱젙?먯꽌 DB媛 珥덇린?붾릱??媛?μ꽦???쎈땲?? ?ㅼ떆 濡쒓렇?명븯嫄곕굹 怨꾩젙???ㅼ떆 ?앹꽦?댁빞 ?⑸땲??",
-        )
-    return user
+High-risk target options such as +10%, +30%, and +50% are available in the UI, but they are not normal scalping targets. They can keep the engine holding much longer and can expose the user to larger loss swings.
+
+Investment modes:
+
+- KRW cash all-in: uses only the available KRW cash balance in the Upbit account. If the account already holds coins and KRW cash is low, this mode may stop because there is not enough orderable KRW.
+- KRW cash ratio: uses a percentage of available KRW cash. For example, 50% of 1,000,000 KRW means about 500,000 KRW is used.
+- Fixed amount: uses a fixed KRW amount.
+- Existing-holdings rotation: high-risk explicit mode that first sells KRW-market coins already held in the Upbit account, then uses the resulting KRW for a new entry. It requires a separate checkbox and confirmation.
+
+Selling coins already held in the account and rotating that money into another coin is never the default. It is a separate explicit opt-in feature because it can realize losses and change the user's existing portfolio. Split entry is pyramiding, not averaging down: extra entries happen only after the active position is already profitable by the configured confirmation percentage.
+
+For real trading, the scanner runs outside the main API loop so the page can keep showing status while Upbit markets are being checked. The engine also tracks only the quantity bought by the current Zenthex run, so unrelated coins already held in the account are not sold by default.
+
+## Run Locally
+
+```powershell
+pip install -r requirements.txt
+python main.py
+```
+
+Open:
+
+```text
+http://127.0.0.1:8080/
+```
+
+## Environment
+
+Copy `.env.example` to `.env` locally and fill SMTP values. Do not commit `.env`.
+For production, set `ZENTHEX_OWNER_EMAILS` in the server environment to the CEO email address. The current CEO email is `7foliath@naver.com`.
+
+```env
+ZENTHEX_OWNER_EMAILS=7foliath@naver.com
+ZENTHEX_DATABASE_URL=sqlite:///./zenthex.db
+ZENTHEX_SERVER_PUBLIC_IP=74.220.52.254
+GEMINI_API_KEY=
+ZENTHEX_GOOGLE_AI_STUDIO_MODEL=gemini-3.1-flash-image
+ZENTHEX_SMTP_HOST=smtp.example.com
+ZENTHEX_SMTP_PORT=587
+ZENTHEX_SMTP_SSL=false
+ZENTHEX_SMTP_USER=no-reply@example.com
+ZENTHEX_SMTP_PASSWORD=change-me
+ZENTHEX_SMTP_FROM="Zenthex <no-reply@example.com>"
+ZENTHEX_ENABLE_DEV_OUTBOX=false
+ZENTHEX_ENABLE_MOCK_PAYMENT=false
+ZENTHEX_PAYMENT_PROVIDER=
+ZENTHEX_TOSS_SECRET_KEY=
+ZENTHEX_STRIPE_SECRET_KEY=
+ZENTHEX_PAYMENT_WEBHOOK_SECRET=
+
+# Future SMS provider values
+ZENTHEX_SMS_PROVIDER=
+ZENTHEX_SMS_ACCESS_KEY=
+ZENTHEX_SMS_SECRET_KEY=
+ZENTHEX_SMS_FROM=
+```
+
+## Do Not Commit
+
+- `.env`
+- `zenthex.db`
+- `uploads/`
+- `__pycache__/`
+- generated model files in `static/models/`
+
+
 

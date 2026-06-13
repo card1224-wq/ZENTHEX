@@ -1,193 +1,110 @@
-﻿ZENTHEX_UPLOAD_VERSION=2026-05-25-?듭젅-鍮쀬뜽
-Trading Safety: fixed target take-profit now applies to every selected target yield, not only +0.5%; selected target hit means sell/stop first
-Trading Safety: fixed target take-profit has priority over split add-entry and practice rotation checks
-Trading Exchange: Bithumb selector, key diagnostics, JWT account authentication, balance lookup, and live market-order start path added
-Trading Exchange: Binance auto-orders remain blocked until attached to the shared risk manager; Upbit and Bithumb can use the live engine path
-Trading Rotation: existing holdings rotation now sells only holdings with clear loss/weak short-term flow, then looks for rising candidates
-Trading Ops: browser close is safe only while the FastAPI server stays awake; server sleep/shutdown means no automatic sell can be executed
-Trading Scanner: entries now require positive 1m/3m/5m momentum, recent bullish candle confirmation, and price-volume alignment
-Trading Scanner: relaxed fallback entry removed; if no coin is rising clearly, the engine waits instead of buying
-Trading Risk: split entry changed from averaging down to pyramiding; extra buys happen only after the position is already profitable
-Trading Risk: default daily loss limit tightened to 1.5%, consecutive stop-loss limit to 2, and stop-loss cooldown to 120 minutes
-Trading UI: explicit Upbit/Binance exchange selection buttons added before exchange-specific key setup
-Trading Binance: connector-ready client added for Binance Spot/Testnet account authentication
-Trading Binance: UI now supports Binance Testnet/Live key diagnostics, key verification, and balance lookup for owner/subscribers
-Trading Binance: Futures/?좊Ъ remains blocked in MVP; automatic orders will attach to the shared risk manager in the next engine step
-Studio: Google AI Studio/Gemini is now the primary 3D-style architectural image source until the Zenthex 3D Worker is ready
-Studio: prompt generation now asks Google AI Studio/Gemini for premium isometric 3D floor-plan/apartment render images
-Studio: uploaded 2D drawings are sent to Google AI Studio/Gemini as reference images for 3D-style architectural output
-Studio UI: copy now explains that GLB/OBJ models come later from the Zenthex 3D Worker, while Google AI Studio/Gemini supplies the current 3D visual result
-Auth: signed login sessions now expire by default after 24 hours through ZENTHEX_SESSION_HOURS
-Auth UI: login stores the expiry time and core pages clear expired sessions automatically
-Trading Safety: broad-market guard added. New entries pause when BTC/ETH show short-term KRW-market selloff pressure
-Trading Safety: entry confirmation now checks current price and orderbook spread/bid-ask balance before buying
-Trading Safety: stop-loss cooldown added so recently stopped-out coins are not immediately re-entered
-Trading UI: current decision now shows market-filter and cooldown status while the engine runs
-Studio Fix: Google AI Studio/Gemini provider now reads image data from multiple Gemini response shapes and returns clean Korean diagnostics
-Trading Scanner: added price-volume alignment, high-chase prevention, and recent red-candle rejection to reduce entries into falling coins
-Trading Scanner: relaxed candidates now avoid coins sitting too close to the 24h high
-Trading UI: desktop layout changed to three columns: left quick execution, middle live status/returns, right auxiliary settings
-Trading UI: API key/IP, Binance planned connector notice, advanced strategy, and auto-selection criteria move into the right auxiliary panel
-Trading UI: sell-and-stop button is always visible and disabled with a no-position label until there is a Zenthex position
-Trading Logs: system log timestamps now use Korea time (KST)
-Trading Scanner: auto-selection criteria are shown in the UI and scanner thresholds were adjusted so quiet markets can still surface relaxed candidates
-Trading Copy: screen now clarifies Upbit is the current live connector and Binance is the next connector target
-Trading Safety: stop controls now separate pause/hold from sell-and-stop
-Trading Safety: pause stops the engine without selling current holdings
-Trading Safety: sell-and-stop market-sells the current Zenthex engine position and then stops
-Studio: Google AI Studio/Gemini generated image is now the central main result, with JPG image save for owner/Studio subscribers
-Studio Docs: master plan now explains why true GLB/OBJ and drawing-to-3D need the later 3D Worker, Queue, and validation server
-Trading: split-entry mode added so total budget can be divided into 2/4/5/10 entries with average-price based exit logic
-Trading UI: entry mode, split count, add-entry trigger, and live entry-count monitor added
-Trading Safety: split entry is documented as risk-limited averaging, not a guaranteed-profit formula
-Trading Safety: outbound IP verification API added to compare ZENTHEX_SERVER_PUBLIC_IP against actual server outbound IP
-Trading UI: Upbit IP panel now has a button to verify displayed IP versus actual outbound IP
-Review: CEO checklist now verifies configured/outbound IP comparison before live trading readiness
-Docs: master plan and README now state that mismatched configured/outbound IP is not live-trading ready
-Account: My Page now separates owner operations entry from subscriber product workspace
-Owner: account page shows CEO Dashboard, Studio review, and Trading review cards without exposing owner operations inside subscriber workspace
-Subscriber: account page shows only personal Studio, Trading, and Customer Center actions
-Review: CEO checklist now verifies account role workspace separation
-Docs: master plan now defines owner/subscriber UI separation and API access principles
-Trading Safety: real stop-loss now sells and fully stops the engine instead of returning to IDLE/scanning
-Trading Safety: after real stop-loss, the user must explicitly press real-trading start again; no surprise overnight re-entry
-Review: CEO checklist now verifies that real stop-loss halts the engine completely
-Docs: master plan now separates real stop-loss halt from practice-mode re-scan
-Trading: strategy panel redesigned so only essential controls are visible by default
-Trading: trailing exit, pullback width, existing-holdings rotation, and risk explanations moved into a collapsed Advanced Strategy panel
-Trading: Advanced Strategy opens automatically when trailing exit or existing-holdings rotation is selected, so risk consent is not hidden
-Review: CEO checklist now verifies collapsed advanced Trading controls
-Trading: intended fixed Upbit server IP set to 74.220.52.254 in env example, README, review checklist, and master plan
-Docs: clarified that displaying 74.220.52.254 is not enough; the production server outbound route must actually use the same fixed IP
-Studio: Google AI Studio provider added for immediate Gemini image previews when GEMINI_API_KEY is configured
-Studio: prompt generate API now returns image_url/image_provider/provider_message from Google AI Studio or a clear fallback reason
-Studio: viewer now shows a Google AI Studio immediate image panel above the Three.js preview when image_url is available
-Env: GEMINI_API_KEY and ZENTHEX_GOOGLE_AI_STUDIO_MODEL added; requirements now include google-genai
-Review: CEO checklist now verifies Google AI Studio provider wiring
-Studio: prompt generation now returns a preview profile immediately, so "??쒕?援?32???꾪뙆?? changes the 3D preview into an apartment-style layout instead of showing the same sample building
-Studio: result summary card added inside the viewer with generated title, summary, and room/area chips
-Studio: backend now stays usable even when OpenCV/3D Worker dependencies are missing; it returns the visual preview and clearly explains that GLB export needs the worker
-Studio: upload and prompt flows now pass the backend preview profile into the Three.js renderer
-Trading: fixed-IP guard strengthened. Auto-detected Upbit server IP is now shown as a warning, while only ZENTHEX_SERVER_PUBLIC_IP counts as production fixed IP
-Trading: strategy settings now show a compact top summary for exit mode, target yield, capital mode, and coin selection so the page is easier to read at a glance
-Trading: return-rate chart added. Upbit balance/status totalPnlPct is accumulated locally so the user can watch profit movement instead of only reading holdings
-Review: CEO launch checklist now verifies fixed-IP protection, compact Trading strategy summary, and the Trading return-rate chart
-Docs: master plan rebuilt in clean Korean and updated with fixed outbound IP, compact Trading UI, and return graph operating principles
-Mobile: real trading status and stop actions now require login/Trading permission, so PC-to-phone monitoring is safer
-Docs: master plan now states that server-running Trading can be monitored from mobile after browser close
-Trading: Upbit balance and return view added so users can load cash balance, holdings, PnL, and return rate before starting the engine
-Review: CEO checklist now verifies the Upbit balance/return view and no-key-storage account summary flow
-Review: CEO launch checklist updated to match the stable homepage principle and trailing take-profit trading mode
-Trading: trailing take-profit mode added so profitable positions can keep running until they pull back from the peak
-Trading: UI now lets users choose fixed target exit or trailing profit tracking, with configurable pullback width
-Trading: portfolio monitor added with total return, total PnL, cash balance, coin valuation, entry amount, average buy price, current price, per-coin PnL, and per-coin return
-Trading: status API now returns portfolio totals, active position details, and real Upbit account holdings while the real key is connected
-Homepage: restored stable brand-home behavior. Login, owner, and subscription state now change only the top navigation, not the main brand hero/content
-Homepage: Korean copy rebuilt cleanly so public brand, product preview, pricing, and risk notice remain consistent
-Docs: master plan rebuilt in clean Korean and now defines the stable homepage principle
-Trading: start-state monitor added so current decision, buy/sell rules, risk rules, candidate score, 1m/3m momentum, and volume surge are visible while running
-Trading: fixed engine runtime issue by importing time for timestamped logs
-Trading: risk notice, exchange/formula, and quick-use guide moved into full-width horizontal info cards to prevent vertical text wrapping
-Trading: investment modes clarified as KRW cash all-in, KRW cash ratio, fixed amount, and existing-holdings rotation
-Trading: existing-holdings rotation can sell already-held KRW market coins only after a separate checkbox and confirmation
-Trading: review now checks explicit rotation opt-in and investment mode explanations
-Studio: entry screen now immediately shows a sample 3D preview instead of an empty viewer
-Studio: branding, colors, authority wording, and export copy aligned with Trading
-Studio: JPG save is now the primary user-facing export, with GLB explained as the real 3D model file
-Auth: normal users now enter owner-approval pending status after signup
-Admin: CEO dashboard can approve, reject, or keep users pending from subscriber management
-Docs: fixed outbound IP requirement and owner approval flow added to review/master plan
-Homepage: hero height reduced so Studio/Trading preview appears sooner without long scrolling
-Trading: real-trade API key and IP setup moved into a collapsible panel to keep the main operation screen compact
-Trading: live monitor now shows latest real order side, status, and Upbit order UUID
-Trading: compact real-trade screen added so settings and live status fit higher on the page
-Trading: manual coin selection now skips full-market scan for faster direct entry
-Trading: live monitor now shows average buy price, held quantity, target price, stop price, estimated balance, and 2-second check interval
-Trading: auto scanner detailed check reduced from 25 to 12 candidates for faster candidate selection
-Admin: launch review now shows Korean primary copy with English helper text for each check
-Customer: inquiry form added to Customer Center with account, billing, Studio, Trading, Upbit, and general categories
-Support: support_tickets database table and /api/support ticket APIs added
-Admin: CEO dashboard now includes customer inquiry list, status updates, and reply/internal note saving
-Review: launch review now checks customer inquiry flow and admin support management
-Docs: master plan rewritten cleanly and now includes customer inquiry operations
-Homepage: Zenthex brand mark, Studio one-day trial, Trading structure view
-Login: signup has name, birth date, phone, password confirm, password hint question
-Trading: trial hides API keys, real trading is visible only after owner/subscription permission
-Signup: phone verification code flow added before account creation
-Admin: owner launch review system added to CEO dashboard
-Phone: test verification code fixed to 122492 when SMS provider is not configured
-Owner: 7foliath@naver.com defaults to Owner Ultimate without subscription payment
-Account: email verification code send button shows test code when SMTP is not configured
-Billing: subscription prices visible before checkout in homepage and My Page
-Homepage: Korean copy restored and pricing cards added
-Review: homepage brand image path normalized for server/static access
-Owner: Ultimate access remains free, but owner email must verify by code
-Fix: owner email is always included even when environment variable has another value
-Fix: placeholder SMTP values no longer block test email code 122492
-Homepage: personalized views added for owner, paid subscribers, and free users
-Homepage: visible labels changed to neutral workspace wording, not owner/subscriber wording
-Password: reset flow rebuilt, supports hint-based reset and legacy email-code reset
-Login: Korean copy restored again and reset messages show test code 122492
-Auth: email lookup normalized across signup, login, ID lookup, email verification, and password reset
-Admin: subscriber management added for user list, plan/role changes, and duplicate account deletion
-Review: launch checklist expanded for user management, trading targets, KRW investment modes, and scanner stability
-Trading: target yield options now include +10%, +30%, and +50% as high-risk goals
-Trading: investment mode now supports Upbit KRW all-in, KRW ratio, and fixed amount
-Fix: Upbit scanner high/low reference corrected so all-market scan does not fail on undefined ohlcv
-Fix: real trading scanner now runs in a background thread so status checks do not freeze during market scan
-Fix: Upbit scanner now uses a two-stage filter to reduce API calls before short-term signal scoring
-Safety: real trading now sells only the quantity bought by the current Zenthex engine run, not unrelated coins already held in the account
-UI: Trading page refreshes the current logged-in user before starting real mode so owner/subscription changes are recognized
-Fix: auth tokens are now signed so new logins survive server restarts and redeploys
-Fix: Studio ignores stale invalid tokens for trial generation instead of failing the 3D request
-Fix: Studio retries once as anonymous trial when the browser has an old invalid token
-UI: Trading clears expired login state and asks for a fresh login before real trading
-Fix: Upbit real-key validation now checks balances through get_balances and returns clearer diagnostics
-UI: real trading key panel now explains allowed IP, asset/order permission, and Secret Key pitfalls
-Review: master checklist now includes Upbit key diagnostics for real trading launch
-Fix: Studio now refreshes account permission on entry and shows owner/subscriber full-access wording instead of trial-only copy
-Fix: Studio old HL mark removed and replaced with Zenthex mark
-Fix: Studio shows GLB download link when backend returns export permission
-Fix: Trading now shows owner/subscriber real-trade permission state and Zenthex mark in the header
-Review: launch checklist now verifies Studio/Trading inner-page access UI, not only homepage access
-Security: CEO operations now require the owner role, not a general admin/subscriber role
-Access: Studio Pro unlocks Studio export, Trading Pro unlocks Trading real mode, Ultimate unlocks both product areas
-Access: Trading Pro no longer carries Studio quota, and Free uses one-day trial access instead of account quota
-Review: master checklist now verifies owner/subscriber role separation and plan-specific product access
-Homepage: hero now always introduces Zenthex as the public brand, even for the owner account
-Homepage: removed owner-facing "Zenthex Control" hero state and restored clean Korean public copy
-Review: launch checklist now verifies homepage public copy and blocks the old control-style hero wording
-Fix: login and homepage Korean files restored as clean UTF-8 after upload-copy corruption
-Auth: login errors now separate unregistered email, wrong password, and stale token with missing server account
-Auth: homepage clears stale login state when the server no longer has the matching account
-Database: ZENTHEX_DATABASE_URL added so production can use persistent DB instead of a fresh server SQLite file
-Trading: Upbit key diagnostic endpoint and UI button added before real-engine start
-Homepage: logged-in cached owner/subscriber state renders immediately so the home screen does not flash as trial
-Review: owner launch checklist now includes persistent production DB and monthly auto-renewal billing
-Billing: plans endpoint now documents Toss Payments for Korea and Stripe subscriptions for global auto-renewal
-Env: payment provider keys and webhook secret placeholders added
-Database: PostgreSQL driver and postgres:// URL normalization added for persistent production DB
-Database: SQLite-only schema patcher now skips itself when PostgreSQL is used
-Billing: subscriptions table and /api/billing/subscription added for current auto-renewal state
-Account: My Page now shows current subscription state and next billing date
-Docs: PRODUCTION_DATABASE.md added to explain why GitHub updates must not own user/payment data
-Docs: ZENTHEX_MASTER_PLAN.md added as the current integrated CEO master plan
-Review: CEO launch review now checks operating cost review and the master plan document
-Review: PROJECT_REVIEW now includes persistent DB, auto-renewal, and operating cost gates
-Trading: Upbit key verification button added beside diagnostics before real trading
-Trading: real engine start now requires a verified key fingerprint in the UI and still re-checks on the backend
-Review: launch checklist now verifies the Upbit key authentication step
-Homepage: Korean copy restored and logged-in navigation now shows My Page, Customer Center, Logout, and CEO Dashboard for owner
-Homepage: logged-in owner actions now open Studio workspace and Trading engine instead of trial-only actions
-Customer: customer center page and route added
-Trading: Secret Key remains hidden by default but now has a temporary view button for paste checks
-Trading: Zenthex server public IP notice, API endpoint, and copy button added for Upbit allowed IP setup
-Env: ZENTHEX_SERVER_PUBLIC_IP added so production can display the fixed FastAPI outbound IP
-Docs: master plan and review now clarify GitHub Pages is not the Upbit trading server
-Trading: server IP endpoint now auto-detects FastAPI outbound IP through api.ipify.org when env IP is empty
-Homepage: visual Studio preview and Trading signal panels added so the landing screen is not text-only
-Studio: JPG export button added for owner/Studio Pro/Ultimate alongside GLB download
-Docs: GLB versus JPG export purpose added to README and master plan
+# Zenthex Launch Review
 
+This checklist is the master review gate before uploading or publishing Zenthex.
 
+## Required
 
+- Homepage shows one clear Zenthex brand experience, not a split demo screen.
+- Homepage hero must always introduce Zenthex as a public brand, not change into "Zenthex Control" for the owner.
+- Homepage must show visual Studio/Trading preview panels so the first screen is not text-only.
+- Studio must show NanoBanana/Gemini generated images as the central main result, not as a small side preview.
+- Studio must state that GLB/OBJ generation needs the later 3D Worker server while current output is AI building image/JPG.
+- Logged-in homepage navigation must show My Page, Customer Center, and Logout instead of only Login.
+- Owner homepage actions must open Studio workspace, Trading engine, CEO dashboard, and My Page instead of trial-only actions.
+- Customer Center must exist for account, subscription, Studio, Trading, and Upbit key guidance.
+- Customer Center must include an inquiry form, store tickets in the database, and allow the owner to manage ticket status/replies in the CEO dashboard.
+- Trading must support split-entry mode so a configured total budget can be divided into multiple entries with average-price based take-profit/stop-loss.
+- Split-entry mode must show max entry count, add-entry trigger, current entry count, and risk copy that it is not a guaranteed-profit formula.
+- Trading stop controls must separate pause/hold from sell-and-stop so users do not accidentally market-sell a position.
+- Trading must show the automatic selection criteria and use KST timestamps in system logs.
+- Trading desktop layout must use three columns so quick execution, live status, and auxiliary settings do not stack into one long form.
+- Trading scanner must reject volume-with-price-falling, recent red candles, and late entries too close to the 24h high.
+- Trading scanner must wait instead of entering when no coin has positive 1m/3m/5m momentum and recent bullish candle confirmation.
+- Trading split entry must add only into profitable rising positions, not average down into falling positions.
+- Trading entry guard must block BTC/ETH broad-market short-term selloffs, weak orderbooks, and immediate post-signal price drops before buying.
+- Trading must apply a cooldown after stop-loss so the same coin is not immediately re-entered by the scanner.
+- Studio NanoBanana/Gemini failures must show a clear reason such as missing API key, missing package, empty image response, or API error.
+- No public page contains "demo" copy for the production-facing flow.
+- Login and signup pages do not expose owner email or owner account guidance.
+- Owner email is controlled by `ZENTHEX_OWNER_EMAILS`, with `7foliath@naver.com` kept as the built-in owner fallback.
+- Owner account has Ultimate access without payment, but email verification still requires a code.
+- Only the owner account can access CEO operations, user management, launch review, and emergency stop.
+- My Page must separate owner operations entry from subscriber product workspace. Subscribers must not see owner metrics, launch review, user management, or emergency stop controls.
+- Paid subscribers can run only the product their plan unlocks: Studio Pro for Studio, Trading Pro for Trading, Ultimate for both.
+- Signup includes name, email, password confirmation, birth date, phone number, phone code, and password hint question/answer.
+- Normal user signup must enter an owner-approval pending state before login/service use.
+- Phone verification is completed before normal user signup. Local/test builds use the fixed verification code `122492` when no SMS provider is configured.
+- Email verification, ID lookup, password hint, and password reset routes exist.
+- Login tokens must survive server restarts or safely clear themselves in the browser.
+- Studio trial is limited to one generation per IP per day.
+- Studio trial/free users receive view-only previews without model download URLs.
+- Studio should not fail with "Invalid token" when a stale browser token exists; it should retry as trial or ask for login depending on the action.
+- Studio owner and Studio Pro/Ultimate users must see full-access wording, no trial-only wording, and GLB download access when the backend returns a model URL.
+- Studio owner and Studio Pro/Ultimate users should also be able to save the current preview as JPG.
+- Studio prompt generation must visibly change the preview according to the prompt, including a dedicated apartment-style preview for "32평 아파트" prompts.
+- Studio should call NanoBanana for immediate prompt image previews when `GEMINI_API_KEY` is configured, and clearly fall back when it is not.
+- Studio must remain usable as a visual preview even if OpenCV/3D Worker dependencies are missing; GLB export should be clearly marked as requiring the worker.
+- Trading Pro must not unlock Studio export. Studio Pro must not unlock real trading.
+- Studio must show the Zenthex mark, not old HL/Habilab branding.
+- Trading trial does not show API key inputs.
+- Real trading is shown only to owner or Trading Pro/Ultimate users.
+- Real trading must show an Upbit key verification button, not only a diagnostic button.
+- Secret Key should stay hidden by default but have a temporary view button so users can confirm copied text.
+- Real trading start should require key verification and then re-check the key on the backend before placing live orders.
+- Trading owner and Trading Pro/Ultimate users must land on the real-trade permission view, not a trial-only view.
+- Real trading key check must explain likely Upbit failures: allowed IP mismatch, missing asset/order permission, wrong Access Key, wrong Secret Key.
+- Binance connector readiness must include Testnet/Live key diagnostics, key verification, balance lookup, Spot-only warning, and no Futures launch in the MVP.
+- Trading screen must show the Zenthex FastAPI server public IP from `ZENTHEX_SERVER_PUBLIC_IP` with a copy button for exchange allowed-IP registration.
+- Paid real trading must use a fixed outbound server IP. Current intended Zenthex fixed IP is `74.220.52.254`; the server should actually route outbound Upbit/Bithumb/Binance requests through the same IP.
+- Trading screen must verify configured IP versus actual outbound IP. If they differ, the deployment is not ready for fixed-IP live trading until the server routing or exchange allowed-IP setting is corrected.
+- Public docs must explain that GitHub Pages is not the trading server and cannot provide the Upbit outbound IP.
+- Trading settings must show a compact summary for exit mode, target yield, capital mode, and coin selection so the strategy is readable at a glance.
+- Fixed target exits must apply to every selected target yield. When the selected target is reached, sell-and-stop has priority over split add-entry and rotation checks.
+- Bithumb live trading must use the same permission gate, no-withdrawal key rule, target-profit exit, stop-loss exit, and sell-and-stop path as Upbit.
+- Existing-holdings rotation must not blindly churn every coin; it should only sell holdings with clear loss or weak short-term flow before moving to a stronger rising candidate.
+- Trading must provide explicit Upbit/Binance exchange selection buttons before exchange-specific key setup.
+- Trading's default screen should expose only the essential strategy controls; advanced controls such as trailing exit and existing-holdings rotation should be collapsed but automatically opened when selected.
+- Trading must show a return-rate chart from the latest Upbit balance/status `totalPnlPct`, so users can monitor profit movement, not only coin holdings.
+- Trading includes short scalping targets and high-risk target options: +10%, +30%, +50%.
+- Trading investment mode supports KRW cash all-in, KRW cash ratio, fixed amount, and an explicit high-risk existing-holdings rotation mode.
+- Real trading scanner must not freeze the API while it scans the market.
+- Real trading may sell only the quantity bought by the current Zenthex engine run unless the user explicitly opts into rotating existing holdings.
+- Real trading must stop completely after a stop-loss sell. It must not return to scanning or re-enter automatically unless a separate future auto-reentry option is explicitly enabled by the user.
+- Existing-holdings rotation must require a separate checkbox and confirmation because it can sell coins already held in the Upbit account.
+- Owner dashboard includes subscriber management: list users, change plan/role, and delete duplicate or withdrawn accounts.
+- Owner dashboard includes customer inquiry management: list tickets, update status, and save replies or internal notes.
+- Mock payment cannot unlock paid plans unless explicitly enabled.
+- Database migrations include the latest auth, phone, billing, and usage columns.
+- Production data must be separated from GitHub uploads with a persistent database before paid users join.
+- Monthly auto-renewal billing must store current subscription state separately from receipt history.
+- CEO review must separate no-cost validation, low-cost launch testing, and paid production operating costs.
+- The current full architecture and launch risks must be maintained in `ZENTHEX_MASTER_PLAN.md`.
+
+## Recommended Before Public Launch
+
+- Configure real SMTP delivery.
+- Connect a production SMS provider.
+- Connect persistent PostgreSQL or another production database before real paid users.
+- Test mobile signup, Studio trial, Trading structure view, owner login, My Page receipts, and admin user deletion.
+- Add production payment provider.
+- Confirm expected monthly operating costs: database, server, storage, AI generation, GPU worker, email/SMS, monitoring, and payment fees.
+- Add persistent queue/storage for Studio jobs.
+- Add Studio job history and admin cleanup for generated files.
+- Add Binance Spot connector only after Upbit real-order safety checks are proven.
+- Add separate opt-in for selling/rotating coins the user already holds, because it is riskier than using available KRW cash.
+
+## Owner Review Screen
+
+After logging in as the owner, open:
+
+```text
+/admin.html
+```
+
+The "Launch Review" panel calls:
+
+```text
+GET /api/admin/review
+```
+
+Use it before every GitHub upload or deployment.

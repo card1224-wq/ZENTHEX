@@ -1,124 +1,127 @@
-import hashlib
-import hmac
-import time
-import urllib.parse
-import urllib.request
-from decimal import Decimal, InvalidOperation
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, Depends, Header, HTTPException
+from pydantic import BaseModel
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+
+from auth.router import get_current_user
+from database.models import SupportTicket, User
+from database.session import get_db
+
+router = APIRouter(prefix="/api/support", tags=["support"])
 
 
-BINANCE_LIVE_BASE = "https://api.binance.com"
-BINANCE_TESTNET_BASE = "https://testnet.binance.vision"
+class TicketCreateRequest(BaseModel):
+    email: str
+    category: str
+    title: str
+    message: str
 
 
-def clean_key(value: str) -> str:
-    return (value or "").strip().replace("\u200b", "").replace("\ufeff", "")
+class TicketUpdateRequest(BaseModel):
+    status: str | None = None
+    admin_reply: str | None = None
 
 
-def base_url(testnet: bool = False) -> str:
-    return BINANCE_TESTNET_BASE if testnet else BINANCE_LIVE_BASE
-
-
-def explain_binance_error(raw_error) -> str:
-    text = str(raw_error or "")
-    lowered = text.lower()
-    if "-2015" in lowered or "invalid api-key" in lowered:
-        return "Binance API 키, 허용 IP, 또는 권한이 맞지 않습니다. Spot 거래 권한과 Zenthex 서버 IP 등록을 확인하세요."
-    if "signature" in lowered or "-1022" in lowered:
-        return "Binance Secret Key 서명 검증에 실패했습니다. Secret Key 복사 상태를 확인하거나 새 키를 발급하세요."
-    if "timestamp" in lowered or "-1021" in lowered:
-        return "Binance 서버 시간과 Zenthex 서버 시간이 맞지 않습니다. 서버 시간 동기화가 필요합니다."
-    if "ip" in lowered or "permission" in lowered or "restricted" in lowered:
-        return "Binance API 키의 IP 제한 또는 권한 설정 문제입니다. 출금 권한은 끄고 Spot 거래/조회 권한만 켜세요."
-    return "Binance 인증에 실패했습니다. API 키, Secret Key, Spot 권한, IP 화이트리스트, Testnet/Live 선택을 확인하세요."
-
-
-def _request_json(url: str, headers: dict | None = None):
-    request = urllib.request.Request(url, headers=headers or {})
-    with urllib.request.urlopen(request, timeout=8) as response:
-        import json
-
-        return json.loads(response.read().decode("utf-8"))
-
-
-def _signed_query(secret_key: str, params: dict) -> str:
-    query = urllib.parse.urlencode(params)
-    signature = hmac.new(secret_key.encode("utf-8"), query.encode("utf-8"), hashlib.sha256).hexdigest()
-    return f"{query}&signature={signature}"
-
-
-def signed_get(path: str, access_key: str, secret_key: str, testnet: bool = False, params: dict | None = None):
-    access_key = clean_key(access_key)
-    secret_key = clean_key(secret_key)
-    payload = {"timestamp": int(time.time() * 1000), "recvWindow": 5000}
-    if params:
-        payload.update(params)
-    query = _signed_query(secret_key, payload)
-    return _request_json(
-        f"{base_url(testnet)}{path}?{query}",
-        headers={"X-MBX-APIKEY": access_key},
-    )
-
-
-def public_get(path: str, testnet: bool = False, params: dict | None = None):
-    query = urllib.parse.urlencode(params or {})
-    url = f"{base_url(testnet)}{path}" + (f"?{query}" if query else "")
-    return _request_json(url)
-
-
-def check_binance_key(access_key: str, secret_key: str, testnet: bool = False):
+def _optional_user(authorization: str | None, db: Session) -> User | None:
+    if not authorization:
+        return None
+    token = authorization.replace("Bearer ", "")
     try:
-        account = signed_get("/api/v3/account", access_key, secret_key, testnet=testnet)
-        balances = account.get("balances", [])
-        usdt_balance = Decimal("0")
-        non_zero = []
-        for row in balances:
-            free = _to_decimal(row.get("free"))
-            locked = _to_decimal(row.get("locked"))
-            total = free + locked
-            asset = row.get("asset")
-            if asset == "USDT":
-                usdt_balance = free
-            if total > 0:
-                non_zero.append({"asset": asset, "free": str(free), "locked": str(locked), "total": str(total)})
-        return {
-            "status": "success",
-            "verified": True,
-            "usdt_balance": float(usdt_balance),
-            "assets": non_zero[:30],
-            "message": f"Binance {'Testnet' if testnet else 'Live'} 키 인증 성공. 조회 가능한 USDT 잔고는 약 {float(usdt_balance):,.4f} USDT입니다.",
-        }
-    except Exception as exc:
-        return {
-            "status": "error",
-            "verified": False,
-            "message": explain_binance_error(exc),
-            "raw": str(exc),
-            "checklist": [
-                "Binance API Management에서 Spot & Margin Trading 권한 확인",
-                "출금 권한은 반드시 끄기",
-                "IP Restriction에 Zenthex 서버 outbound IP 등록",
-                "Testnet 키와 Live 키를 섞어 쓰지 않았는지 확인",
-                "Secret Key 앞뒤 공백과 줄바꿈 제거",
-            ],
-        }
+        return get_current_user(token, db)
+    except HTTPException:
+        return None
 
 
-def build_binance_account_summary(access_key: str, secret_key: str, testnet: bool = False):
-    result = check_binance_key(access_key, secret_key, testnet=testnet)
-    if result.get("status") != "success":
-        return result
-    assets = result.get("assets", [])
+def _require_owner(authorization: str | None, db: Session) -> User:
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Login is required.")
+    token = authorization.replace("Bearer ", "")
+    user = get_current_user(token, db)
+    if user.role != "owner":
+        raise HTTPException(status_code=403, detail="Owner permission is required.")
+    return user
+
+
+def _serialize_ticket(row: SupportTicket):
     return {
-        "status": "success",
-        "message": "Binance 잔고를 불러왔습니다. 자동매매 주문은 Spot 리스크 검증 후 열립니다.",
-        "cashBalance": result.get("usdt_balance", 0),
-        "quoteAsset": "USDT",
-        "positions": assets,
+        "id": row.id,
+        "user_id": row.user_id,
+        "email": row.email,
+        "category": row.category,
+        "title": row.title,
+        "message": row.message,
+        "status": row.status,
+        "admin_reply": row.admin_reply,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
     }
 
 
-def _to_decimal(value) -> Decimal:
-    try:
-        return Decimal(str(value or "0"))
-    except (InvalidOperation, ValueError):
-        return Decimal("0")
+@router.post("/tickets")
+def create_ticket(req: TicketCreateRequest, Authorization: str = Header(None), db: Session = Depends(get_db)):
+    title = req.title.strip()
+    message = req.message.strip()
+    category = req.category.strip() or "general"
+    email = req.email.strip().lower()
+    if "@" not in email or "." not in email:
+        raise HTTPException(status_code=400, detail="Please enter a valid email address.")
+    if len(title) < 2:
+        raise HTTPException(status_code=400, detail="Please enter an inquiry title.")
+    if len(message) < 5:
+        raise HTTPException(status_code=400, detail="Please enter inquiry details.")
+
+    user = _optional_user(Authorization, db)
+    ticket = SupportTicket(
+        user_id=user.id if user else None,
+        email=email,
+        category=category[:40],
+        title=title[:160],
+        message=message[:4000],
+        status="open",
+    )
+    db.add(ticket)
+    db.commit()
+    db.refresh(ticket)
+    return {"status": "success", "ticket": _serialize_ticket(ticket)}
+
+
+@router.get("/my-tickets")
+def list_my_tickets(Authorization: str = Header(None), db: Session = Depends(get_db)):
+    if not Authorization:
+        raise HTTPException(status_code=401, detail="Login is required.")
+    user = get_current_user(Authorization.replace("Bearer ", ""), db)
+    rows = (
+        db.query(SupportTicket)
+        .filter(func.lower(SupportTicket.email) == user.email.lower())
+        .order_by(SupportTicket.id.desc())
+        .limit(20)
+        .all()
+    )
+    return {"status": "success", "tickets": [_serialize_ticket(row) for row in rows]}
+
+
+@router.get("/admin/tickets")
+def admin_list_tickets(Authorization: str = Header(None), db: Session = Depends(get_db)):
+    _require_owner(Authorization, db)
+    rows = db.query(SupportTicket).order_by(SupportTicket.id.desc()).limit(100).all()
+    return {"status": "success", "tickets": [_serialize_ticket(row) for row in rows]}
+
+
+@router.patch("/admin/tickets/{ticket_id}")
+def admin_update_ticket(ticket_id: int, req: TicketUpdateRequest, Authorization: str = Header(None), db: Session = Depends(get_db)):
+    _require_owner(Authorization, db)
+    ticket = db.query(SupportTicket).filter(SupportTicket.id == ticket_id).first()
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Support ticket not found.")
+    if req.status is not None:
+        if req.status not in ["open", "reviewing", "answered", "closed"]:
+            raise HTTPException(status_code=400, detail="Unsupported ticket status.")
+        ticket.status = req.status
+    if req.admin_reply is not None:
+        ticket.admin_reply = req.admin_reply.strip()[:4000]
+    ticket.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(ticket)
+    return {"status": "success", "ticket": _serialize_ticket(ticket)}

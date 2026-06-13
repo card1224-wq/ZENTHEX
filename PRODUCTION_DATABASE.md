@@ -1,97 +1,42 @@
-﻿from fastapi import FastAPI, File, UploadFile, Form, Request
-from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
-import pyupbit
-import asyncio
-import time
-import uvicorn
-import os
-import shutil
-from database.session import engine, Base
-from database.migrations import ensure_sqlite_schema
-from auth.router import router as auth_router
-from studio.router import router as studio_router
-from trading.router import router as trading_router
-from mobile.push import router as mobile_router
-from billing.router import router as billing_router
-from admin.router import router as admin_router
-from support.router import router as support_router
+﻿ZENTHEX_OWNER_EMAILS=7foliath@naver.com
 
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
+# Use a persistent production database after deployment.
+# If this is not set, local SQLite creates ./zenthex.db on the server.
+# A fresh server SQLite file means existing accounts from the previous upload will not exist.
+ZENTHEX_DATABASE_URL=sqlite:///./zenthex.db
 
-limiter = Limiter(key_func=get_remote_address)
-app = FastAPI()
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+# Public outbound IP of the FastAPI server that calls Upbit/Bithumb/Binance.
+# Put this same IP in each user's exchange API allowed IP list.
+# GitHub Pages does not have this server IP because it is only static hosting.
+ZENTHEX_SERVER_PUBLIC_IP=74.220.52.254
 
-# Create DB tables
-Base.metadata.create_all(bind=engine)
-ensure_sqlite_schema()
+# Google AI Studio/Gemini image generation for Zenthex Studio prompt previews.
+GEMINI_API_KEY=
+ZENTHEX_GOOGLE_AI_STUDIO_MODEL=gemini-3.1-flash-image
 
-# Include Routers
-app.include_router(auth_router)
-app.include_router(studio_router)
-app.include_router(trading_router)
-app.include_router(mobile_router)
-app.include_router(billing_router)
-app.include_router(admin_router)
-app.include_router(support_router)
+# SMTP mail delivery. Leave empty during local development to use /api/auth/dev/outbox.
+ZENTHEX_SMTP_HOST=smtp.example.com
+ZENTHEX_SMTP_PORT=587
+ZENTHEX_SMTP_SSL=false
+ZENTHEX_SMTP_USER=no-reply@example.com
+ZENTHEX_SMTP_PASSWORD=change-me
+ZENTHEX_SMTP_FROM="Zenthex <no-reply@example.com>"
+ZENTHEX_ENABLE_DEV_OUTBOX=false
+ZENTHEX_ENABLE_MOCK_PAYMENT=false
 
-# Mount static folders
-os.makedirs("uploads", exist_ok=True)
-os.makedirs("static/models", exist_ok=True)
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# Production recurring billing.
+# Korea: Toss Payments billing-key auto-payment.
+# Global: Stripe subscriptions.
+ZENTHEX_PAYMENT_PROVIDER=
+ZENTHEX_TOSS_SECRET_KEY=
+ZENTHEX_STRIPE_SECRET_KEY=
+ZENTHEX_PAYMENT_WEBHOOK_SECRET=
 
-# Serve frontend pages
-@app.get("/", response_class=HTMLResponse)
-@app.get("/index.html", response_class=HTMLResponse)
-async def serve_index():
-    with open("static/index.html", "r", encoding="utf-8") as f:
-        return f.read()
-
-@app.get("/login.html", response_class=HTMLResponse)
-async def serve_login():
-    with open("static/login.html", "r", encoding="utf-8") as f:
-        return f.read()
-
-@app.get("/finance.html", response_class=HTMLResponse)
-async def serve_finance():
-    with open("static/finance.html", "r", encoding="utf-8") as f:
-        return f.read()
-
-@app.get("/admin.html", response_class=HTMLResponse)
-async def serve_admin():
-    with open("static/admin.html", "r", encoding="utf-8") as f:
-        return f.read()
-
-@app.get("/studio.html", response_class=HTMLResponse)
-async def serve_studio():
-    with open("static/studio.html", "r", encoding="utf-8") as f:
-        return f.read()
-
-
-
-@app.get("/account.html", response_class=HTMLResponse)
-async def serve_account():
-    with open("static/account.html", "r", encoding="utf-8") as f:
-        return f.read()
-
-@app.get("/customer.html", response_class=HTMLResponse)
-async def serve_customer():
-    with open("static/customer.html", "r", encoding="utf-8") as f:
-        return f.read()
-
-# FINANCE ENGINE is now modularized in trading/router.py
-
-
-# STUDIO ENGINE is now modularized in studio/router.py
-
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8080)
-
+# Future SMS provider values for phone verification.
+ZENTHEX_SMS_PROVIDER=
+ZENTHEX_SMS_ACCESS_KEY=
+ZENTHEX_SMS_SECRET_KEY=
+ZENTHEX_SMS_FROM=
 
 
 
