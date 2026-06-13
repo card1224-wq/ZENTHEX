@@ -1,33 +1,80 @@
-import os
-from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base
-from sqlalchemy.orm import sessionmaker
+﻿from sqlalchemy import text
+from database.session import engine, is_sqlite_database
 
-SQLALCHEMY_DATABASE_URL = os.getenv("ZENTHEX_DATABASE_URL", "sqlite:///./zenthex.db")
-# Use a persistent database in production, for example:
-# ZENTHEX_DATABASE_URL=postgresql://user:password@postgresserver/db
-# If the deploy server starts with a fresh local SQLite file, old GitHub-uploaded accounts will not exist.
+USER_COLUMNS = {
+    "full_name": "VARCHAR",
+    "email_verified": "BOOLEAN DEFAULT 0",
+    "email_verification_code": "VARCHAR",
+    "password_reset_code": "VARCHAR",
+    "birth_date": "VARCHAR",
+    "phone_number": "VARCHAR",
+    "phone_verified": "BOOLEAN DEFAULT 0",
+    "phone_verification_code": "VARCHAR",
+    "password_hint_question": "VARCHAR",
+    "password_hint_answer_hash": "VARCHAR",
+    "approval_status": "VARCHAR DEFAULT 'approved'",
+    "plan": "VARCHAR DEFAULT 'free'",
+    "role": "VARCHAR DEFAULT 'user'",
+    "binance_access_key": "VARCHAR",
+    "binance_secret_key": "VARCHAR",
+    "studio_generations_left": "INTEGER DEFAULT 3",
+}
 
-def normalize_database_url(url: str) -> str:
-    # Some hosts expose postgres://, while SQLAlchemy expects postgresql://.
-    if url.startswith("postgres://"):
-        return "postgresql://" + url[len("postgres://"):]
-    return url
+def _column_exists(conn, table_name: str, column_name: str) -> bool:
+    rows = conn.execute(text(f"PRAGMA table_info({table_name})")).fetchall()
+    return any(row[1] == column_name for row in rows)
 
-SQLALCHEMY_DATABASE_URL = normalize_database_url(SQLALCHEMY_DATABASE_URL)
-
-def is_sqlite_database() -> bool:
-    return SQLALCHEMY_DATABASE_URL.startswith("sqlite")
-
-connect_args = {"check_same_thread": False} if is_sqlite_database() else {}
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args=connect_args, pool_pre_ping=True)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-Base = declarative_base()
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+def ensure_sqlite_schema():
+    if not is_sqlite_database():
+        return
+    with engine.begin() as conn:
+        for column_name, column_type in USER_COLUMNS.items():
+            if not _column_exists(conn, "users", column_name):
+                conn.execute(text(f"ALTER TABLE users ADD COLUMN {column_name} {column_type}"))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS billing_history (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER,
+                plan_id VARCHAR,
+                plan_name VARCHAR,
+                amount_krw INTEGER DEFAULT 0,
+                status VARCHAR DEFAULT 'paid',
+                payment_method VARCHAR DEFAULT 'mock_checkout',
+                receipt_no VARCHAR UNIQUE,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_billing_history_user_id ON billing_history (user_id)"))
+        conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_billing_history_receipt_no ON billing_history (receipt_no)"))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS subscriptions (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER UNIQUE,
+                plan_id VARCHAR DEFAULT 'free',
+                status VARCHAR DEFAULT 'inactive',
+                provider VARCHAR,
+                provider_customer_id VARCHAR,
+                provider_subscription_id VARCHAR,
+                next_billing_date VARCHAR,
+                cancel_at_period_end BOOLEAN DEFAULT 0,
+                last_payment_status VARCHAR,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_subscriptions_user_id ON subscriptions (user_id)"))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS support_tickets (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER,
+                email VARCHAR,
+                category VARCHAR DEFAULT 'general',
+                title VARCHAR,
+                message VARCHAR,
+                status VARCHAR DEFAULT 'open',
+                admin_reply VARCHAR,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME
+            )
+        """))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_support_tickets_user_id ON support_tickets (user_id)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_support_tickets_email ON support_tickets (email)"))

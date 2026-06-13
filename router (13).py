@@ -1,245 +1,231 @@
-﻿import os
-import shutil
-import time
-import uuid
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zenthex CEO Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-[#07070a] text-white min-h-screen p-6">
+  <div class="max-w-6xl mx-auto">
+    <div class="flex items-center justify-between mb-6 gap-4 flex-wrap">
+      <a href="index.html" class="text-sm text-gray-400 hover:text-white font-bold">← 메인으로</a>
+      <button onclick="logout()" class="px-4 py-2 rounded-lg bg-white/10 border border-white/10 text-sm font-bold">로그아웃</button>
+    </div>
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Header, HTTPException, Request, UploadFile
-from sqlalchemy.orm import Session
+    <header class="p-6 rounded-xl bg-white/[.03] border border-white/10 mb-6 flex justify-between gap-4 flex-wrap items-center">
+      <div>
+        <p class="text-xs tracking-[.3em] text-red-400 font-black uppercase">Operations Workspace</p>
+        <h1 class="text-3xl font-black tracking-tight mt-2">Zenthex CEO Dashboard</h1>
+        <p class="text-gray-400 mt-2">운영, 가입자, 구독, 고객 문의, 출시 전 검토, 긴급 정지를 관리합니다.</p>
+      </div>
+      <div id="system-status" class="px-4 py-2 rounded-lg bg-green-500/15 text-green-300 border border-green-500/40 font-black">SYSTEM ONLINE</div>
+    </header>
 
-from auth.router import get_current_user
-from database.session import get_db
-from studio.providers.nanobanana import generate_preview_image, is_configured as google_ai_studio_is_configured
-try:
-    import cv2
-    import numpy as np
-    from studio.cv_engine import process_image_to_3d
-    STUDIO_WORKER_READY = True
-except Exception as exc:
-    cv2 = None
-    np = None
-    process_image_to_3d = None
-    STUDIO_WORKER_READY = False
-    STUDIO_WORKER_IMPORT_ERROR = str(exc)
+    <section class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div class="p-5 rounded-xl bg-white/[.03] border border-white/10"><p class="text-gray-500 text-xs font-black uppercase">가입자</p><strong id="stat-users" class="text-4xl mt-2 block">0</strong></div>
+      <div class="p-5 rounded-xl bg-white/[.03] border border-white/10"><p class="text-gray-500 text-xs font-black uppercase">유료 사용자</p><strong id="stat-paid" class="text-4xl mt-2 block text-[#00ffcc]">0</strong></div>
+      <div class="p-5 rounded-xl bg-white/[.03] border border-white/10"><p class="text-gray-500 text-xs font-black uppercase">예상 MRR</p><strong id="stat-mrr" class="text-4xl mt-2 block">0</strong></div>
+      <div class="p-5 rounded-xl bg-white/[.03] border border-white/10"><p class="text-gray-500 text-xs font-black uppercase">실행 봇</p><strong id="stat-bots" class="text-4xl mt-2 block text-amber-300">0</strong></div>
+    </section>
 
-router = APIRouter(prefix="/api/studio", tags=["studio"])
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+      <div class="lg:col-span-2 p-6 rounded-xl bg-white/[.03] border border-white/10">
+        <div class="flex items-center justify-between gap-3 flex-wrap mb-4">
+          <h2 class="font-black text-xl">출시 전 검토</h2>
+          <button onclick="fetchReview()" class="px-4 py-2 rounded-lg bg-[#00ffcc] text-black text-sm font-black">다시 검사</button>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-[150px_1fr] gap-4 mb-4">
+          <div class="p-5 rounded-xl bg-black/30 border border-white/10">
+            <p class="text-gray-500 text-xs font-black uppercase">검사 점수</p>
+            <strong id="review-score" class="text-4xl mt-2 block">-</strong>
+            <p id="review-ready" class="text-xs mt-2 text-gray-400">검사 대기</p>
+          </div>
+          <div id="review-list" class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm"></div>
+        </div>
+        <p class="text-xs text-gray-500 leading-5">자동 검토는 코드와 환경설정 기준입니다. 실제 결제, 실제 문자/메일 발송, 실거래 주문은 별도 운영 테스트가 필요합니다.</p>
+      </div>
 
-ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png"}
-MAX_FILE_SIZE = 10 * 1024 * 1024
-TRIAL_USAGE_BY_IP: dict[str, str] = {}
+      <div class="p-6 rounded-xl bg-red-500/[.06] border border-red-500/30">
+        <h2 class="text-red-300 font-black text-xl mb-3">GLOBAL KILL SWITCH</h2>
+        <p class="text-sm text-gray-400 leading-6 mb-5">전체 트레이딩 엔진의 신규 매매를 즉시 정지합니다. 긴급 상황에서만 사용하세요.</p>
+        <button id="btn-kill" onclick="toggleKillSwitch()" class="w-full py-5 rounded-xl bg-red-600 hover:bg-red-500 font-black">ACTIVATE</button>
+      </div>
+    </section>
 
-def generate_3d_task(file_path: str, model_path: str, bg_path: str, style: str, wall_height: float):
-    if not STUDIO_WORKER_READY:
-        print(f"[Studio Worker] Worker unavailable: {STUDIO_WORKER_IMPORT_ERROR}")
-        return
-    try:
-        process_image_to_3d(file_path, model_path, wall_height=wall_height, style=style, output_png_path=bg_path)
-    except Exception as e:
-        print(f"[Studio Worker] Task failed: {e}")
+    <section class="p-6 rounded-xl bg-white/[.03] border border-white/10 mb-6">
+      <div class="flex items-center justify-between gap-3 flex-wrap mb-4">
+        <h2 class="font-black text-xl">고객 문의</h2>
+        <button onclick="fetchSupportTickets()" class="px-4 py-2 rounded-lg bg-white/10 border border-white/10 text-sm font-bold">새로고침</button>
+      </div>
+      <div id="support-list" class="space-y-3 text-sm"></div>
+    </section>
 
-def get_optional_user(authorization: str | None, db: Session):
-    if not authorization:
-        return None
-    token = authorization.replace("Bearer ", "").strip()
-    if not token:
-        return None
-    try:
-        return get_current_user(token, db)
-    except HTTPException as exc:
-        if exc.status_code == 401:
-            return None
-        raise
+    <section class="p-6 rounded-xl bg-white/[.03] border border-white/10 mb-6">
+      <div class="flex items-center justify-between gap-3 flex-wrap mb-4">
+        <h2 class="font-black text-xl">가입자 관리</h2>
+        <button onclick="fetchUsers()" class="px-4 py-2 rounded-lg bg-white/10 border border-white/10 text-sm font-bold">새로고침</button>
+      </div>
+      <div id="user-list" class="space-y-3 text-sm"></div>
+    </section>
 
-def get_client_ip(request: Request) -> str:
-    forwarded_for = request.headers.get("x-forwarded-for")
-    if forwarded_for:
-        return forwarded_for.split(",")[0].strip()
-    if request.client:
-        return request.client.host
-    return "unknown"
+    <section class="p-6 rounded-xl bg-white/[.03] border border-white/10">
+      <h2 class="font-black text-xl mb-4">운영 체크</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-300">
+        <div class="p-4 bg-black/30 rounded-lg border border-white/10">Studio 사용량과 GPU Queue는 다음 단계에서 연결</div>
+        <div class="p-4 bg-black/30 rounded-lg border border-white/10">Trading Signal Guard / 전략 검증 상태 감시</div>
+        <div class="p-4 bg-black/30 rounded-lg border border-white/10">대표 계정은 구독 체크 없이 전체 권한</div>
+        <div class="p-4 bg-black/30 rounded-lg border border-white/10">사용자는 체험 후 필요한 서비스만 구독 전환</div>
+      </div>
+    </section>
+  </div>
 
-def charge_studio_trial_or_quota(user, db: Session, request: Request):
-    if not user or not user_has_studio_access(user):
-        today = time.strftime("%Y-%m-%d")
-        client_ip = get_client_ip(request)
-        if TRIAL_USAGE_BY_IP.get(client_ip) == today:
-            raise HTTPException(
-                status_code=403,
-                detail="오늘의 무료 체험을 이미 사용했습니다. 내일 다시 체험하거나 Studio Pro 또는 Ultimate 구독 후 계속 사용할 수 있습니다.",
-            )
-        TRIAL_USAGE_BY_IP[client_ip] = today
-        return
+  <script>
+    const token=localStorage.getItem('zx_token');
+    const user=JSON.parse(localStorage.getItem('zx_user')||'null');
+    const expiresAt=Number(localStorage.getItem('zx_expires_at')||0);
+    let isKillSwitchActive=false;
 
-    if user.role == "owner":
-        return
-    if user.studio_generations_left <= 0:
-        raise HTTPException(status_code=403, detail="무료 사용량을 모두 사용했습니다. Studio Pro 또는 Ultimate 구독이 필요합니다.")
-    user.studio_generations_left -= 1
-    db.commit()
-
-def user_has_studio_access(user) -> bool:
-    if not user:
-        return False
-    return user.role == "owner" or user.plan in ["studio_pro", "ultimate"]
-
-def user_can_export(user) -> bool:
-    return user_has_studio_access(user)
-
-def prompt_to_floorplan(prompt: str):
-    if not STUDIO_WORKER_READY:
-        return None
-    img = np.ones((1000, 1500), dtype=np.uint8) * 255
-    lower = prompt.lower()
-    margin = 90
-
-    if "32평" in lower or "아파트" in lower:
-        cv2.rectangle(img, (margin, margin), (1410, 910), (0, 0, 0), 10)
-        cv2.line(img, (520, margin), (520, 910), (0, 0, 0), 7)
-        cv2.line(img, (960, margin), (960, 620), (0, 0, 0), 7)
-        cv2.line(img, (520, 430), (1410, 430), (0, 0, 0), 7)
-        cv2.line(img, (960, 620), (1410, 620), (0, 0, 0), 7)
-        cv2.putText(img, "Living", (150, 340), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 0, 0), 3)
-        cv2.putText(img, "Kitchen", (610, 310), cv2.FONT_HERSHEY_SIMPLEX, 1.1, (0, 0, 0), 3)
-        cv2.putText(img, "Room", (1080, 280), cv2.FONT_HERSHEY_SIMPLEX, 1.1, (0, 0, 0), 3)
-        cv2.putText(img, "Bath", (1080, 550), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 0), 3)
-        cv2.putText(img, "Room", (650, 700), cv2.FONT_HERSHEY_SIMPLEX, 1.1, (0, 0, 0), 3)
-    else:
-        cv2.rectangle(img, (100, 100), (1400, 900), (0, 0, 0), 10)
-        cv2.line(img, (520, 100), (520, 900), (0, 0, 0), 6)
-        cv2.line(img, (950, 100), (950, 900), (0, 0, 0), 6)
-        cv2.line(img, (100, 470), (1400, 470), (0, 0, 0), 6)
-    return img
-
-def describe_prompt_preview(prompt: str, source: str = "prompt"):
-    lower = prompt.lower()
-    if "32평" in lower or "아파트" in lower:
-        return {
-            "kind": "apartment_32",
-            "title": "대한민국 32평 아파트",
-            "summary": "거실, 주방, 침실 2개, 욕실, 현관 동선을 가진 아파트형 3D 미리보기입니다.",
-            "rooms": ["거실", "주방", "침실 1", "침실 2", "욕실", "현관"],
-        }
-    if any(word in lower for word in ["카페", "루프탑", "통유리"]):
-        return {
-            "kind": "cafe",
-            "title": "모던 루프탑 카페",
-            "summary": "통유리 전면, 2층 매스, 루프탑 정원을 가진 상업 공간 미리보기입니다.",
-            "rooms": ["라운지", "바", "계단", "루프탑"],
-        }
-    if any(word in lower for word in ["사무실", "오피스", "회의실"]):
-        return {
-            "kind": "office",
-            "title": "업무 공간",
-            "summary": "오픈 업무공간, 회의실, 라운지를 나눈 사무실형 3D 미리보기입니다.",
-            "rooms": ["오픈 오피스", "회의실", "라운지", "포커스룸"],
-        }
-    if source == "upload":
-        return {
-            "kind": "uploaded_plan",
-            "title": "업로드 도면 기반 공간",
-            "summary": "업로드한 2D 도면을 기준으로 벽체와 공간 볼륨을 구성한 미리보기입니다.",
-            "rooms": ["외벽", "내벽", "공간 볼륨"],
-        }
-    return {
-        "kind": "premium",
-        "title": "프리미엄 공간",
-        "summary": "프롬프트를 기준으로 구성한 프리미엄 3D 공간 미리보기입니다.",
-        "rooms": ["메인 공간", "보조 공간", "동선"],
+    if(token&&expiresAt&&Date.now()>expiresAt){logout();}
+    if(!token||!user||user.role!=='owner'){
+      alert('운영 권한 로그인이 필요합니다.');
+      location.href='login.html';
     }
 
-def build_google_ai_studio_result(prompt: str, reference_image_path: str | None = None):
-    if not google_ai_studio_is_configured():
-        return {"status": "skipped", "message": "GEMINI_API_KEY가 없어 Google AI Studio/Gemini 3D 이미지를 건너뛰고 Studio 기본 미리보기를 사용합니다."}
-    return generate_preview_image(prompt, reference_image_path=reference_image_path)
-
-@router.post("/upload")
-async def upload_floorplan(
-    background_tasks: BackgroundTasks,
-    request: Request,
-    file: UploadFile = File(...),
-    Authorization: str = Header(None),
-    db: Session = Depends(get_db),
-):
-    user = get_optional_user(Authorization, db)
-    charge_studio_trial_or_quota(user, db, request)
-
-    file_ext = os.path.splitext(file.filename)[1].lower()
-    if file_ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(status_code=400, detail=f"지원하지 않는 파일 형식입니다: {file_ext}. JPG, PNG만 가능합니다.")
-
-    safe_name = f"{int(time.time())}_{uuid.uuid4().hex}{file_ext}"
-    file_path = os.path.join("uploads", safe_name)
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    if os.path.getsize(file_path) > MAX_FILE_SIZE:
-        os.remove(file_path)
-        raise HTTPException(status_code=400, detail="파일이 너무 큽니다. 최대 10MB까지 가능합니다.")
-
-    model_filename = f"{int(time.time())}.glb"
-    model_path = f"static/models/{model_filename}"
-    bg_filename = model_filename.replace(".glb", "_bg.png")
-    bg_path = f"static/models/{bg_filename}"
-    if STUDIO_WORKER_READY:
-        background_tasks.add_task(generate_3d_task, file_path, model_path, bg_path, "premium", 25.0)
-
-    nano = build_google_ai_studio_result(
-        f"업로드한 도면을 기준으로 프리미엄 3D 건축 평면 이미지로 변환해줘. 파일명: {file.filename or 'uploaded floor plan'}",
-        reference_image_path=file_path,
-    )
-    can_export = user_can_export(user)
-    return {
-        "status": "success",
-        "message": "Google AI Studio/Gemini 3D 이미지를 준비했습니다." if nano.get("status") == "success" else ("3D 미리보기를 준비했습니다." if not STUDIO_WORKER_READY else "3D 생성 작업을 시작했습니다."),
-        "preview": describe_prompt_preview(file.filename or "업로드 도면", "upload"),
-        "image_url": nano.get("image_url"),
-        "image_provider": nano.get("provider"),
-        "provider_message": nano.get("message"),
-        "preview_only": not can_export,
-        "export_locked": not can_export,
-        "model_url": f"/static/models/{model_filename}" if can_export and STUDIO_WORKER_READY else None,
-        "bg_url": f"/static/models/{bg_filename}" if can_export and STUDIO_WORKER_READY else None,
-        "worker_ready": STUDIO_WORKER_READY,
+    function logout(){localStorage.removeItem('zx_token');localStorage.removeItem('zx_user');localStorage.removeItem('zx_expires_at');location.href='index.html'}
+    function authHeaders(){return {'Content-Type':'application/json','Authorization':`Bearer ${token}`}}
+    function escapeHtml(value){
+      return String(value||'').replace(/[&<>"']/g,(ch)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
     }
 
-@router.post("/generate")
-async def generate_floorplan(
-    background_tasks: BackgroundTasks,
-    request: Request,
-    prompt: str = Form(...),
-    Authorization: str = Header(None),
-    db: Session = Depends(get_db),
-):
-    user = get_optional_user(Authorization, db)
-    charge_studio_trial_or_quota(user, db, request)
-
-    style = "gallery" if any(word in prompt.lower() for word in ["갤러리", "통유리", "카페"]) else "premium"
-    wall_height = 24.0 if "아파트" in prompt.lower() else 30.0
-    img = prompt_to_floorplan(prompt)
-
-    filename = f"gen_prompt_{int(time.time())}"
-    img_path = f"uploads/{filename}.jpg"
-    if img is not None:
-        cv2.imwrite(img_path, img)
-
-    model_path = f"static/models/{filename}.glb"
-    bg_path = f"static/models/{filename}_bg.png"
-    if STUDIO_WORKER_READY and img is not None:
-        background_tasks.add_task(generate_3d_task, img_path, model_path, bg_path, style, wall_height)
-
-    nano = build_google_ai_studio_result(prompt)
-    can_export = user_can_export(user)
-    return {
-        "status": "success",
-        "message": "Google AI Studio 이미지와 3D 미리보기를 준비했습니다." if nano.get("status") == "success" else ("프롬프트 기반 3D 미리보기를 준비했습니다." if not STUDIO_WORKER_READY else "프롬프트 기반 3D 생성 작업을 시작했습니다."),
-        "preview": describe_prompt_preview(prompt),
-        "image_url": nano.get("image_url"),
-        "image_provider": nano.get("provider"),
-        "provider_message": nano.get("message"),
-        "preview_only": not can_export,
-        "export_locked": not can_export,
-        "model_url": f"/static/models/{filename}.glb" if can_export and STUDIO_WORKER_READY else None,
-        "bg_url": f"/static/models/{filename}_bg.png" if can_export and STUDIO_WORKER_READY else None,
-        "worker_ready": STUDIO_WORKER_READY,
+    async function fetchStatus(){
+      try{
+        const res=await fetch('/api/admin/status',{headers:authHeaders()});
+        const data=await res.json();
+        if(!res.ok)throw new Error(data.detail||'권한 오류');
+        document.getElementById('stat-users').innerText=data.total_users;
+        document.getElementById('stat-paid').innerText=data.paid_users;
+        document.getElementById('stat-mrr').innerText=(data.mrr_krw||0).toLocaleString()+'원';
+        document.getElementById('stat-bots').innerText=data.active_finance_bots;
+        isKillSwitchActive=data.global_kill_switch;
+        updateUI();
+      }catch(e){alert(e.message);location.href='login.html'}
     }
 
+    async function fetchReview(){
+      const scoreEl=document.getElementById('review-score');
+      const readyEl=document.getElementById('review-ready');
+      const listEl=document.getElementById('review-list');
+      scoreEl.innerText='...';
+      readyEl.innerText='검사 중';
+      listEl.innerHTML='';
+      try{
+        const res=await fetch('/api/admin/review',{headers:authHeaders()});
+        const data=await res.json();
+        if(!res.ok)throw new Error(data.detail||'검사 실패');
+        scoreEl.innerText=data.score+'점';
+        readyEl.innerText=data.ready?'필수 항목 통과':'필수 항목 보완 필요';
+        readyEl.className=data.ready?'text-xs mt-2 text-[#00ffcc]':'text-xs mt-2 text-amber-300';
+        listEl.innerHTML=(data.checks||[]).map(item=>{
+          const pass=item.status==='pass';
+          const color=pass?'border-emerald-500/30 bg-emerald-500/[.06] text-emerald-200':'border-amber-500/30 bg-amber-500/[.06] text-amber-200';
+          const label=pass?'PASS':(item.level==='recommended'?'WARN':'FIX');
+          const titleKo=item.title_ko||item.title;
+          const detailKo=item.detail_ko||item.detail;
+          const titleEn=item.title_en&&item.title_en!==titleKo?item.title_en:'';
+          const detailEn=item.detail_en&&item.detail_en!==detailKo?item.detail_en:'';
+          return `<div class="p-4 rounded-lg border ${color}"><div class="flex justify-between gap-3 mb-2"><div><strong class="block">${escapeHtml(titleKo)}</strong>${titleEn?`<span class="text-[11px] text-gray-400">${escapeHtml(titleEn)}</span>`:''}</div><span class="text-xs font-black">${label}</span></div><p class="text-xs leading-5 text-gray-300">${escapeHtml(detailKo)}</p>${detailEn?`<p class="text-[11px] leading-5 text-gray-500 mt-2">${escapeHtml(detailEn)}</p>`:''}</div>`;
+        }).join('');
+      }catch(e){scoreEl.innerText='-';readyEl.innerText=e.message;readyEl.className='text-xs mt-2 text-red-300'}
+    }
 
+    async function fetchSupportTickets(){
+      const box=document.getElementById('support-list');
+      box.innerHTML='<div class="text-gray-500">문의 내역을 불러오는 중...</div>';
+      try{
+        const res=await fetch('/api/support/admin/tickets',{headers:authHeaders()});
+        const data=await res.json();
+        if(!res.ok)throw new Error(data.detail||'문의 조회 실패');
+        if(!data.tickets.length){box.innerHTML='<div class="text-gray-500">접수된 문의가 없습니다.</div>';return;}
+        box.innerHTML=data.tickets.map(row=>`<div class="p-4 rounded-lg bg-black/30 border border-white/10">
+          <div class="grid grid-cols-1 lg:grid-cols-[1fr_160px] gap-3">
+            <div>
+              <strong class="block text-white">#${row.id} ${escapeHtml(row.title)}</strong>
+              <span class="text-xs text-gray-400">${escapeHtml(row.email)} / ${escapeHtml(row.category)} / ${escapeHtml(row.created_at||'')}</span>
+              <p class="mt-3 text-gray-300 leading-6 whitespace-pre-wrap">${escapeHtml(row.message)}</p>
+            </div>
+            <div>
+              <select id="ticket-status-${row.id}" class="w-full bg-black border border-white/10 rounded-lg p-2 mb-2">
+                <option value="open" ${row.status==='open'?'selected':''}>접수</option>
+                <option value="reviewing" ${row.status==='reviewing'?'selected':''}>확인 중</option>
+                <option value="answered" ${row.status==='answered'?'selected':''}>답변 완료</option>
+                <option value="closed" ${row.status==='closed'?'selected':''}>종료</option>
+              </select>
+              <textarea id="ticket-reply-${row.id}" class="w-full min-h-[90px] bg-black border border-white/10 rounded-lg p-2 text-sm" placeholder="대표 메모 또는 답변">${escapeHtml(row.admin_reply||'')}</textarea>
+              <button onclick="updateTicket(${row.id})" class="mt-2 w-full px-3 py-2 rounded-lg bg-[#00ffcc] text-black font-black">처리 저장</button>
+            </div>
+          </div>
+        </div>`).join('');
+      }catch(e){box.innerHTML=`<div class="text-red-300">${escapeHtml(e.message)}</div>`}
+    }
+
+    async function updateTicket(id){
+      const status=document.getElementById(`ticket-status-${id}`).value;
+      const admin_reply=document.getElementById(`ticket-reply-${id}`).value;
+      const res=await fetch(`/api/support/admin/tickets/${id}`,{method:'PATCH',headers:authHeaders(),body:JSON.stringify({status,admin_reply})});
+      const data=await res.json().catch(()=>null);
+      if(!res.ok){alert((data&&data.detail)||'문의 처리 저장 실패');return;}
+      fetchSupportTickets();
+    }
+
+    async function fetchUsers(){
+      const box=document.getElementById('user-list');
+      box.innerHTML='<div class="text-gray-500">불러오는 중...</div>';
+      try{
+        const res=await fetch('/api/admin/users',{headers:authHeaders()});
+        const data=await res.json();
+        if(!res.ok)throw new Error(data.detail||'가입자 조회 실패');
+        if(!data.users.length){box.innerHTML='<div class="text-gray-500">가입자가 없습니다.</div>';return;}
+        box.innerHTML=data.users.map(row=>`<div class="p-4 rounded-lg bg-black/30 border border-white/10 grid grid-cols-1 xl:grid-cols-[1fr_140px_140px_140px_auto] gap-3 items-center"><div><strong class="block text-white">${escapeHtml(row.email)}</strong><span class="text-xs text-gray-400">${escapeHtml(row.full_name||'-')} / 이메일 ${row.email_verified?'인증':'미인증'} / 휴대폰 ${row.phone_verified?'인증':'미인증'} / 가입승인 ${escapeHtml(row.approval_status||'approved')}</span></div><select onchange="changePlan(${row.id},this.value)" class="bg-black border border-white/10 rounded-lg p-2"><option value="free" ${row.plan==='free'?'selected':''}>free</option><option value="studio_pro" ${row.plan==='studio_pro'?'selected':''}>studio_pro</option><option value="trading_pro" ${row.plan==='trading_pro'?'selected':''}>trading_pro</option><option value="ultimate" ${row.plan==='ultimate'?'selected':''}>ultimate</option></select><select onchange="changeRole(${row.id},this.value)" class="bg-black border border-white/10 rounded-lg p-2"><option value="user" ${row.role==='user'?'selected':''}>user</option><option value="admin" ${row.role==='admin'?'selected':''}>admin</option><option value="owner" ${row.role==='owner'?'selected':''}>owner</option></select><select onchange="changeApproval(${row.id},this.value)" class="bg-black border border-white/10 rounded-lg p-2"><option value="pending" ${row.approval_status==='pending'?'selected':''}>승인 대기</option><option value="approved" ${(row.approval_status||'approved')==='approved'?'selected':''}>승인 완료</option><option value="rejected" ${row.approval_status==='rejected'?'selected':''}>거절</option></select><button onclick="deleteUser(${row.id},'${escapeHtml(row.email)}')" class="px-4 py-2 rounded-lg bg-red-600 text-white font-black">삭제</button></div>`).join('');
+      }catch(e){box.innerHTML=`<div class="text-red-300">${escapeHtml(e.message)}</div>`}
+    }
+
+    async function changePlan(id,plan){await fetch(`/api/admin/users/${id}`,{method:'PATCH',headers:authHeaders(),body:JSON.stringify({plan})});fetchStatus();fetchUsers()}
+    async function changeRole(id,role){await fetch(`/api/admin/users/${id}`,{method:'PATCH',headers:authHeaders(),body:JSON.stringify({role})});fetchStatus();fetchUsers()}
+    async function changeApproval(id,approval_status){await fetch(`/api/admin/users/${id}`,{method:'PATCH',headers:authHeaders(),body:JSON.stringify({approval_status})});fetchStatus();fetchUsers()}
+    async function deleteUser(id,email){if(!confirm(`${email} 계정을 삭제할까요?`))return;const res=await fetch(`/api/admin/users/${id}`,{method:'DELETE',headers:authHeaders()});const data=await res.json().catch(()=>null);if(!res.ok){alert((data&&data.detail)||'삭제 실패');return;}fetchStatus();fetchUsers()}
+
+    async function toggleKillSwitch(){
+      const next=!isKillSwitchActive;
+      if(next&&!confirm('전체 트레이딩 엔진을 긴급 정지할까요?'))return;
+      const res=await fetch('/api/admin/killswitch',{method:'POST',headers:authHeaders(),body:JSON.stringify({enabled:next})});
+      const data=await res.json();
+      if(!res.ok){alert(data.detail||'실패');return}
+      isKillSwitchActive=data.kill_switch_active;
+      updateUI();
+    }
+
+    function updateUI(){
+      const status=document.getElementById('system-status');
+      const btn=document.getElementById('btn-kill');
+      if(isKillSwitchActive){
+        status.innerText='SYSTEM HALTED';
+        status.className='px-4 py-2 rounded-lg bg-red-500/15 text-red-300 border border-red-500/50 font-black';
+        btn.innerText='RELEASE HALT';
+        btn.className='w-full py-5 rounded-xl bg-white text-black font-black';
+      }else{
+        status.innerText='SYSTEM ONLINE';
+        status.className='px-4 py-2 rounded-lg bg-green-500/15 text-green-300 border border-green-500/40 font-black';
+        btn.innerText='ACTIVATE';
+        btn.className='w-full py-5 rounded-xl bg-red-600 hover:bg-red-500 font-black';
+      }
+    }
+
+    fetchStatus();
+    fetchReview();
+    fetchSupportTickets();
+    fetchUsers();
+    setInterval(fetchStatus,5000);
+  </script>
+</body>
+</html>

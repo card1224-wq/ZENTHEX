@@ -1,11 +1,42 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-  <meta charset="UTF-8" />
-  <meta http-equiv="refresh" content="0; url=/index.html" />
-  <title>Zenthex</title>
-</head>
-<body>
-  <a href="/index.html">Zenthex로 이동</a>
-</body>
-</html>
+﻿ZENTHEX_OWNER_EMAILS=7foliath@naver.com
+
+# Use a persistent production database after deployment.
+# If this is not set, local SQLite creates ./zenthex.db on the server.
+# A fresh server SQLite file means existing accounts from the previous upload will not exist.
+ZENTHEX_DATABASE_URL=sqlite:///./zenthex.db
+
+# Public outbound IP of the FastAPI server that calls Upbit/Bithumb/Binance.
+# Put this same IP in each user's exchange API allowed IP list.
+# GitHub Pages does not have this server IP because it is only static hosting.
+ZENTHEX_SERVER_PUBLIC_IP=74.220.52.254
+
+# Google AI Studio/Gemini image generation for Zenthex Studio prompt previews.
+GEMINI_API_KEY=
+ZENTHEX_GOOGLE_AI_STUDIO_MODEL=gemini-3.1-flash-image
+
+# SMTP mail delivery. Leave empty during local development to use /api/auth/dev/outbox.
+ZENTHEX_SMTP_HOST=smtp.example.com
+ZENTHEX_SMTP_PORT=587
+ZENTHEX_SMTP_SSL=false
+ZENTHEX_SMTP_USER=no-reply@example.com
+ZENTHEX_SMTP_PASSWORD=change-me
+ZENTHEX_SMTP_FROM="Zenthex <no-reply@example.com>"
+ZENTHEX_ENABLE_DEV_OUTBOX=false
+ZENTHEX_ENABLE_MOCK_PAYMENT=false
+
+# Production recurring billing.
+# Korea: Toss Payments billing-key auto-payment.
+# Global: Stripe subscriptions.
+ZENTHEX_PAYMENT_PROVIDER=
+ZENTHEX_TOSS_SECRET_KEY=
+ZENTHEX_STRIPE_SECRET_KEY=
+ZENTHEX_PAYMENT_WEBHOOK_SECRET=
+
+# Future SMS provider values for phone verification.
+ZENTHEX_SMS_PROVIDER=
+ZENTHEX_SMS_ACCESS_KEY=
+ZENTHEX_SMS_SECRET_KEY=
+ZENTHEX_SMS_FROM=
+
+
+
