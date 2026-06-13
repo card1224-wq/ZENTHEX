@@ -1,124 +1,235 @@
+import base64
 import hashlib
 import hmac
+import json
 import time
+import uuid
+import urllib.error
 import urllib.parse
 import urllib.request
-from decimal import Decimal, InvalidOperation
 
 
-BINANCE_LIVE_BASE = "https://api.binance.com"
-BINANCE_TESTNET_BASE = "https://testnet.binance.vision"
+BITHUMB_BASE = "https://api.bithumb.com"
 
 
 def clean_key(value: str) -> str:
     return (value or "").strip().replace("\u200b", "").replace("\ufeff", "")
 
 
-def base_url(testnet: bool = False) -> str:
-    return BINANCE_TESTNET_BASE if testnet else BINANCE_LIVE_BASE
+def _b64url(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
 
 
-def explain_binance_error(raw_error) -> str:
+def _query_string(params: dict | None) -> str:
+    if not params:
+        return ""
+    return urllib.parse.urlencode(params)
+
+
+def build_bithumb_jwt(access_key: str, secret_key: str, query: str = "") -> str:
+    header = {"alg": "HS256", "typ": "JWT"}
+    payload = {
+        "access_key": access_key,
+        "nonce": str(uuid.uuid4()),
+        "timestamp": int(time.time() * 1000),
+    }
+    if query:
+        payload["query_hash"] = hashlib.sha512(query.encode("utf-8")).hexdigest()
+        payload["query_hash_alg"] = "SHA512"
+
+    signing_input = ".".join(
+        [
+            _b64url(json.dumps(header, separators=(",", ":")).encode("utf-8")),
+            _b64url(json.dumps(payload, separators=(",", ":")).encode("utf-8")),
+        ]
+    )
+    signature = hmac.new(secret_key.encode("utf-8"), signing_input.encode("ascii"), hashlib.sha256).digest()
+    return f"{signing_input}.{_b64url(signature)}"
+
+
+def explain_bithumb_error(raw_error) -> str:
     text = str(raw_error or "")
     lowered = text.lower()
-    if "-2015" in lowered or "invalid api-key" in lowered:
-        return "Binance API 키, 허용 IP, 또는 권한이 맞지 않습니다. Spot 거래 권한과 Zenthex 서버 IP 등록을 확인하세요."
-    if "signature" in lowered or "-1022" in lowered:
-        return "Binance Secret Key 서명 검증에 실패했습니다. Secret Key 복사 상태를 확인하거나 새 키를 발급하세요."
-    if "timestamp" in lowered or "-1021" in lowered:
-        return "Binance 서버 시간과 Zenthex 서버 시간이 맞지 않습니다. 서버 시간 동기화가 필요합니다."
-    if "ip" in lowered or "permission" in lowered or "restricted" in lowered:
-        return "Binance API 키의 IP 제한 또는 권한 설정 문제입니다. 출금 권한은 끄고 Spot 거래/조회 권한만 켜세요."
-    return "Binance 인증에 실패했습니다. API 키, Secret Key, Spot 권한, IP 화이트리스트, Testnet/Live 선택을 확인하세요."
+    if "notallowip" in lowered or "ip" in lowered:
+        return "Bithumb API allowed IP does not match. Add the Zenthex server outbound IP in Bithumb API settings."
+    if "out_of_scope" in lowered or "scope" in lowered:
+        return "Bithumb API permission is not enough. Enable asset lookup and order permission only; keep withdrawal disabled."
+    if "jwt" in lowered or "signature" in lowered or "verification" in lowered:
+        return "Bithumb Secret Key or JWT signature is invalid. Reissue the key if the secret may have been copied incorrectly."
+    if "access" in lowered or "key" in lowered or "unauthorized" in lowered or "401" in lowered:
+        return "Bithumb API Key is invalid, expired, or blocked by permission/IP settings."
+    return "Bithumb authentication failed. Check API Key, Secret Key, permissions, and allowed IP."
 
 
-def _request_json(url: str, headers: dict | None = None):
-    request = urllib.request.Request(url, headers=headers or {})
-    with urllib.request.urlopen(request, timeout=8) as response:
-        import json
+def _request(method: str, path: str, access_key: str = "", secret_key: str = "", params: dict | None = None):
+    query = _query_string(params)
+    url = f"{BITHUMB_BASE}{path}"
+    data = None
+    headers = {"Content-Type": "application/json; charset=utf-8", "accept": "application/json"}
+    if method == "GET" and query:
+        url = f"{url}?{query}"
+    if access_key and secret_key:
+        token = build_bithumb_jwt(access_key, secret_key, query)
+        headers["Authorization"] = f"Bearer {token}"
+    if method in ["POST", "DELETE"]:
+        data = json.dumps(params or {}, separators=(",", ":")).encode("utf-8")
 
-        return json.loads(response.read().decode("utf-8"))
-
-
-def _signed_query(secret_key: str, params: dict) -> str:
-    query = urllib.parse.urlencode(params)
-    signature = hmac.new(secret_key.encode("utf-8"), query.encode("utf-8"), hashlib.sha256).hexdigest()
-    return f"{query}&signature={signature}"
-
-
-def signed_get(path: str, access_key: str, secret_key: str, testnet: bool = False, params: dict | None = None):
-    access_key = clean_key(access_key)
-    secret_key = clean_key(secret_key)
-    payload = {"timestamp": int(time.time() * 1000), "recvWindow": 5000}
-    if params:
-        payload.update(params)
-    query = _signed_query(secret_key, payload)
-    return _request_json(
-        f"{base_url(testnet)}{path}?{query}",
-        headers={"X-MBX-APIKEY": access_key},
-    )
-
-
-def public_get(path: str, testnet: bool = False, params: dict | None = None):
-    query = urllib.parse.urlencode(params or {})
-    url = f"{base_url(testnet)}{path}" + (f"?{query}" if query else "")
-    return _request_json(url)
-
-
-def check_binance_key(access_key: str, secret_key: str, testnet: bool = False):
+    request = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
-        account = signed_get("/api/v3/account", access_key, secret_key, testnet=testnet)
-        balances = account.get("balances", [])
-        usdt_balance = Decimal("0")
-        non_zero = []
-        for row in balances:
-            free = _to_decimal(row.get("free"))
-            locked = _to_decimal(row.get("locked"))
-            total = free + locked
-            asset = row.get("asset")
-            if asset == "USDT":
-                usdt_balance = free
-            if total > 0:
-                non_zero.append({"asset": asset, "free": str(free), "locked": str(locked), "total": str(total)})
-        return {
-            "status": "success",
-            "verified": True,
-            "usdt_balance": float(usdt_balance),
-            "assets": non_zero[:30],
-            "message": f"Binance {'Testnet' if testnet else 'Live'} 키 인증 성공. 조회 가능한 USDT 잔고는 약 {float(usdt_balance):,.4f} USDT입니다.",
-        }
+        with urllib.request.urlopen(request, timeout=8) as response:
+            body = response.read().decode("utf-8")
+            return response.status, json.loads(body) if body else {}
+    except urllib.error.HTTPError as exc:
+        raw = exc.read().decode("utf-8", errors="replace")
+        try:
+            parsed = json.loads(raw)
+        except Exception:
+            parsed = raw
+        return exc.code, parsed
     except Exception as exc:
+        return 0, str(exc)
+
+
+def get_bithumb_current_price(ticker: str) -> float:
+    status, data = _request("GET", "/v1/ticker", params={"markets": ticker})
+    if status == 200 and isinstance(data, list) and data:
+        return float(data[0].get("trade_price") or 0)
+    return 0.0
+
+
+class BithumbClient:
+    def __init__(self, access_key: str, secret_key: str):
+        self.access_key = clean_key(access_key)
+        self.secret_key = clean_key(secret_key)
+
+    def get_balances(self):
+        status, data = _request("GET", "/v1/accounts", self.access_key, self.secret_key)
+        if status == 200 and isinstance(data, list):
+            return data
+        return {"error": data, "message": explain_bithumb_error(data)}
+
+    def get_balance(self, currency: str) -> float:
+        balances = self.get_balances()
+        if not isinstance(balances, list):
+            return 0.0
+        target = currency.replace("KRW-", "")
+        for row in balances:
+            if row.get("currency") == target:
+                return float(row.get("balance") or 0)
+        return 0.0
+
+    def buy_market_order(self, ticker: str, amount_krw: float):
+        params = {
+            "market": ticker,
+            "side": "bid",
+            "price": str(int(amount_krw)),
+            "order_type": "price",
+        }
+        status, data = _request("POST", "/v2/orders", self.access_key, self.secret_key, params)
+        if status in [200, 201] and isinstance(data, dict):
+            return data
+        return {"error": data, "message": explain_bithumb_error(data)}
+
+    def sell_market_order(self, ticker: str, volume: float):
+        params = {
+            "market": ticker,
+            "side": "ask",
+            "volume": f"{volume:.12f}".rstrip("0").rstrip("."),
+            "order_type": "market",
+        }
+        status, data = _request("POST", "/v2/orders", self.access_key, self.secret_key, params)
+        if status in [200, 201] and isinstance(data, dict):
+            return data
+        return {"error": data, "message": explain_bithumb_error(data)}
+
+
+def check_bithumb_key(access_key: str, secret_key: str):
+    client = BithumbClient(access_key, secret_key)
+    balances = client.get_balances()
+    if not isinstance(balances, list):
         return {
             "status": "error",
+            "message": explain_bithumb_error(balances),
             "verified": False,
-            "message": explain_binance_error(exc),
-            "raw": str(exc),
             "checklist": [
-                "Binance API Management에서 Spot & Margin Trading 권한 확인",
-                "출금 권한은 반드시 끄기",
-                "IP Restriction에 Zenthex 서버 outbound IP 등록",
-                "Testnet 키와 Live 키를 섞어 쓰지 않았는지 확인",
-                "Secret Key 앞뒤 공백과 줄바꿈 제거",
+                "Enable Bithumb asset lookup and order permissions",
+                "Keep withdrawal permission disabled",
+                "Register the Zenthex server outbound IP",
+                "Remove spaces or line breaks around Secret Key",
             ],
         }
 
+    krw_balance = 0.0
+    asset_count = 0
+    for row in balances:
+        currency = row.get("currency")
+        balance = float(row.get("balance") or 0)
+        locked = float(row.get("locked") or 0)
+        if currency == "KRW":
+            krw_balance = balance
+        elif balance + locked > 0:
+            asset_count += 1
 
-def build_binance_account_summary(access_key: str, secret_key: str, testnet: bool = False):
-    result = check_binance_key(access_key, secret_key, testnet=testnet)
-    if result.get("status") != "success":
-        return result
-    assets = result.get("assets", [])
     return {
         "status": "success",
-        "message": "Binance 잔고를 불러왔습니다. 자동매매 주문은 Spot 리스크 검증 후 열립니다.",
-        "cashBalance": result.get("usdt_balance", 0),
-        "quoteAsset": "USDT",
-        "positions": assets,
+        "message": f"Bithumb key verified. KRW balance is about {krw_balance:,.0f} KRW and held assets are {asset_count}.",
+        "verified": True,
+        "cashBalance": krw_balance,
+        "assetCount": asset_count,
     }
 
 
-def _to_decimal(value) -> Decimal:
-    try:
-        return Decimal(str(value or "0"))
-    except (InvalidOperation, ValueError):
-        return Decimal("0")
+def build_bithumb_account_summary(access_key: str, secret_key: str):
+    client = BithumbClient(access_key, secret_key)
+    balances = client.get_balances()
+    if not isinstance(balances, list):
+        return {"status": "error", "message": explain_bithumb_error(balances)}
+
+    cash_balance = 0.0
+    positions = []
+    for row in balances:
+        currency = row.get("currency")
+        balance = float(row.get("balance") or 0)
+        locked = float(row.get("locked") or 0)
+        total_qty = balance + locked
+        if currency == "KRW":
+            cash_balance = balance
+            continue
+        if not currency or total_qty <= 0:
+            continue
+        ticker = f"KRW-{currency}"
+        price = get_bithumb_current_price(ticker)
+        avg_price = float(row.get("avg_buy_price") or 0)
+        valuation = total_qty * price if price else 0
+        entry_value = avg_price * total_qty if avg_price else 0
+        pnl = valuation - entry_value if entry_value else 0
+        pnl_pct = pnl / entry_value if entry_value else 0
+        positions.append(
+            {
+                "ticker": ticker,
+                "qty": total_qty,
+                "availableQty": balance,
+                "lockedQty": locked,
+                "avgBuyPrice": avg_price,
+                "currentPrice": price,
+                "valuation": valuation,
+                "pnl": pnl,
+                "pnlPct": pnl_pct,
+                "status": "BITHUMB HOLDING",
+            }
+        )
+
+    coin_value = sum(item.get("valuation", 0) for item in positions)
+    invested_value = sum((item.get("avgBuyPrice", 0) or 0) * (item.get("qty", 0) or 0) for item in positions)
+    total_pnl = coin_value - invested_value if invested_value else 0
+    return {
+        "status": "success",
+        "message": "Bithumb account connected.",
+        "cashBalance": cash_balance,
+        "coinValue": coin_value,
+        "estBalance": cash_balance + coin_value,
+        "investedValue": invested_value,
+        "totalPnl": total_pnl,
+        "totalPnlPct": total_pnl / invested_value if invested_value else 0,
+        "positions": positions,
+    }
