@@ -1,45 +1,42 @@
-# Zenthex Production Database Plan
+﻿ZENTHEX_OWNER_EMAILS=7foliath@naver.com
 
-GitHub deploys must update code only. User accounts, passwords, subscriptions, receipts, Studio jobs, Trading settings, and encrypted exchange-key records must remain in a persistent production database.
+# Use a persistent production database after deployment.
+# If this is not set, local SQLite creates ./zenthex.db on the server.
+# A fresh server SQLite file means existing accounts from the previous upload will not exist.
+ZENTHEX_DATABASE_URL=sqlite:///./zenthex.db
 
-## Required Production Setup
+# Public outbound IP of the FastAPI server that calls Upbit/Bithumb/Binance.
+# Put this same IP in each user's exchange API allowed IP list.
+# GitHub Pages does not have this server IP because it is only static hosting.
+ZENTHEX_SERVER_PUBLIC_IP=74.220.52.254
 
-Use PostgreSQL before charging real users.
+# Google AI Studio/Gemini image generation for Zenthex Studio prompt previews.
+GEMINI_API_KEY=
+ZENTHEX_GOOGLE_AI_STUDIO_MODEL=gemini-3.1-flash-image
 
-```env
-ZENTHEX_DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DBNAME
-```
+# SMTP mail delivery. Leave empty during local development to use /api/auth/dev/outbox.
+ZENTHEX_SMTP_HOST=smtp.example.com
+ZENTHEX_SMTP_PORT=587
+ZENTHEX_SMTP_SSL=false
+ZENTHEX_SMTP_USER=no-reply@example.com
+ZENTHEX_SMTP_PASSWORD=change-me
+ZENTHEX_SMTP_FROM="Zenthex <no-reply@example.com>"
+ZENTHEX_ENABLE_DEV_OUTBOX=false
+ZENTHEX_ENABLE_MOCK_PAYMENT=false
 
-Many hosting providers expose `postgres://...`; the app normalizes that automatically.
+# Production recurring billing.
+# Korea: Toss Payments billing-key auto-payment.
+# Global: Stripe subscriptions.
+ZENTHEX_PAYMENT_PROVIDER=
+ZENTHEX_TOSS_SECRET_KEY=
+ZENTHEX_STRIPE_SECRET_KEY=
+ZENTHEX_PAYMENT_WEBHOOK_SECRET=
 
-## Why This Matters
+# Future SMS provider values for phone verification.
+ZENTHEX_SMS_PROVIDER=
+ZENTHEX_SMS_ACCESS_KEY=
+ZENTHEX_SMS_SECRET_KEY=
+ZENTHEX_SMS_FROM=
 
-Local SQLite creates `zenthex.db` on the running server. If a new deploy server starts with a fresh SQLite file, old accounts will not exist even though the browser still has a login token.
 
-PostgreSQL keeps the data outside GitHub upload files, so code updates do not delete:
 
-- user accounts
-- subscription state
-- monthly renewal status
-- payment receipts
-- Studio history
-- Trading settings
-
-## Subscription Storage
-
-`billing_history` stores receipts.
-
-`subscriptions` stores the current subscription:
-
-- plan
-- active/inactive/owner status
-- provider
-- provider subscription id
-- next billing date
-- last payment status
-
-Monthly auto-renewal should be connected later through:
-
-- Toss Payments billing key for Korea
-- Stripe subscriptions for global cards
-- payment webhooks for success, failure, cancellation, and refund events

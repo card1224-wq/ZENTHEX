@@ -1,124 +1,45 @@
-﻿<!DOCTYPE html>
-<html lang="ko">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Zenthex My Account</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-[#07070a] text-white min-h-screen p-6">
-  <div class="max-w-6xl mx-auto">
-    <div class="flex items-center justify-between mb-6 gap-4 flex-wrap">
-      <a href="index.html" class="text-sm text-gray-400 hover:text-white font-bold">← 메인으로</a>
-      <button onclick="logout()" class="px-4 py-2 rounded-lg bg-white/10 border border-white/10 text-sm font-bold">로그아웃</button>
-    </div>
+import os
+import base64
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import padding
 
-    <header class="p-6 rounded-xl bg-white/[.03] border border-white/10 mb-6">
-      <p class="text-xs tracking-[.3em] text-[#00ffcc] font-black uppercase">My Account</p>
-      <h1 class="text-3xl font-black tracking-tight mt-2">Zenthex 마이페이지</h1>
-      <p class="text-gray-400 mt-2">계정 인증, 구독 상태, 결제내역과 영수증을 확인합니다.</p>
-    </header>
+# 실 서비스 운영 시에는 반드시 환경 변수에서 가져와야 합니다.
+# 32바이트(256비트) 키
+SECRET_KEY = os.environ.get("ZENTHEX_CRYPTO_KEY", "zenthex_super_secret_master_key_32_").encode()[:32]
 
-    <section class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-      <div class="p-5 rounded-xl bg-white/[.03] border border-white/10"><p class="text-gray-500 text-xs font-black uppercase">이메일</p><strong id="user-email" class="text-xl mt-2 block break-all">-</strong></div>
-      <div class="p-5 rounded-xl bg-white/[.03] border border-white/10"><p class="text-gray-500 text-xs font-black uppercase">현재 플랜</p><strong id="user-plan" class="text-xl mt-2 block text-[#00ffcc]">-</strong></div>
-      <div class="p-5 rounded-xl bg-white/[.03] border border-white/10"><p class="text-gray-500 text-xs font-black uppercase">이메일 인증</p><strong id="user-verified" class="text-xl mt-2 block">-</strong></div>
-    </section>
+def encrypt_api_key(plain_text: str) -> str:
+    if not plain_text:
+        return ""
+    
+    iv = os.urandom(16)
+    cipher = Cipher(algorithms.AES(SECRET_KEY), modes.CBC(iv), backend=default_backend())
+    encryptor = cipher.encryptor()
+    
+    padder = padding.PKCS7(128).padder()
+    padded_data = padder.update(plain_text.encode()) + padder.finalize()
+    
+    encrypted = encryptor.update(padded_data) + encryptor.finalize()
+    return base64.b64encode(iv + encrypted).decode('utf-8')
 
-    <section id="role-workspace" class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6"></section>
-
-    <section class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-      <div class="p-6 rounded-xl bg-white/[.03] border border-white/10">
-        <h2 class="font-black text-xl mb-4">이메일 인증</h2>
-        <div class="flex gap-2 mb-3"><input id="verify-code" class="flex-1 bg-black border border-white/10 rounded-lg p-3" placeholder="인증 코드 입력"/><button onclick="verifyEmail()" class="px-4 rounded-lg bg-[#00ffcc] text-black font-black">인증</button></div>
-        <button id="email-code-btn" onclick="resendCode()" class="w-full py-3 rounded-lg bg-white/10 border border-white/10 font-bold">이메일 인증 코드 보내기</button>
-        <p id="verify-msg" class="text-sm text-gray-400 mt-3"></p>
-      </div>
-      <div class="p-6 rounded-xl bg-white/[.03] border border-white/10">
-        <h2 class="font-black text-xl mb-4">구독 정보</h2>
-        <p id="subscription-note" class="text-sm text-gray-400 leading-6">일반 사용자는 결제 완료 후 결제내역과 영수증이 이 화면에 표시됩니다. 실제 결제 승인은 결제사 연동 단계에서 자동 처리됩니다.</p>
-        <div id="plan-cards" class="mt-4 grid grid-cols-1 gap-3"></div>
-      </div>
-    </section>
-
-    <section class="p-6 rounded-xl bg-white/[.03] border border-white/10">
-      <h2 class="font-black text-xl mb-4">결제내역</h2>
-      <div id="subscription-box" class="mb-4 p-4 rounded-lg bg-black/30 border border-white/10 text-sm text-gray-300"></div>
-      <div id="billing-list" class="space-y-3 text-sm text-gray-300"></div>
-    </section>
-  </div>
-
-  <div id="receipt-modal" class="hidden fixed inset-0 bg-black/80 p-6 items-center justify-center">
-    <div class="bg-white text-black w-full max-w-2xl rounded-xl p-8">
-      <div id="receipt-content"></div>
-      <div class="flex gap-2 mt-6"><button onclick="window.print()" class="px-4 py-3 rounded-lg bg-black text-white font-black">영수증 출력</button><button onclick="closeReceipt()" class="px-4 py-3 rounded-lg bg-gray-200 font-black">닫기</button></div>
-    </div>
-  </div>
-
-<script>
-const token = localStorage.getItem('zx_token');
-let currentUser = JSON.parse(localStorage.getItem('zx_user') || 'null');
-const expiresAt = Number(localStorage.getItem('zx_expires_at') || 0);
-if(token&&expiresAt&&Date.now()>expiresAt){ logout(); }
-if(!token){ alert('로그인이 필요합니다.'); location.href='login.html'; }
-function headers(){ return {'Content-Type':'application/json','Authorization':`Bearer ${token}`}; }
-function logout(){ localStorage.removeItem('zx_token'); localStorage.removeItem('zx_user'); localStorage.removeItem('zx_expires_at'); location.href='index.html'; }
-async function loadMe(){ const res=await fetch('/api/auth/me',{headers:headers()}); const data=await res.json(); if(!res.ok){logout(); return;} currentUser=data; localStorage.setItem('zx_user',JSON.stringify(data)); renderUser(); }
-function isOwner(){ return currentUser && currentUser.role === 'owner'; }
-const planCatalog=[
-  {id:'studio_pro',name:'Studio Pro',price:'월 49,000원',desc:'프롬프트/2D 도면 3D 생성, GLB 다운로드, 작업 히스토리'},
-  {id:'trading_pro',name:'Trading Pro',price:'월 99,000원',desc:'Trading 실거래 권한, Signal Guard, 목표 수익률 자동 종료'},
-  {id:'ultimate',name:'Zenthex Ultimate',price:'월 149,000원',desc:'Studio + Trading 통합 권한, 우선 처리, 모바일 알림'}
-];
-function renderPlans(){
-  const box=document.getElementById('plan-cards');
-  if(isOwner()){
-    box.innerHTML='<div class="p-4 rounded-lg bg-[#00ffcc]/10 border border-[#00ffcc]/30 text-[#00ffcc] font-black">대표 계정은 결제 없이 Ultimate 전체 권한이 적용됩니다.</div>';
-    return;
-  }
-  box.innerHTML=planCatalog.map(plan=>`<div class="p-4 rounded-lg bg-black/30 border border-white/10"><div class="flex justify-between gap-3 items-start"><div><strong class="text-white">${plan.name}</strong><p class="text-xs text-gray-400 mt-1 leading-5">${plan.desc}</p></div><span class="text-[#00ffcc] font-black whitespace-nowrap">${plan.price}</span></div><button onclick="startCheckout('${plan.id}')" class="mt-3 w-full py-3 rounded-lg bg-white text-black font-black">${plan.name} 구독 신청</button></div>`).join('');
-}
-function roleCard(title,body,href,label,accent=false){
-  return `<div class="p-5 rounded-xl bg-white/[.03] border ${accent?'border-[#00ffcc]/30':'border-white/10'}"><h3 class="font-black text-white">${title}</h3><p class="text-sm text-gray-400 leading-6 mt-2">${body}</p><a href="${href}" class="inline-flex mt-4 px-4 py-3 rounded-lg ${accent?'bg-[#00ffcc] text-black':'bg-white/10 text-white border border-white/10'} font-black text-sm">${label}</a></div>`;
-}
-function renderRoleWorkspace(){
-  const box=document.getElementById('role-workspace');
-  if(isOwner()){
-    box.innerHTML=[
-      roleCard('CEO 운영 대시보드','가입 승인, 구독 권한, 고객 문의, 출시 검토, 긴급 정지는 대표 전용 화면에서 관리합니다.','admin.html','CEO Dashboard 열기',true),
-      roleCard('Studio 전체 권한','대표 계정은 결제 없이 Studio 생성, JPG 저장, GLB 다운로드를 검토할 수 있습니다.','studio.html','Studio 검토'),
-      roleCard('Trading 전체 권한','실거래 검증, 서버 IP, 위험제어, 모바일 상태 확인은 Trading 화면에서 테스트합니다.','finance.html','Trading 검토')
-    ].join('');
-    return;
-  }
-  box.innerHTML=[
-    roleCard('내 Studio 작업','구독자는 본인 프롬프트, 도면 변환, JPG 저장, GLB 다운로드만 사용합니다.','studio.html','Studio 열기',currentUser.plan==='studio_pro'||currentUser.plan==='ultimate'),
-    roleCard('내 Trading 엔진','구독자는 본인 API 키와 본인 잔고 기준으로 실거래 엔진을 실행하고 상태를 확인합니다.','finance.html','Trading 열기',currentUser.plan==='trading_pro'||currentUser.plan==='ultimate'),
-    roleCard('고객센터','계정, 결제, Studio, Trading 문의는 고객센터에서 접수하고 답변을 확인합니다.','customer.html','문의하기')
-  ].join('');
-}
-function renderUser(){
-  document.getElementById('user-email').innerText=currentUser.email;
-  document.getElementById('user-plan').innerText=isOwner()?'Owner Ultimate':currentUser.plan;
-  document.getElementById('user-verified').innerText=currentUser.email_verified?'인증 완료':'인증 필요';
-  document.getElementById('user-verified').className=currentUser.email_verified?'text-xl mt-2 block text-[#00ffcc]':'text-xl mt-2 block text-amber-300';
-  document.getElementById('email-code-btn').style.display=currentUser.email_verified?'none':'block';
-  if(isOwner()){
-    document.getElementById('subscription-note').innerText='대표 계정은 구독 결제 없이 Zenthex Ultimate 권한을 사용합니다.';
-  }else{
-    document.getElementById('subscription-note').innerText='구독 전 금액과 권한을 확인하세요. Studio 다운로드는 Studio Pro 또는 Ultimate, Trading 실거래는 Trading Pro 또는 Ultimate 구독 후 열립니다.';
-  }
-  renderRoleWorkspace();
-  renderPlans();
-}
-async function resendCode(){ const res=await fetch('/api/auth/email/resend',{method:'POST',headers:headers()}); const data=await res.json(); document.getElementById('verify-msg').innerText=data.dev_code?`${data.message} 테스트 인증코드: ${data.dev_code}`:(data.detail||data.message); if(res.ok) loadMe(); }
-async function verifyEmail(){ const code=document.getElementById('verify-code').value.trim(); const res=await fetch('/api/auth/email/verify',{method:'POST',headers:headers(),body:JSON.stringify({code})}); const data=await res.json(); document.getElementById('verify-msg').innerText=data.detail||data.message; if(res.ok) loadMe(); }
-async function startCheckout(planId){ const res=await fetch('/api/billing/subscribe',{method:'POST',headers:headers(),body:JSON.stringify({plan_id:planId})}); const data=await res.json(); if(data.status==='owner_unlocked'){ alert('대표 계정 Ultimate 권한이 적용되었습니다.'); loadMe(); return; } if(data.checkout_url){ alert('결제창 연동 주소가 준비되었습니다. 실제 결제사 연결 후 이 주소로 이동합니다.'); return; } alert(data.detail||data.status||'구독 신청이 접수되었습니다.'); }
-async function loadSubscription(){ const box=document.getElementById('subscription-box'); const res=await fetch('/api/billing/subscription',{headers:headers()}); const data=await res.json().catch(()=>null); const sub=data&&data.subscription; if(!sub){ box.innerText='구독 상태를 불러오지 못했습니다.'; return; } const status=sub.status==='active'?'자동결제 활성':sub.status==='owner_unlocked'?'대표 전체 권한':'구독 비활성'; box.innerHTML=`<strong class="text-white block mb-1">현재 구독 상태: ${status}</strong><span>플랜: ${sub.plan_id||'free'} / 다음 결제일: ${sub.next_billing_date||'없음'} / 결제사: ${sub.provider||'미연결'}</span>`; }
-async function loadBilling(){ const res=await fetch('/api/billing/history',{headers:headers()}); const data=await res.json(); const box=document.getElementById('billing-list'); box.innerHTML=''; if(!data.history||!data.history.length){ box.innerHTML='<div class="text-gray-500">결제내역이 없습니다.</div>'; return; } data.history.forEach(item=>{ const row=document.createElement('div'); row.className='p-4 rounded-lg bg-black/30 border border-white/10 flex justify-between gap-4 items-center flex-wrap'; row.innerHTML=`<div><div class="font-black text-white">${item.plan_name}</div><div class="text-gray-400">${item.created_at||''} / ${item.amount_krw.toLocaleString()}원 / ${item.status}</div></div><button class="px-4 py-2 rounded-lg bg-white text-black font-black" onclick="openReceipt(${item.id})">영수증 보기</button>`; box.appendChild(row); }); }
-async function openReceipt(id){ const res=await fetch(`/api/billing/receipt/${id}`,{headers:headers()}); const data=await res.json(); const r=data.receipt; document.getElementById('receipt-content').innerHTML=`<h1 style="font-size:28px;font-weight:900;margin:0 0 20px">Zenthex 영수증</h1><p>영수증 번호: ${r.receipt_no}</p><p>서비스: ${r.plan_name}</p><p>금액: ${r.amount_krw.toLocaleString()}원</p><p>상태: ${r.status}</p><p>결제수단: ${r.payment_method}</p><p>결제일: ${r.created_at||''}</p><hr style="margin:24px 0"><p>Zenthex SaaS Platform</p>`; document.getElementById('receipt-modal').classList.remove('hidden'); document.getElementById('receipt-modal').classList.add('flex'); }
-function closeReceipt(){ document.getElementById('receipt-modal').classList.add('hidden'); document.getElementById('receipt-modal').classList.remove('flex'); }
-loadMe(); loadSubscription(); loadBilling();
-</script>
-</body>
-</html>
+def decrypt_api_key(cipher_text: str) -> str:
+    if not cipher_text:
+        return ""
+    
+    try:
+        decoded = base64.b64decode(cipher_text)
+        iv = decoded[:16]
+        encrypted_data = decoded[16:]
+        
+        cipher = Cipher(algorithms.AES(SECRET_KEY), modes.CBC(iv), backend=default_backend())
+        decryptor = cipher.decryptor()
+        
+        decrypted_padded = decryptor.update(encrypted_data) + decryptor.finalize()
+        
+        unpadder = padding.PKCS7(128).unpadder()
+        unpadded_data = unpadder.update(decrypted_padded) + unpadder.finalize()
+        
+        return unpadded_data.decode('utf-8')
+    except Exception as e:
+        print(f"Decryption Error: {e}")
+        return ""

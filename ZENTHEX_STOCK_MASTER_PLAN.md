@@ -1,155 +1,202 @@
-# Zenthex Stock Master Plan
+﻿# Zenthex SaaS
 
-## 1. Service Position
+Zenthex is an AI SaaS platform with three product lines: Zenthex Studio, Zenthex Trading, and Zenthex Stock.
 
-Zenthex is one SaaS company with three service lines:
+## Features
+
+- Zenthex Studio: prompt and 2D drawing to AI 3D workspace
+- Studio Google AI Studio/Gemini image generation appears as the main result; true GLB/OBJ output is the later 3D Worker server stage
+- Studio trial: anonymous users get 1 generation per IP per day
+- Studio preview protection: trial/free users receive view-only previews without download URLs
+- Zenthex Trading: risk-managed strategy experience and Signal Guard
+- Zenthex Stock: planned stock strategy line for domestic stocks first and overseas stocks later, focused on long-term value, growth, catalysts, and risk control
+- Trading split entry: divide a configured total budget into multiple entries and calculate take-profit/stop-loss from the average buy price
+- Trading stop controls: pause keeps holdings, while sell-and-stop market-sells the current Zenthex position before ending the engine
+- Trading logs use KST and the screen explains the automatic selection filters before entry
+- Trading desktop layout uses three columns: quick execution, live monitor, and auxiliary settings
+- Trading scanner rejects price-falling volume spikes, strong recent red candles, and late 24h-high chase entries
+- Trading entry guard blocks broad BTC/ETH short-term selloffs, weak orderbooks, instant post-signal price drops, and repeat entries into recently stopped-out coins
+- Upbit: live market scan, strategy experience, and gated real trading
+- Binance: connector-ready key verification and balance lookup, with Spot-only auto-ordering as the next engine attachment
+- Owner dashboard for the email configured in `ZENTHEX_OWNER_EMAILS`
+- Email verification, phone verification, ID lookup, password reset
+- My Page with billing history and receipt print view
+- SMTP mail delivery through environment variables
+- Protected dev outbox and mock payment controls for safer public uploads
+- Owner launch review system in the CEO dashboard
+- Owner subscriber management: view accounts, change plan/role, and delete duplicate accounts
+- Customer inquiry system: users can submit support tickets and the owner can manage status/replies in the CEO dashboard
+- Owner account receives Ultimate access without payment, but still needs email code verification
+
+## Product Lines
+
+Zenthex is one company at the MVP stage, not three separate subsidiaries. The brand structure is:
 
 - Zenthex Studio: AI architecture and 3D visualization
 - Zenthex Trading: crypto auto-trading for Upbit, Bithumb, and Binance
-- Zenthex Stock: stock strategy automation for domestic stocks first and overseas stocks later
+- Zenthex Stock: long-term stock strategy automation for domestic and later overseas equities
 
-Zenthex Stock is not a separate company at the MVP stage. It is the third product line inside Zenthex. A legal subsidiary can be considered later only if revenue, compliance, operations, or investment structure requires it.
+Zenthex Stock should be built separately from the crypto engine because stocks have market hours, broker-specific APIs, different order rules, tax/settlement issues, and different compliance language. Trading focuses on short-term rising confirmation and must avoid falling coins. Stock should be more future-oriented: undervalued but improving companies, growth industries, earnings improvement, positive news/catalysts, and longer-term portfolio management. The first recommended broker target is Korea Investment Securities Open API because REST/WebSocket is better suited to a server-based SaaS than a PC-dependent automation model. See `ZENTHEX_STOCK_MASTER_PLAN.md`.
 
-## 2. Why Stock Must Be Separate From Crypto
+Login tokens are signed so new logins continue to work after a server restart or redeploy. If an older browser token is still present from a previous build, Studio clears it and retries as a one-day trial instead of blocking the prompt flow with an invalid-token error. Real trading still requires a fresh valid login because it can place real orders.
 
-Stock automation must not be mixed directly into the current crypto engine.
+Login sessions expire automatically. The default session lifetime is 24 hours and can be changed with `ZENTHEX_SESSION_HOURS`. Closing the browser does not immediately log out by itself because the app keeps a signed session for normal SaaS convenience, but expired sessions are rejected by the backend and cleared by the main pages.
 
-- Stocks have market open and close times.
-- Stocks use broker APIs, not exchange APIs.
-- Order types, tick sizes, account rules, fees, tax, and settlement are different.
-- Domestic and overseas stocks have different calendars and currency risks.
-- Stock automation needs stricter compliance wording than a simple crypto signal page.
+Accounts are stored in the database, not in the static GitHub files. If the deployment starts with a new empty `zenthex.db`, an old browser login token can remain while the matching account no longer exists on the server. In that case the app now clears stale sessions and the login screen shows whether the email does not exist or the password is wrong. Production should use a persistent database through `ZENTHEX_DATABASE_URL`.
 
-Correct product structure:
+For paid launch, the deployment rule is: GitHub updates application code only; user accounts, passwords, subscriptions, receipts, Studio jobs, Trading settings, and encrypted API-key records stay in the persistent production database. Do not rely on a newly created server-local SQLite file after real users or payments exist.
 
-```text
-Zenthex
-├── Zenthex Studio
-├── Zenthex Trading
-│   ├── Upbit
-│   ├── Bithumb
-│   └── Binance
-└── Zenthex Stock
-    ├── Korea Investment Securities
-    ├── Kiwoom Securities
-    └── Overseas stock connector later
+Subscriptions should be monthly auto-renewal. Recommended providers are Toss Payments billing-key auto-payment for Korea and Stripe subscriptions for overseas cards. Payment webhooks should update subscription status, next billing date, failed-payment grace periods, cancellations, refunds, and receipt history.
+
+The code supports PostgreSQL through `ZENTHEX_DATABASE_URL` and includes the PostgreSQL driver in `requirements.txt`. SQLite-only compatibility migrations are skipped automatically when PostgreSQL is used. See `PRODUCTION_DATABASE.md` for the production database checklist.
+
+Cost review is part of the CEO launch gate. The project can stay low-cost during validation, but paid launch needs budget planning for database, hosting, storage, Studio AI/GPU work, email/SMS, monitoring, and payment fees. The current end-to-end architecture is summarized in `ZENTHEX_MASTER_PLAN.md`.
+
+Studio and Trading refresh the current account on page load. Owner and paid users see full-access language inside the product screens according to their plan, while free or anonymous users see trial/subscription guidance. Product headers use Zenthex branding consistently.
+
+The homepage hero stays as a public Zenthex brand introduction for every visitor, including the owner account. Owner operations are exposed through dashboard links and owner-only cards, not by replacing the main brand headline.
+
+Owner and subscriber workspaces are separated. Subscribers use My Page for their own subscription, receipts, Studio, Trading, and support. The owner uses CEO Dashboard for user approval, plan changes, support management, launch review, emergency stop, and operational checks. Owner-only metrics or controls must not appear in subscriber screens.
+
+Logged-in users see My Page, Customer Center, and Logout in the homepage navigation. The owner also sees CEO Dashboard. Logged-in users should not see only the anonymous Login/Trial navigation.
+
+Role separation:
+
+- Owner: can access CEO dashboard, subscriber management, launch review, emergency stop, Studio, and Trading without payment.
+- Studio Pro: can use Studio generation/export features only.
+- Trading Pro: can use Trading real-mode features only.
+- Ultimate: can use Studio and Trading, but not CEO operations.
+- Free or anonymous users: can access limited trial/structure views only.
+
+## Account Verification
+
+Signup collects name, email, password confirmation, birth date, phone number, and password hint question/answer. Phone verification is required before a normal user can complete signup. If SMS provider keys are not configured, the test build uses the fixed verification code `122492` so testing is not blocked. A production SMS provider such as Naver Cloud SENS, Aligo, or Twilio should be connected before public launch.
+
+Normal users enter an owner-approval pending state after signup. The owner reviews identity details in the CEO dashboard and changes the account to approved before the user can log in and use paid services. The owner email remains automatically approved.
+
+## Launch Review
+
+The CEO dashboard includes a "출시 전 검토" panel. It checks core release risks such as owner account exposure, signup fields, phone verification, Studio trial lock, Trading real-trade lock, mock payment protection, and required database columns.
+
+Detailed review criteria are in `PROJECT_REVIEW.md`.
+
+The full representative master plan is in `ZENTHEX_MASTER_PLAN.md`.
+
+## Customer Center
+
+The Customer Center is not only an information page. Users can submit account, billing, Studio, Trading, Upbit, or general inquiries through `/customer.html`. Logged-in users can also view their own recent tickets. The owner can review incoming tickets, change status, and leave an internal reply from `/admin.html`.
+
+## Trading Direction
+
+Current production test target is Upbit first, with Bithumb added as a second live KRW exchange path. Binance should be added as the next connector with the same safety structure:
+
+- Public: exchange status, market scan preview, strategy explanation
+- Paid: real trading, API key registration, order execution
+- Required safety: order-only API key, withdrawal permission disabled, risk agreement, owner kill switch
+- Bithumb scope: spot KRW market only, JWT key verification, balance lookup, and market buy/sell through the shared risk manager
+- First Binance scope: spot trading only, small order tests, no futures until risk controls are proven
+
+Binance connector readiness is now in place for account creation day. Owner or Trading Pro/Ultimate users can select Binance connection, choose Testnet or Live, enter API/Secret keys, run key diagnostics, verify the key, and load balances. This does not yet route automatic orders through Binance; it prepares the verified connector so the next trading-engine step can attach Binance Spot to the same risk manager used by Upbit and Bithumb.
+
+The Trading screen starts with explicit exchange selection buttons. Upbit and Bithumb open live auto-trading paths after key verification and risk consent, while Binance opens the connection and verification path so a newly created Binance account can be tested immediately.
+
+Upbit real-trading keys require asset lookup and order permissions, and the public IP address of the running Zenthex FastAPI server must be registered on the Upbit Open API key. Bithumb and Binance use the same fixed-IP principle when IP restrictions are enabled. GitHub Pages is not the trading server; it only serves static files. If authentication fails, the UI returns a more specific diagnostic for likely IP, permission, Access Key, or Secret Key problems. The Trading screen shows the configured Zenthex server IP from `ZENTHEX_SERVER_PUBLIC_IP`; if the environment value is empty, Zenthex still displays the intended fixed IP `74.220.52.254` instead of drifting to a random auto-detected value. It includes "업비트 키 진단하기" for troubleshooting and "업비트 키 인증하기" for the live-trading gate. Secret Key is hidden by default, with a temporary view button for paste checks. The backend re-checks the key again when the real engine starts.
+
+For real paid trading, the outbound IP should be fixed. Zenthex currently uses `74.220.52.254` as the intended fixed server IP value. The production server must actually route outbound Upbit/Bithumb/Binance requests through this same IP, and `ZENTHEX_SERVER_PUBLIC_IP=74.220.52.254` should be set in the server environment. If the verified outbound IP differs from `74.220.52.254`, the exchange key must either use the verified IP or the server must be moved behind a fixed-IP VPS/NAT/proxy before production trading.
+
+The Trading screen includes an outbound-IP verification check. It compares `ZENTHEX_SERVER_PUBLIC_IP` with the actual public IP seen from the FastAPI server. If the two values differ, do not treat the deployment as ready for Upbit live trading.
+
+The Trading page keeps the long strategy form readable with a compact top summary for exit mode, target yield, capital mode, and coin selection. It also plots the latest Upbit balance/status `totalPnlPct` as a return-rate chart, so the user can watch profit movement instead of only reading current holdings.
+
+Studio exports use two formats: GLB is the real 3D model file for 3D viewers/tools, while JPG is a flat image of the current preview screen. Owner, Studio Pro, and Ultimate users can use both export paths.
+
+Studio prompt previews can use Google AI Studio/Gemini when `GEMINI_API_KEY` is configured. Until Zenthex's own 3D Worker is ready, Google AI Studio/Gemini is treated as the primary 3D-style architectural result source: prompts and uploaded 2D drawings are sent to Gemini to generate premium isometric 3D floor-plan images like a top-down apartment render. The immediate image preview uses `gemini-3.1-flash-image` by default through `ZENTHEX_GOOGLE_AI_STUDIO_MODEL`, then the local Three.js preview and optional GLB worker continue as the later model layer. If no key is configured, the app falls back to the built-in visual preview instead of failing.
+
+## Signal Guard Formula
+
+The trading experience does not promise profit. It uses 24h strength as a broad filter, then ranks short-term scalping signals:
+
+- 24h price change
+- recent 6h momentum
+- 24h traded value
+- 1m / 3m / 5m momentum
+- short-term volume surge
+- short-term breakout
+- 1m moving-average trend
+- BTC/ETH broad-market guard
+- orderbook spread and bid/ask balance
+- post-stop-loss ticker cooldown
+- volatility filter
+- drawdown from 24h high
+
+The scanner must not buy coins that are currently falling. Current entry requires 1m, 3m, and 5m momentum to be positive, recent 1m candles to be bullish, price and volume to rise together, and the current price to hold above short moving averages. If no coin passes those rising-confirmation checks, the engine waits instead of using a relaxed entry.
+
+Default scalping targets should be small, such as +0.3% to +1.0%, with a tight stop loss around -0.6%. In fixed target mode, every selected target yield must trigger sell-and-stop when reached, not only +0.5%. Practice mode can rotate away from weak candidates into stronger candidates. Real rotation requires a separate opt-in and should sell only holdings with clear loss or weak short-term flow before moving cash into stronger rising candidates.
+
+High-risk target options such as +10%, +30%, and +50% are available in the UI, but they are not normal scalping targets. They can keep the engine holding much longer and can expose the user to larger loss swings.
+
+Investment modes:
+
+- KRW cash all-in: uses only the available KRW cash balance in the Upbit account. If the account already holds coins and KRW cash is low, this mode may stop because there is not enough orderable KRW.
+- KRW cash ratio: uses a percentage of available KRW cash. For example, 50% of 1,000,000 KRW means about 500,000 KRW is used.
+- Fixed amount: uses a fixed KRW amount.
+- Existing-holdings rotation: high-risk explicit mode that first sells KRW-market coins already held in the Upbit account, then uses the resulting KRW for a new entry. It requires a separate checkbox and confirmation.
+
+Selling coins already held in the account and rotating that money into another coin is never the default. It is a separate explicit opt-in feature because it can realize losses and change the user's existing portfolio. Split entry is pyramiding, not averaging down: extra entries happen only after the active position is already profitable by the configured confirmation percentage.
+
+For real trading, the scanner runs outside the main API loop so the page can keep showing status while Upbit markets are being checked. The engine also tracks only the quantity bought by the current Zenthex run, so unrelated coins already held in the account are not sold by default.
+
+## Run Locally
+
+```powershell
+pip install -r requirements.txt
+python main.py
 ```
 
-## 3. Investment Direction
+Open:
 
-Zenthex Trading and Zenthex Stock must use different strategies.
+```text
+http://127.0.0.1:8080/
+```
 
-Zenthex Trading:
+## Environment
 
-- short-term crypto strategy
-- enter only after rising confirmation
-- avoid falling coins
-- sell by target profit, trailing protection, or stop loss
-- never present profit as guaranteed
+Copy `.env.example` to `.env` locally and fill SMTP values. Do not commit `.env`.
+For production, set `ZENTHEX_OWNER_EMAILS` in the server environment to the CEO email address. The current CEO email is `7foliath@naver.com`.
 
-Zenthex Stock:
+```env
+ZENTHEX_OWNER_EMAILS=7foliath@naver.com
+ZENTHEX_DATABASE_URL=sqlite:///./zenthex.db
+ZENTHEX_SERVER_PUBLIC_IP=74.220.52.254
+GEMINI_API_KEY=
+ZENTHEX_GOOGLE_AI_STUDIO_MODEL=gemini-3.1-flash-image
+ZENTHEX_SMTP_HOST=smtp.example.com
+ZENTHEX_SMTP_PORT=587
+ZENTHEX_SMTP_SSL=false
+ZENTHEX_SMTP_USER=no-reply@example.com
+ZENTHEX_SMTP_PASSWORD=change-me
+ZENTHEX_SMTP_FROM="Zenthex <no-reply@example.com>"
+ZENTHEX_ENABLE_DEV_OUTBOX=false
+ZENTHEX_ENABLE_MOCK_PAYMENT=false
+ZENTHEX_PAYMENT_PROVIDER=
+ZENTHEX_TOSS_SECRET_KEY=
+ZENTHEX_STRIPE_SECRET_KEY=
+ZENTHEX_PAYMENT_WEBHOOK_SECRET=
 
-- longer-term strategy
-- look for undervalued but improving companies
-- consider future growth industries
-- consider earnings improvement
-- consider positive corporate or sector news
-- consider institutional/foreign inflow when available
-- avoid buying a falling stock only because it looks cheap
-- manage risk when the original investment thesis breaks
+# Future SMS provider values
+ZENTHEX_SMS_PROVIDER=
+ZENTHEX_SMS_ACCESS_KEY=
+ZENTHEX_SMS_SECRET_KEY=
+ZENTHEX_SMS_FROM=
+```
 
-The stock product should feel more like a future-oriented portfolio engine than a fast scalping engine.
+## Do Not Commit
 
-## 4. First Broker Recommendation
+- `.env`
+- `zenthex.db`
+- `uploads/`
+- `__pycache__/`
+- generated model files in `static/models/`
 
-Recommended first target: Korea Investment Securities Open API.
 
-Reason:
 
-- REST and WebSocket style is suitable for a server-based SaaS.
-- Domestic stock, overseas stock, quote, and order APIs can expand in one direction.
-- It is easier to design with FastAPI workers than a PC-only automation model.
-
-Kiwoom can be reviewed later because it is popular in Korea, but its PC/Windows dependency can make SaaS operation harder.
-
-## 5. Core User Flow
-
-1. User subscribes to Stock Pro or Ultimate.
-2. User connects a brokerage API key.
-3. Zenthex verifies lookup/order permission.
-4. User starts Paper Trading first.
-5. The engine scans domestic stocks during market hours.
-6. The engine selects candidates by valuation, trend, volume, catalyst, and risk.
-7. The engine buys only when the entry rule is satisfied.
-8. The engine sells or reduces when target profit, trailing protection, stop loss, market-close rule, or thesis-break rule is triggered.
-9. Mobile and web screens show holdings, realized PnL, unrealized PnL, thesis status, and engine status.
-
-## 6. Candidate Selection Formula
-
-The first formula should be conservative and future-oriented.
-
-- trading value filter
-- current price above important trend lines
-- medium-term trend confirmation
-- valuation discount against growth or sector peers
-- earnings growth or turnaround signal
-- news/catalyst watchlist
-- institutional/foreign buying flow when available
-- volume increase with price stability or rising price
-- gap-up chase protection
-- KOSPI/KOSDAQ market guard
-- volatility cap
-- stop-loss cooldown per stock
-
-The engine must wait when no stock passes the quality and risk checks.
-
-## 7. Risk Manager
-
-Required controls:
-
-- Paper Trading default before live orders
-- per-position stop loss
-- target profit sell
-- trailing profit protection
-- thesis-break exit rule
-- daily maximum loss
-- maximum trades per day
-- maximum capital per stock
-- duplicate order prevention
-- market-close forced review or liquidation setting
-- owner emergency stop
-- full order and decision logs
-
-Zenthex Stock must never use wording such as guaranteed profit, no loss, or investment advice.
-
-## 8. Product Plans
-
-Initial plan proposal:
-
-- Stock Basic: watchlist, scanner, paper trading
-- Stock Pro: broker connection, live order gate, mobile status
-- Ultimate: Studio + Crypto Trading + Stock after Stock is proven
-
-Pricing can be reviewed after the crypto engine stabilizes. Do not sell Stock Pro live trading until Paper Trading and risk logs are proven.
-
-## 9. MVP Milestones
-
-1. Stock public product page and master plan
-2. Stock screen skeleton
-3. Broker API selection and environment variables
-4. Paper Trading stock simulator
-5. Domestic stock quote scanner
-6. Value/growth/news candidate scoring
-7. Strategy and risk-manager logs
-8. Owner launch review checks
-9. Subscription gate
-10. Broker key verification
-11. Small live-order test
-12. Mobile status view
-13. Production compliance review
-
-## 10. Current Build Status
-
-This build introduces the blueprint and UI/route skeleton only.
-
-Live stock orders are intentionally disabled until the broker connector, paper trading, market-hours scheduler, and stock-specific risk disclosure are complete.
