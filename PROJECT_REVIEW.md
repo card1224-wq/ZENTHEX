@@ -6,6 +6,8 @@ This checklist is the master review gate before uploading or publishing Zenthex.
 
 - Zenthex is one SaaS company with three product lines: Studio, Trading, and Stock.
 - Zenthex Stock must remain separate from the crypto Trading engine because stocks require market-hours scheduling, broker APIs, stock-specific risk controls, and separate compliance wording.
+- Zenthex Trading must not enter falling coins. Entry should require rising confirmation, volume with price strength, market guard, orderbook guard, and cooldown after stop-loss.
+- Zenthex Stock should be long-term and future-oriented, using valuation, growth, earnings improvement, catalysts, trend, and thesis-break risk management rather than copying crypto scalping.
 - Stock live orders must remain disabled until paper trading, broker key verification, market-hours scheduling, risk disclosure, subscription gating, and owner launch review checks are complete.
 - Homepage shows one clear Zenthex brand experience, not a split demo screen.
 - Homepage hero must always introduce Zenthex as a public brand, not change into "Zenthex Control" for the owner.

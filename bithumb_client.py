@@ -9,7 +9,7 @@ async def stock_status():
         "status": "planned",
         "service": "Zenthex Stock",
         "phase": "blueprint",
-        "message": "Zenthex Stock is designed as a separate stock auto-trading service line. Live brokerage orders are not enabled in this build.",
+        "message": "Zenthex Stock is designed as a separate long-term stock strategy service line. Live brokerage orders are not enabled in this build.",
         "supported_brokers_plan": [
             {
                 "name": "Korea Investment Securities",
@@ -26,6 +26,8 @@ async def stock_status():
             "No profit guarantee",
             "Paper trading before live orders",
             "Market-hours aware engine",
+            "Long-term thesis and catalyst review",
+            "No buying only because a stock is falling",
             "Daily loss limit",
             "Per-position stop loss",
             "Owner kill switch",

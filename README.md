@@ -9,7 +9,7 @@ Zenthex is an AI SaaS platform with three product lines: Zenthex Studio, Zenthex
 - Studio trial: anonymous users get 1 generation per IP per day
 - Studio preview protection: trial/free users receive view-only previews without download URLs
 - Zenthex Trading: risk-managed strategy experience and Signal Guard
-- Zenthex Stock: planned stock auto-trading line for domestic stocks first and overseas stocks later
+- Zenthex Stock: planned stock strategy line for domestic stocks first and overseas stocks later, focused on long-term value, growth, catalysts, and risk control
 - Trading split entry: divide a configured total budget into multiple entries and calculate take-profit/stop-loss from the average buy price
 - Trading stop controls: pause keeps holdings, while sell-and-stop market-sells the current Zenthex position before ending the engine
 - Trading logs use KST and the screen explains the automatic selection filters before entry
@@ -34,9 +34,9 @@ Zenthex is one company at the MVP stage, not three separate subsidiaries. The br
 
 - Zenthex Studio: AI architecture and 3D visualization
 - Zenthex Trading: crypto auto-trading for Upbit, Bithumb, and Binance
-- Zenthex Stock: stock auto-trading for domestic and later overseas equities
+- Zenthex Stock: long-term stock strategy automation for domestic and later overseas equities
 
-Zenthex Stock should be built separately from the crypto engine because stocks have market hours, broker-specific APIs, different order rules, tax/settlement issues, and different compliance language. The first recommended broker target is Korea Investment Securities Open API because REST/WebSocket is better suited to a server-based SaaS than a PC-dependent automation model. See `ZENTHEX_STOCK_MASTER_PLAN.md`.
+Zenthex Stock should be built separately from the crypto engine because stocks have market hours, broker-specific APIs, different order rules, tax/settlement issues, and different compliance language. Trading focuses on short-term rising confirmation and must avoid falling coins. Stock should be more future-oriented: undervalued but improving companies, growth industries, earnings improvement, positive news/catalysts, and longer-term portfolio management. The first recommended broker target is Korea Investment Securities Open API because REST/WebSocket is better suited to a server-based SaaS than a PC-dependent automation model. See `ZENTHEX_STOCK_MASTER_PLAN.md`.
 
 Login tokens are signed so new logins continue to work after a server restart or redeploy. If an older browser token is still present from a previous build, Studio clears it and retries as a one-day trial instead of blocking the prompt flow with an invalid-token error. Real trading still requires a fresh valid login because it can place real orders.
 
