@@ -3,297 +3,225 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Zenthex Login</title>
+  <title>Zenthex SaaS Platform</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap');
-    * { box-sizing: border-box; }
-    body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; background:#050507; color:white; font-family:Inter,system-ui,sans-serif; padding:24px; }
-    .card { width:min(520px,100%); background:#111116; border:1px solid rgba(255,255,255,.12); border-radius:12px; padding:32px; box-shadow:0 30px 80px rgba(0,0,0,.45); }
-    a { color:#a1a1aa; text-decoration:none; font-size:13px; font-weight:800; }
-    h1 { margin:16px 0 6px; letter-spacing:4px; font-size:28px; }
-    p { color:#a1a1aa; line-height:1.6; margin:0 0 22px; font-size:14px; }
-    .tabs { display:grid; grid-template-columns:1fr 1fr; border:1px solid rgba(255,255,255,.1); border-radius:8px; overflow:hidden; margin-bottom:18px; }
-    .tab { padding:12px; text-align:center; cursor:pointer; color:#a1a1aa; font-weight:900; background:#0b0b10; }
-    .tab.active { color:#04110e; background:#00ffcc; }
-    .panel { display:none; }
-    .panel.active { display:block; }
-    label { display:block; color:#d4d4d8; font-size:13px; font-weight:800; margin:14px 0 7px; }
-    input, select { width:100%; padding:13px; border-radius:8px; border:1px solid rgba(255,255,255,.14); background:#060609; color:white; font-size:15px; }
-    button.submit { width:100%; margin-top:18px; padding:14px; border:0; border-radius:8px; background:#00ffcc; color:#04110e; font-weight:900; cursor:pointer; }
-    .link-row { display:flex; justify-content:center; gap:12px; margin-top:14px; flex-wrap:wrap; }
-    .link-row button { background:none; border:0; color:#a1a1aa; font-weight:800; cursor:pointer; }
-    .inline-actions { display:grid; grid-template-columns:1fr auto; gap:8px; align-items:center; }
-    .mini { padding:12px 14px; border:0; border-radius:8px; background:#24242c; color:white; font-weight:900; cursor:pointer; white-space:nowrap; }
-    .err { color:#ff6b6b; min-height:18px; margin-top:10px; font-size:13px; text-align:center; line-height:1.5; }
-    .ok { color:#00ffcc; min-height:18px; margin-top:10px; font-size:13px; text-align:center; line-height:1.5; }
-    .muted { color:#71717a; font-size:12px; margin-top:6px; line-height:1.5; }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
+    :root { --bg:#06070a; --panel:#0b0d12; --line:rgba(255,255,255,.12); --muted:#a1a1aa; --text:#f8fafc; --mint:#00e6c3; --steel:#91a7ff; --gold:#f6c66a; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:var(--bg); color:var(--text); font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    body::before { content:""; position:fixed; inset:0; pointer-events:none; background:linear-gradient(180deg, rgba(255,255,255,.035), transparent 260px), radial-gradient(circle at 50% -12%, rgba(145,167,255,.18), transparent 34%), radial-gradient(circle at 82% 18%, rgba(0,230,195,.10), transparent 24%); }
+    body::after { content:"Z"; position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:0; pointer-events:none; color:rgba(255,255,255,.026); font-size:min(58vw,720px); font-weight:900; line-height:.8; text-shadow:0 0 120px rgba(0,230,195,.10); }
+    a { color:inherit; }
+    .nav { position:sticky; top:0; z-index:20; min-height:74px; padding:12px 32px; display:flex; align-items:center; justify-content:space-between; gap:18px; border-bottom:1px solid var(--line); background:rgba(6,7,10,.86); backdrop-filter:blur(18px); }
+    .brand { display:flex; align-items:center; gap:12px; font-weight:900; letter-spacing:3px; }
+    .mark-small { width:34px; height:34px; flex:0 0 auto; }
+    .nav-actions { display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
+    .nav a, .nav button { color:white; text-decoration:none; border:1px solid var(--line); background:rgba(255,255,255,.04); padding:10px 14px; border-radius:8px; font-size:13px; font-weight:800; cursor:pointer; font-family:inherit; }
+    .nav a:hover, .nav button:hover { border-color:rgba(0,230,195,.42); }
+    .owner-pill { color:#ffe1a1 !important; border-color:rgba(246,198,106,.45) !important; }
+    .shell { position:relative; z-index:1; width:min(1180px, calc(100% - 40px)); margin:0 auto; padding:28px 0 38px; }
+    .hero { position:relative; min-height:58vh; display:flex; align-items:center; justify-content:center; text-align:center; overflow:hidden; border:1px solid rgba(255,255,255,.08); border-radius:18px; background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.018)); }
+    .hero-mark { position:absolute; inset:0; display:grid; place-items:center; opacity:.30; pointer-events:none; }
+    .hero-mark img { width:min(72vw,760px); height:auto; filter:drop-shadow(0 40px 90px rgba(0,230,195,.10)); }
+    .hero-content { position:relative; z-index:2; width:min(850px, calc(100% - 32px)); padding:52px 0; }
+    .eyebrow { display:inline-flex; color:#d7defe; border:1px solid rgba(145,167,255,.28); background:rgba(145,167,255,.08); padding:8px 11px; border-radius:999px; font-size:11px; font-weight:900; letter-spacing:1.4px; text-transform:uppercase; }
+    h1 { margin:18px 0 14px; font-size:64px; line-height:.92; letter-spacing:0; }
+    .lead { color:#d4d4d8; line-height:1.68; font-size:17px; margin:0 auto 20px; max-width:720px; word-break:keep-all; }
+    .actions { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:28px; justify-content:center; }
+    .cta { min-height:46px; display:inline-flex; align-items:center; justify-content:center; padding:0 18px; border-radius:8px; text-decoration:none; font-size:14px; font-weight:900; border:0; cursor:pointer; font-family:inherit; }
+    .cta.main { background:white; color:#050507; }
+    .cta.trade { background:var(--mint); color:#03100d; }
+    .cta.sub { color:white; background:rgba(255,255,255,.04); border:1px solid var(--line); }
+    .trust, .pricing { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:10px; max-width:880px; margin:0 auto; text-align:left; }
+    .trust div, .price-card { border:1px solid var(--line); background:rgba(255,255,255,.035); border-radius:8px; padding:13px; }
+    .trust strong, .price-card strong { display:block; font-size:13px; margin-bottom:5px; }
+    .trust span, .price-card p { color:var(--muted); font-size:12px; line-height:1.5; margin:0; }
+    .price-card .price { color:var(--mint); font-size:17px; font-weight:900; margin:7px 0; }
+    .preview-band { margin-top:14px; display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .visual-panel { min-height:220px; border:1px solid var(--line); border-radius:10px; padding:16px; background:#090b10; position:relative; overflow:hidden; }
+    .floor { position:absolute; inset:58px 24px 24px; border:2px solid rgba(0,230,195,.65); transform:perspective(720px) rotateX(58deg) rotateZ(-8deg); transform-origin:center; }
+    .floor span { position:absolute; border:1px solid rgba(145,167,255,.45); background:rgba(255,255,255,.04); }
+    .floor span:nth-child(1){ left:8%; top:8%; width:42%; height:38%; }
+    .floor span:nth-child(2){ left:54%; top:8%; width:36%; height:28%; }
+    .floor span:nth-child(3){ left:8%; top:52%; width:32%; height:34%; }
+    .floor span:nth-child(4){ left:45%; top:44%; width:45%; height:42%; }
+    .signal-list { position:absolute; left:18px; right:18px; bottom:18px; display:grid; gap:8px; }
+    .signal-row { display:grid; grid-template-columns:1fr auto; gap:12px; padding:10px; border-radius:8px; background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.08); font-size:13px; }
+    .signal-row b { color:#99f6e4; }
+    .visual-panel h3 { margin:0; position:relative; z-index:2; }
+    .visual-panel p { color:#a1a1aa; position:relative; z-index:2; font-size:13px; line-height:1.55; max-width:420px; word-break:keep-all; }
+    .products { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:28px; }
+    .product { border:1px solid var(--line); background:rgba(255,255,255,.035); border-radius:10px; padding:20px; }
+    .product .kicker { color:#cbd5e1; font-size:11px; font-weight:900; letter-spacing:1.4px; text-transform:uppercase; }
+    .product h3 { margin:10px 0 8px; font-size:24px; letter-spacing:0; }
+    .product p { margin:0 0 16px; color:#b8bcc7; line-height:1.65; font-size:14px; word-break:keep-all; }
+    .chips { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:16px; }
+    .chips span { color:#e5e7eb; border:1px solid rgba(255,255,255,.10); background:rgba(255,255,255,.04); padding:7px 9px; border-radius:7px; font-size:12px; font-weight:800; }
+    .section-title { margin:30px 0 12px; font-size:18px; font-weight:900; }
+    .policy { margin:20px 0; color:#8f96a3; font-size:12px; line-height:1.65; word-break:keep-all; }
+    .modal { display:none; position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.72); align-items:center; justify-content:center; padding:24px; }
+    .modal.open { display:flex; }
+    .modal-card { width:min(760px,100%); background:#101014; border:1px solid var(--line); border-radius:10px; padding:28px; box-shadow:0 30px 80px rgba(0,0,0,.45); }
+    .modal-head { display:flex; justify-content:space-between; gap:16px; align-items:start; margin-bottom:16px; }
+    .modal h2 { margin:0; font-size:28px; }
+    .close { width:36px; height:36px; border:1px solid var(--line); background:#17171d; color:white; border-radius:8px; cursor:pointer; font-weight:900; }
+    .modal p, .modal li { color:#d4d4d8; line-height:1.8; word-break:keep-all; }
+    @media (max-width:900px) {
+      .nav { padding:12px 18px; }
+      .brand span { display:none; }
+      .shell { width:min(100% - 28px,1180px); padding-top:34px; }
+      .hero { min-height:auto; }
+      .hero-content { padding:52px 0; }
+      h1 { font-size:46px; }
+      .trust, .products, .pricing, .preview-band { grid-template-columns:1fr; }
+      .hero-mark img { width:120vw; }
+    }
   </style>
 </head>
 <body>
-  <div class="card">
-    <a href="index.html">← 메인으로</a>
-    <h1>ZENTHEX</h1>
-    <p>이메일 주소로 로그인합니다. 비밀번호를 잊은 경우 힌트 질문 또는 인증 코드로 새 비밀번호를 만들 수 있습니다.</p>
-
-    <div class="tabs">
-      <div class="tab active" onclick="switchTab('login')">로그인</div>
-      <div class="tab" onclick="switchTab('signup')">회원가입</div>
+  <nav class="nav">
+    <div class="brand">
+      <svg class="mark-small" viewBox="0 0 120 120" aria-hidden="true">
+        <path d="M60 8 104 33v54L60 112 16 87V33L60 8Z" fill="#10141d" stroke="#dbeafe" stroke-width="5"/>
+        <path d="M31 38h44L45 82h44" fill="none" stroke="#00e6c3" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M60 8v32M16 33l31 18M104 33 73 51" stroke="#91a7ff" stroke-width="4" opacity=".85"/>
+      </svg>
+      <span>ZENTHEX</span>
     </div>
+    <div class="nav-actions" id="nav-actions">
+      <a href="customer.html">고객센터</a>
+      <a href="login.html">로그인</a>
+    </div>
+  </nav>
 
-    <section id="login-panel" class="panel active">
-      <label>이메일</label>
-      <input type="email" id="login-email" placeholder="example@zenthex.com" />
-      <label>비밀번호</label>
-      <input type="password" id="login-password" />
-      <button class="submit" onclick="doLogin()">로그인</button>
-      <div class="link-row">
-        <button onclick="findId()">아이디 찾기</button>
-        <button onclick="requestReset()">비밀번호 찾기</button>
+  <main class="shell">
+    <section class="hero">
+      <div class="hero-mark"><img src="/static/zenthex-mark.svg" alt="" /></div>
+      <div class="hero-content">
+        <span class="eyebrow">AI Studio + Signal Guard SaaS</span>
+        <h1>Zenthex</h1>
+        <p class="lead">Zenthex는 프롬프트와 2D 도면을 3D 공간으로 변환하는 AI 스튜디오와, 사용자 설정 기반 자동매매 엔진을 제공하는 구독형 SaaS 플랫폼입니다.</p>
+        <div class="actions">
+          <a class="cta main" href="studio.html">Studio 열기</a>
+          <a class="cta trade" href="finance.html">Trading 열기</a>
+          <a class="cta sub" href="#pricing">구독 가격</a>
+          <button class="cta sub" type="button" onclick="openModal('platform-modal')">Zenthex란?</button>
+        </div>
+        <div class="trust">
+          <div><strong>Studio 체험</strong><span>비로그인도 하루 1회 보기 전용 체험 후 구독을 선택할 수 있습니다.</span></div>
+          <div><strong>Trading 보호</strong><span>체험 화면에서는 API 키를 받지 않고, 실거래는 구독 권한 뒤에만 열립니다.</span></div>
+          <div><strong>SaaS 운영</strong><span>계정, 구독, 결제내역, 영수증과 고객 지원을 한 흐름으로 관리합니다.</span></div>
+        </div>
       </div>
-      <div id="login-error" class="err"></div>
-      <div id="login-ok" class="ok"></div>
     </section>
 
-    <section id="signup-panel" class="panel">
-      <label>이름</label>
-      <input id="signup-name" placeholder="홍길동" />
-      <label>이메일</label>
-      <input type="email" id="signup-email" placeholder="example@zenthex.com" />
-      <label>비밀번호</label>
-      <input type="password" id="signup-password" />
-      <label>비밀번호 확인</label>
-      <input type="password" id="signup-password-confirm" />
-      <label>생년월일</label>
-      <input type="date" id="signup-birth-date" />
-      <p class="muted">본인 확인과 결제 계정 관리를 위해 생년월일을 입력합니다.</p>
-      <label>휴대폰 번호</label>
-      <div class="inline-actions">
-        <input id="signup-phone" placeholder="01012345678" oninput="phoneVerified=false; document.getElementById('phone-status').innerText='';" />
-        <button class="mini" onclick="sendPhoneCode()">인증코드 받기</button>
-      </div>
-      <label>휴대폰 인증코드</label>
-      <div class="inline-actions">
-        <input id="signup-phone-code" placeholder="테스트 코드 122492" />
-        <button class="mini" onclick="verifyPhoneCode()">인증 확인</button>
-      </div>
-      <div id="phone-status" class="ok"></div>
-      <label>비밀번호 힌트 질문</label>
-      <select id="signup-hint-question">
-        <option value="">질문을 선택하세요</option>
-        <option value="처음 다닌 초등학교 이름은?">처음 다닌 초등학교 이름은?</option>
-        <option value="가장 기억에 남는 여행지는?">가장 기억에 남는 여행지는?</option>
-        <option value="처음 키운 반려동물 이름은?">처음 키운 반려동물 이름은?</option>
-        <option value="가장 좋아하는 음식은?">가장 좋아하는 음식은?</option>
-        <option value="어릴 때 별명은?">어릴 때 별명은?</option>
-      </select>
-      <label>힌트 답변</label>
-      <input id="signup-hint-answer" placeholder="본인만 알 수 있는 답변" />
-      <p class="muted">힌트 답변에는 실제 비밀번호를 적지 마세요. 비밀번호 찾기 때 본인 확인용으로만 사용됩니다.</p>
-      <button class="submit" onclick="doSignup()">회원가입</button>
-      <div id="signup-error" class="err"></div>
+    <section class="preview-band">
+      <article class="visual-panel">
+        <h3>Zenthex Studio Preview</h3>
+        <p>프롬프트와 도면을 3D 공간으로 바꾸는 흐름을 첫 화면에서 바로 이해할 수 있게 보여줍니다.</p>
+        <div class="floor" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+      </article>
+      <article class="visual-panel">
+        <h3>Zenthex Trading Signals</h3>
+        <p>실거래는 로그인, 구독, 키 인증 후 열리고 후보 코인은 서버에서 점수화합니다.</p>
+        <div class="signal-list" aria-hidden="true">
+          <div class="signal-row"><span>KRW-BTC</span><b>+0.42%</b></div>
+          <div class="signal-row"><span>KRW-ETH</span><b>+0.36%</b></div>
+          <div class="signal-row"><span>KRW-SOL</span><b>+0.31%</b></div>
+        </div>
+      </article>
     </section>
 
-    <section id="reset-panel" class="panel">
-      <label>이메일</label>
-      <input type="email" id="reset-email" />
-      <label>비밀번호 힌트 질문</label>
-      <input id="reset-hint-question" readonly placeholder="이메일 입력 후 질문을 불러오세요" />
-      <button class="submit" onclick="loadHintQuestion()">힌트 질문 불러오기</button>
-      <div id="hint-answer-box">
-        <label>힌트 답변</label>
-        <input id="reset-hint-answer" />
-        <button class="submit" onclick="checkHintAndSendCode()">힌트 확인 후 코드 받기</button>
-      </div>
-      <button id="direct-reset-btn" class="submit" style="display:none" onclick="requestResetCodeOnly()">이메일 코드 받기</button>
-      <label>재설정 코드</label>
-      <input id="reset-code" placeholder="테스트 코드 122492" />
-      <label>새 비밀번호</label>
-      <input type="password" id="reset-password" />
-      <button class="submit" onclick="resetPassword()">비밀번호 변경</button>
-      <div class="link-row"><button onclick="switchTab('login')">로그인으로 돌아가기</button></div>
-      <div id="reset-msg" class="ok"></div>
+    <section class="products">
+      <article class="product">
+        <span class="kicker">Zenthex Studio</span>
+        <h3>프롬프트와 도면을 3D로</h3>
+        <p>문장 또는 2D 도면을 기반으로 3D 공간을 미리보고, Studio Pro 또는 Ultimate 구독 후 JPG 저장, GLB 다운로드와 작업 보관을 사용할 수 있습니다.</p>
+        <div class="chips"><span>Prompt to 3D</span><span>2D 도면 분석</span><span>JPG 저장</span><span>GLB 3D 모델</span></div>
+        <a class="cta main" href="studio.html">Studio 열기</a>
+      </article>
+      <article class="product">
+        <span class="kicker">Zenthex Trading</span>
+        <h3>자동매매 구조와 실거래 권한</h3>
+        <p>업비트 KRW 마켓의 강한 후보를 필터링하고 단기 신호를 점수화합니다. 실제 주문은 Trading Pro 또는 Ultimate 권한과 위험 동의 후에만 실행합니다.</p>
+        <div class="chips"><span>Signal Guard</span><span>Upbit 우선</span><span>API 키 보호</span><span>Binance 확장 예정</span></div>
+        <a class="cta trade" href="finance.html">Trading 열기</a>
+      </article>
     </section>
+
+    <h2 class="section-title" id="pricing">구독 가격</h2>
+    <section class="pricing">
+      <article class="price-card"><strong>Studio Pro</strong><div class="price">월 49,000원</div><p>Studio 생성, JPG 저장, GLB 다운로드, 작업 히스토리</p></article>
+      <article class="price-card"><strong>Trading Pro</strong><div class="price">월 99,000원</div><p>Trading 실거래 권한, Signal Guard, 목표 수익률 자동 종료</p></article>
+      <article class="price-card"><strong>Zenthex Ultimate</strong><div class="price">월 149,000원</div><p>Studio + Trading 통합 권한, 우선 처리, 모바일 알림</p></article>
+    </section>
+
+    <p class="policy">Zenthex Trading은 자동매매 도구이며 투자 자문 또는 수익 보장 서비스가 아닙니다. 모든 투자 판단과 손익 책임은 사용자 본인에게 있습니다.</p>
+  </main>
+
+  <div class="modal" id="platform-modal">
+    <div class="modal-card">
+      <div class="modal-head"><h2>Zenthex란?</h2><button class="close" onclick="closeModal('platform-modal')">X</button></div>
+      <p>Zenthex는 AI 3D 제작과 자동매매 실행 구조를 하나의 계정, 구독, 모바일 제어 흐름으로 제공하는 SaaS 플랫폼입니다.</p>
+      <ul>
+        <li>Studio 체험은 보기 전용이며 다운로드는 구독 후 제공합니다.</li>
+        <li>Trading 체험은 구조 확인용이며 API 키 입력을 요구하지 않습니다.</li>
+        <li>실거래는 로그인, 구독 권한, 위험 동의, API 키 확인 후에만 실행됩니다.</li>
+      </ul>
+    </div>
   </div>
 
   <script>
-    let phoneVerified = false;
-    let resetWithoutHint = false;
+    function openModal(id){ document.getElementById(id).classList.add('open'); }
+    function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 
-    function switchTab(tab){
-      document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-      document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
-      if(tab==='login'){
-        document.querySelectorAll('.tab')[0].classList.add('active');
-        document.getElementById('login-panel').classList.add('active');
-      } else if(tab==='signup') {
-        document.querySelectorAll('.tab')[1].classList.add('active');
-        document.getElementById('signup-panel').classList.add('active');
-      } else {
-        document.getElementById('reset-panel').classList.add('active');
+    let token = localStorage.getItem('zx_token');
+    let user = JSON.parse(localStorage.getItem('zx_user') || 'null');
+    const navActions = document.getElementById('nav-actions');
+
+    function isOwner(u){ return u && u.role === 'owner'; }
+
+    function clearSession(){
+      localStorage.removeItem('zx_token');
+      localStorage.removeItem('zx_user');
+      localStorage.removeItem('zx_expires_at');
+      token=null;
+      user=null;
+    }
+
+    function renderNav(u){
+      if(!u){
+        navActions.innerHTML='<a href="customer.html">고객센터</a><a href="login.html">로그인</a>';
+        return;
       }
+      const ownerLink=isOwner(u)?'<a class="owner-pill" href="admin.html">CEO Dashboard</a>':'';
+      navActions.innerHTML=`${ownerLink}<a href="account.html">마이페이지</a><a href="customer.html">고객센터</a><button type="button" onclick="logout()">로그아웃</button>`;
     }
 
-    function messageFrom(data,fallback){
-      if(!data) return fallback;
-      if(typeof data.detail==='string') return data.detail;
-      if(Array.isArray(data.detail)) return data.detail.map(item=>item.msg||JSON.stringify(item)).join(' / ');
-      return data.message||fallback;
+    function logout(){
+      clearSession();
+      renderNav(null);
     }
 
-    function showCodeMessage(box, data, fallback){
-      box.innerText = data && data.dev_code ? `${data.message || fallback} 테스트 코드: ${data.dev_code}` : messageFrom(data, fallback);
-    }
-
-    async function doLogin(){
-      const email=document.getElementById('login-email').value.trim();
-      const password=document.getElementById('login-password').value;
-      const errorDiv=document.getElementById('login-error');
-      errorDiv.innerText='';
-      if(!email){ errorDiv.innerText='이메일을 입력해주세요.'; return; }
-      if(!password){ errorDiv.innerText='비밀번호를 입력해주세요.'; return; }
+    async function refreshUser(){
+      const expiresAt=Number(localStorage.getItem('zx_expires_at')||0);
+      if(token&&expiresAt&&Date.now()>expiresAt){ clearSession(); renderNav(null); return; }
+      if(!token){ renderNav(null); return; }
+      if(user){ renderNav(user); }
       try{
-        const res=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
-        const data=await res.json().catch(()=>null);
-        if(!res.ok) throw new Error(messageFrom(data,'로그인에 실패했습니다.'));
-        localStorage.setItem('zx_token',data.access_token);
-        localStorage.setItem('zx_user',JSON.stringify(data.user_info));
-        localStorage.setItem('zx_expires_at',String(Date.now()+((data.expires_in||86400)*1000)));
-        location.href=data.user_info.role==='owner'?'admin.html':'account.html';
-      }catch(e){ errorDiv.innerText=e.message; }
+        const res=await fetch('/api/auth/me',{headers:{'Authorization':`Bearer ${token}`}});
+        if(res.ok){
+          user=await res.json();
+          localStorage.setItem('zx_user',JSON.stringify(user));
+          renderNav(user);
+          return;
+        }
+        if(res.status===401){ clearSession(); }
+      }catch(e){ console.error(e); }
+      renderNav(user);
     }
 
-    async function doSignup(){
-      const full_name=document.getElementById('signup-name').value.trim();
-      const email=document.getElementById('signup-email').value.trim();
-      const password=document.getElementById('signup-password').value;
-      const passwordConfirm=document.getElementById('signup-password-confirm').value;
-      const birth_date=document.getElementById('signup-birth-date').value;
-      const phone_number=document.getElementById('signup-phone').value.trim();
-      const password_hint_question=document.getElementById('signup-hint-question').value;
-      const password_hint_answer=document.getElementById('signup-hint-answer').value.trim();
-      const errorDiv=document.getElementById('signup-error');
-      errorDiv.innerText='';
-      if(full_name.length<2){ errorDiv.innerText='이름을 입력해주세요.'; return; }
-      if(!email){ errorDiv.innerText='이메일을 입력해주세요.'; return; }
-      if(!birth_date){ errorDiv.innerText='생년월일을 입력해주세요.'; return; }
-      if(!phone_number){ errorDiv.innerText='휴대폰 번호를 입력해주세요.'; return; }
-      if(!phoneVerified){ errorDiv.innerText='휴대폰 인증을 완료해주세요.'; return; }
-      if(password.length<6){ errorDiv.innerText='비밀번호는 6자 이상이어야 합니다.'; return; }
-      if(password!==passwordConfirm){ errorDiv.innerText='비밀번호 확인이 일치하지 않습니다.'; return; }
-      if(!password_hint_question){ errorDiv.innerText='비밀번호 힌트 질문을 선택해주세요.'; return; }
-      if(password_hint_answer.length<2){ errorDiv.innerText='힌트 답변을 입력해주세요.'; return; }
-      if(password_hint_answer.includes(password)){ errorDiv.innerText='힌트 답변에 비밀번호를 그대로 넣으면 안 됩니다.'; return; }
-      try{
-        const res=await fetch('/api/auth/signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password,full_name,birth_date,phone_number,password_hint_question,password_hint_answer})});
-        const data=await res.json().catch(()=>null);
-        if(!res.ok) throw new Error(messageFrom(data,'회원가입에 실패했습니다.'));
-        alert(data.role==='owner' ? '대표 계정 회원가입이 완료되었습니다. 로그인 후 이메일 인증을 진행하세요.' : '회원가입 신청이 접수되었습니다. 대표 승인 후 로그인할 수 있습니다.');
-        document.getElementById('login-email').value=email;
-        switchTab('login');
-      }catch(e){ errorDiv.innerText=e.message||'회원가입에 실패했습니다.'; }
-    }
-
-    async function sendPhoneCode(){
-      const phone_number=document.getElementById('signup-phone').value.trim();
-      const box=document.getElementById('phone-status');
-      phoneVerified=false;
-      box.innerText='';
-      if(!phone_number){ box.innerText='휴대폰 번호를 입력해주세요.'; return; }
-      const res=await fetch('/api/auth/phone/send-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone_number})});
-      const data=await res.json().catch(()=>null);
-      if(!res.ok){ box.innerText=messageFrom(data,'인증코드 발송에 실패했습니다.'); return; }
-      showCodeMessage(box, data, '인증코드를 발송했습니다.');
-    }
-
-    async function verifyPhoneCode(){
-      const phone_number=document.getElementById('signup-phone').value.trim();
-      const code=document.getElementById('signup-phone-code').value.trim();
-      const box=document.getElementById('phone-status');
-      if(!phone_number || !code){ box.innerText='휴대폰 번호와 인증코드를 입력해주세요.'; return; }
-      const res=await fetch('/api/auth/phone/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone_number,code})});
-      const data=await res.json().catch(()=>null);
-      if(!res.ok){ phoneVerified=false; box.innerText=messageFrom(data,'휴대폰 인증에 실패했습니다.'); return; }
-      phoneVerified=true;
-      box.innerText='휴대폰 인증이 완료되었습니다.';
-    }
-
-    async function findId(){
-      const email=document.getElementById('login-email').value.trim();
-      const box=document.getElementById('login-ok');
-      if(!email){ box.innerText='이메일을 입력해주세요.'; return; }
-      const res=await fetch('/api/auth/find-id',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
-      const data=await res.json().catch(()=>null);
-      box.innerText=messageFrom(data,'가입 정보가 있다면 이메일로 안내됩니다.');
-    }
-
-    function requestReset(){
-      document.getElementById('reset-email').value=document.getElementById('login-email').value.trim();
-      document.getElementById('reset-msg').innerText='';
-      document.getElementById('reset-hint-question').value='';
-      document.getElementById('reset-hint-answer').value='';
-      document.getElementById('reset-code').value='';
-      document.getElementById('reset-password').value='';
-      resetWithoutHint=false;
-      document.getElementById('hint-answer-box').style.display='block';
-      document.getElementById('direct-reset-btn').style.display='none';
-      switchTab('reset');
-    }
-
-    async function loadHintQuestion(){
-      const email=document.getElementById('reset-email').value.trim();
-      const box=document.getElementById('reset-msg');
-      box.innerText='';
-      if(!email){ box.innerText='이메일을 입력해주세요.'; return; }
-      const res=await fetch('/api/auth/password/question',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
-      const data=await res.json().catch(()=>null);
-      if(!res.ok){ box.innerText=messageFrom(data,'힌트 질문을 찾을 수 없습니다.'); return; }
-      document.getElementById('reset-hint-question').value=data.password_hint_question;
-      resetWithoutHint=!!data.reset_without_hint;
-      document.getElementById('hint-answer-box').style.display=resetWithoutHint?'none':'block';
-      document.getElementById('direct-reset-btn').style.display=resetWithoutHint?'block':'none';
-      box.innerText=resetWithoutHint?'기존 계정입니다. 이메일 코드 받기를 눌러 재설정하세요.':'힌트 질문을 불러왔습니다. 답변을 입력해주세요.';
-    }
-
-    async function requestResetCodeOnly(){
-      const email=document.getElementById('reset-email').value.trim();
-      const box=document.getElementById('reset-msg');
-      if(!email){ box.innerText='이메일을 입력해주세요.'; return; }
-      const res=await fetch('/api/auth/password/request-reset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
-      const data=await res.json().catch(()=>null);
-      showCodeMessage(box, data, res.ok?'재설정 코드를 발송했습니다.':'재설정 코드 발송 실패');
-    }
-
-    async function checkHintAndSendCode(){
-      if(resetWithoutHint){ await requestResetCodeOnly(); return; }
-      const email=document.getElementById('reset-email').value.trim();
-      const password_hint_question=document.getElementById('reset-hint-question').value;
-      const password_hint_answer=document.getElementById('reset-hint-answer').value.trim();
-      const box=document.getElementById('reset-msg');
-      box.innerText='';
-      if(!email){ box.innerText='이메일을 입력해주세요.'; return; }
-      if(!password_hint_question){ box.innerText='힌트 질문을 먼저 불러와주세요.'; return; }
-      if(!password_hint_answer){ box.innerText='힌트 답변을 입력해주세요.'; return; }
-      const res=await fetch('/api/auth/password/hint',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password_hint_question,password_hint_answer})});
-      const data=await res.json().catch(()=>null);
-      showCodeMessage(box, data, res.ok?'재설정 코드를 발송했습니다.':'힌트 확인 실패');
-    }
-
-    async function resetPassword(){
-      const email=document.getElementById('reset-email').value.trim();
-      const code=document.getElementById('reset-code').value.trim();
-      const new_password=document.getElementById('reset-password').value;
-      const box=document.getElementById('reset-msg');
-      if(!email){ box.innerText='이메일을 입력해주세요.'; return; }
-      if(!code){ box.innerText='재설정 코드를 입력해주세요.'; return; }
-      if(new_password.length<6){ box.innerText='새 비밀번호는 6자 이상이어야 합니다.'; return; }
-      const res=await fetch('/api/auth/password/reset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,code,new_password})});
-      const data=await res.json().catch(()=>null);
-      box.innerText=messageFrom(data,res.ok?'비밀번호가 변경되었습니다.':'비밀번호 변경 실패');
-      if(res.ok){
-        document.getElementById('login-email').value=email;
-        setTimeout(()=>switchTab('login'),900);
-      }
-    }
+    refreshUser();
   </script>
 </body>
 </html>
