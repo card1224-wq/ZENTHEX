@@ -1,175 +1,107 @@
-﻿from fastapi import APIRouter, Depends, HTTPException, Header
-from pydantic import BaseModel
-from sqlalchemy.orm import Session
-from database.session import get_db
-from database.models import BillingHistory, Subscription
-from auth.router import get_current_user
-import os
-import time
-import uuid
-from datetime import datetime, timedelta, timezone
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zenthex Stock</title>
+  <style>
+    :root{--bg:#06070a;--panel:#0d1016;--line:rgba(255,255,255,.12);--text:#f8fafc;--muted:#a1a1aa;--mint:#00e6c3;--gold:#f6c66a;--red:#f87171}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    body:before{content:"";position:fixed;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(255,255,255,.04),transparent 280px),radial-gradient(circle at 20% 0%,rgba(0,230,195,.12),transparent 30%),radial-gradient(circle at 80% 16%,rgba(246,198,106,.12),transparent 28%)}
+    a{color:inherit;text-decoration:none}
+    .nav{position:sticky;top:0;z-index:10;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:14px 28px;border-bottom:1px solid var(--line);background:rgba(6,7,10,.86);backdrop-filter:blur(18px)}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:900;letter-spacing:2px}
+    .brand img{width:34px;height:34px}
+    .nav-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .nav a,.nav button{border:1px solid var(--line);background:rgba(255,255,255,.04);color:white;border-radius:8px;padding:10px 12px;font-weight:800;cursor:pointer}
+    .shell{position:relative;z-index:1;width:min(1180px,calc(100% - 32px));margin:0 auto;padding:28px 0 42px}
+    .hero{display:grid;grid-template-columns:1.05fr .95fr;gap:18px;align-items:stretch}
+    .panel{border:1px solid var(--line);background:rgba(255,255,255,.035);border-radius:10px;padding:22px}
+    .eyebrow{display:inline-block;border:1px solid rgba(0,230,195,.28);background:rgba(0,230,195,.07);color:#bffef4;border-radius:999px;padding:8px 11px;font-size:11px;font-weight:900;letter-spacing:1px;text-transform:uppercase}
+    h1{margin:18px 0 12px;font-size:54px;line-height:.95;letter-spacing:0}
+    h2{margin:0 0 12px;font-size:18px}
+    p{color:#cbd5e1;line-height:1.65;word-break:keep-all}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+    .btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 16px;border-radius:8px;border:1px solid var(--line);background:rgba(255,255,255,.05);font-weight:900}
+    .btn.primary{background:var(--mint);color:#03100d;border:0}
+    .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:18px}
+    .metric strong{display:block;font-size:24px;margin-top:8px}
+    .metric span{color:var(--muted);font-size:12px;font-weight:800}
+    .market{display:grid;gap:8px}
+    .row{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:12px;border:1px solid rgba(255,255,255,.09);border-radius:8px;background:rgba(0,0,0,.22)}
+    .row b{font-size:14px}
+    .pos{color:var(--mint);font-weight:900}
+    .neg{color:var(--red);font-weight:900}
+    .roadmap{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:18px}
+    .check{display:flex;gap:10px;align-items:flex-start;padding:13px;border:1px solid rgba(255,255,255,.09);border-radius:8px;background:rgba(0,0,0,.18)}
+    .dot{width:10px;height:10px;margin-top:5px;border-radius:50%;background:var(--gold);box-shadow:0 0 20px rgba(246,198,106,.35)}
+    .warn{margin-top:18px;border-color:rgba(248,113,113,.32);background:rgba(248,113,113,.06)}
+    @media(max-width:900px){.hero,.grid,.roadmap{grid-template-columns:1fr}.nav{padding:12px 16px}.brand span{display:none}h1{font-size:42px}}
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <div class="brand"><img src="/static/zenthex-mark.svg" alt="" /><span>ZENTHEX STOCK</span></div>
+    <div class="nav-actions">
+      <a href="index.html">홈</a>
+      <a href="finance.html">Crypto Trading</a>
+      <a href="account.html">마이페이지</a>
+    </div>
+  </nav>
+  <main class="shell">
+    <section class="hero">
+      <div class="panel">
+        <span class="eyebrow">Stock Auto-Trading Line</span>
+        <h1>Zenthex Stock</h1>
+        <p>국내주식과 향후 해외주식을 위한 별도 자동매매 서비스 라인입니다. 코인 엔진과 섞지 않고, 장 시간, 증권사 API, 손절/익절, 일일 손실 제한을 별도 리스크 매니저로 다룹니다.</p>
+        <div class="actions">
+          <a class="btn primary" href="#roadmap">구축 로드맵 보기</a>
+          <button class="btn" type="button" onclick="loadStockStatus()">시스템 상태 확인</button>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>시장 스캐너 미리보기</h2>
+        <div class="market">
+          <div class="row"><b>KOSPI 후보 A</b><span>거래량 2.4x</span><span class="pos">+1.18%</span></div>
+          <div class="row"><b>KOSDAQ 후보 B</b><span>돌파 감시</span><span class="pos">+0.76%</span></div>
+          <div class="row"><b>보유 종목 C</b><span>손절선 감시</span><span class="neg">-0.42%</span></div>
+          <div class="row"><b>현금</b><span>장중 대기</span><span>분할 진입</span></div>
+        </div>
+      </div>
+    </section>
 
-router = APIRouter(prefix="/api/billing", tags=["billing"])
+    <section class="grid">
+      <div class="panel metric"><span>1차 증권사</span><strong>한국투자</strong><p>REST/WebSocket 기반으로 SaaS 서버 구조에 가장 먼저 검토합니다.</p></div>
+      <div class="panel metric"><span>실거래 전 단계</span><strong>Paper</strong><p>주식은 모의투자와 장중 로그 검증 후 실주문으로 넘어갑니다.</p></div>
+      <div class="panel metric"><span>권한 구조</span><strong>Stock Pro</strong><p>대표는 전체 검토, 구독자는 본인 계좌와 본인 엔진만 사용합니다.</p></div>
+    </section>
 
-class SubscribeRequest(BaseModel):
-    plan_id: str
+    <section id="roadmap" class="roadmap">
+      <div class="check"><span class="dot"></span><div><strong>1. 설계도 확정</strong><p>Studio, Crypto Trading, Stock 3개 서비스 라인을 마스터 플랜에 반영합니다.</p></div></div>
+      <div class="check"><span class="dot"></span><div><strong>2. 증권사 API 선택</strong><p>한국투자증권 Open API를 1순위로 검토하고 키/토큰 구조를 정리합니다.</p></div></div>
+      <div class="check"><span class="dot"></span><div><strong>3. 모의투자 엔진</strong><p>장중 후보 탐색, 가상 매수, 목표익절, 손절, 장마감 정책을 먼저 검증합니다.</p></div></div>
+      <div class="check"><span class="dot"></span><div><strong>4. 실거래 게이트</strong><p>구독, 위험동의, API 키 인증, 주문 권한, 대표 긴급정지를 통과해야 실주문을 허용합니다.</p></div></div>
+    </section>
 
-class CheckoutResponse(BaseModel):
-    checkout_url: str
-    status: str
-
-PLANS = {
-    "free": {"name": "Free Trial", "price": 0, "studio_limit": 0, "features": ["1일 1회 보기 전용 체험", "저장 제한"]},
-    "studio_pro": {"name": "Studio Pro", "price": 49000, "studio_limit": 100, "features": ["3D 생성 100회", "GLB 다운로드", "작업 히스토리"]},
-    "trading_pro": {"name": "Trading Pro", "price": 99000, "studio_limit": 0, "features": ["전략 검증", "Signal Guard", "목표 수익률 자동 종료"]},
-    "ultimate": {"name": "Zenthex Ultimate", "price": 149000, "studio_limit": 1000, "features": ["Studio + Trading", "우선 처리", "모바일 알림"]},
-}
-
-PAYMENT_PROVIDERS = {
-    "korea": "Toss Payments billing key auto-payment",
-    "global": "Stripe subscription billing",
-}
-
-def auth_user(Authorization: str, db: Session):
-    if not Authorization:
-        raise HTTPException(status_code=401, detail="로그인이 필요합니다.")
-    token = Authorization.replace("Bearer ", "")
-    return get_current_user(token, db)
-
-def create_billing_history(db: Session, user, plan_id: str, status: str = "paid"):
-    plan = PLANS[plan_id]
-    item = BillingHistory(
-        user_id=user.id,
-        plan_id=plan_id,
-        plan_name=plan["name"],
-        amount_krw=plan["price"],
-        status=status,
-        payment_method="mock_checkout",
-        receipt_no=f"ZX-{time.strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}",
-    )
-    db.add(item)
-    db.commit()
-    db.refresh(item)
-    return item
-
-def upsert_subscription(db: Session, user, plan_id: str, status: str, provider: str = "mock_checkout"):
-    subscription = db.query(Subscription).filter(Subscription.user_id == user.id).first()
-    if not subscription:
-        subscription = Subscription(user_id=user.id)
-        db.add(subscription)
-    subscription.plan_id = plan_id
-    subscription.status = status
-    subscription.provider = provider
-    subscription.provider_customer_id = subscription.provider_customer_id or f"zx_customer_{user.id}"
-    subscription.provider_subscription_id = subscription.provider_subscription_id or f"zx_sub_{uuid.uuid4().hex[:12]}"
-    subscription.next_billing_date = (datetime.now(timezone.utc) + timedelta(days=30)).date().isoformat() if status == "active" else None
-    subscription.cancel_at_period_end = False
-    subscription.last_payment_status = "paid" if status == "active" else status
-    db.commit()
-    db.refresh(subscription)
-    return subscription
-
-def serialize_subscription(row: Subscription | None):
-    if not row:
-        return {"plan_id": "free", "status": "inactive", "next_billing_date": None}
-    return {
-        "id": row.id,
-        "plan_id": row.plan_id,
-        "status": row.status,
-        "provider": row.provider,
-        "provider_subscription_id": row.provider_subscription_id,
-        "next_billing_date": row.next_billing_date,
-        "cancel_at_period_end": row.cancel_at_period_end,
-        "last_payment_status": row.last_payment_status,
+    <section class="panel warn">
+      <h2>투자위험 고지</h2>
+      <p>Zenthex Stock은 자동매매 도구이며 투자 자문 또는 수익 보장 서비스가 아닙니다. 모든 투자 판단과 손익 책임은 사용자 본인에게 있습니다. 이 빌드는 설계도와 화면 뼈대 단계이며 실제 주식 주문은 비활성화되어 있습니다.</p>
+      <p id="stock-status">상태 확인 버튼을 누르면 현재 Stock 모듈 준비 상태를 불러옵니다.</p>
+    </section>
+  </main>
+  <script>
+    async function loadStockStatus(){
+      const box=document.getElementById('stock-status');
+      box.innerText='Zenthex Stock 상태를 확인하는 중입니다.';
+      try{
+        const res=await fetch('/api/stock/status');
+        const data=await res.json();
+        box.innerText=`${data.service}: ${data.phase}. ${data.message}`;
+      }catch(e){
+        box.innerText='Stock API에 연결하지 못했습니다. FastAPI 서버 실행 상태를 확인하세요.';
+      }
     }
-
-@router.get("/plans")
-def get_plans():
-    return {
-        "plans": PLANS,
-        "billing_model": {
-            "type": "monthly_auto_renewal",
-            "korea_provider": PAYMENT_PROVIDERS["korea"],
-            "global_provider": PAYMENT_PROVIDERS["global"],
-            "required_storage": ["subscription_id", "customer_key", "next_billing_date", "status", "last_payment_id"],
-            "webhook_events": ["payment_succeeded", "payment_failed", "subscription_canceled", "refund_processed"],
-        },
-    }
-
-@router.post("/subscribe", response_model=CheckoutResponse)
-def mock_checkout(req: SubscribeRequest, Authorization: str = Header(None), db: Session = Depends(get_db)):
-    user = auth_user(Authorization, db)
-
-    if user.role == "owner":
-        user.plan = "ultimate"
-        user.studio_generations_left = 999999
-        upsert_subscription(db, user, "ultimate", "owner_unlocked", "zenthex_owner")
-        db.commit()
-        return {"checkout_url": "", "status": "owner_unlocked"}
-
-    if req.plan_id not in PLANS:
-        raise HTTPException(status_code=400, detail="Invalid plan code")
-    if PLANS[req.plan_id]["price"] == 0:
-        user.plan = "free"
-        user.studio_generations_left = PLANS["free"]["studio_limit"]
-        db.commit()
-        return {"checkout_url": "", "status": "upgraded_to_free"}
-
-    checkout_url = f"https://mock-toss-payments.zenthex.com/checkout?user={user.id}&plan={req.plan_id}"
-    return {"checkout_url": checkout_url, "status": "awaiting_payment"}
-
-@router.post("/webhook/success")
-def mock_payment_success(req: SubscribeRequest, Authorization: str = Header(None), db: Session = Depends(get_db)):
-    user = auth_user(Authorization, db)
-    if user.role != "owner" and os.getenv("ZENTHEX_ENABLE_MOCK_PAYMENT", "false").lower() != "true":
-        raise HTTPException(status_code=403, detail="결제 승인 처리는 실제 결제사 연동 후 사용할 수 있습니다.")
-    plan_data = PLANS.get(req.plan_id)
-    if not plan_data:
-        raise HTTPException(status_code=400, detail="Invalid plan code")
-
-    user.plan = req.plan_id
-    user.studio_generations_left = plan_data["studio_limit"]
-    receipt = create_billing_history(db, user, req.plan_id)
-    subscription = upsert_subscription(db, user, req.plan_id, "active", "mock_checkout")
-    return {"status": "success", "message": f"Successfully upgraded to {req.plan_id}", "payment_id": receipt.id}
-
-@router.get("/my_quota")
-def check_quota(Authorization: str = Header(None), db: Session = Depends(get_db)):
-    user = auth_user(Authorization, db)
-    if user.role == "owner":
-        return {"current_plan": "owner_unlimited", "studio_generations_left": 999999, "billing_required": False}
-    return {"current_plan": user.plan, "studio_generations_left": user.studio_generations_left, "billing_required": user.plan == "free"}
-
-@router.get("/history")
-def billing_history(Authorization: str = Header(None), db: Session = Depends(get_db)):
-    user = auth_user(Authorization, db)
-    rows = db.query(BillingHistory).filter(BillingHistory.user_id == user.id).order_by(BillingHistory.id.desc()).all()
-    return {"history": [serialize_payment(row) for row in rows]}
-
-@router.get("/subscription")
-def current_subscription(Authorization: str = Header(None), db: Session = Depends(get_db)):
-    user = auth_user(Authorization, db)
-    row = db.query(Subscription).filter(Subscription.user_id == user.id).first()
-    if user.role == "owner" and not row:
-        row = upsert_subscription(db, user, "ultimate", "owner_unlocked", "zenthex_owner")
-    return {"subscription": serialize_subscription(row)}
-
-@router.get("/receipt/{payment_id}")
-def billing_receipt(payment_id: int, Authorization: str = Header(None), db: Session = Depends(get_db)):
-    user = auth_user(Authorization, db)
-    row = db.query(BillingHistory).filter(BillingHistory.id == payment_id, BillingHistory.user_id == user.id).first()
-    if not row:
-        raise HTTPException(status_code=404, detail="결제내역을 찾을 수 없습니다.")
-    return {"receipt": serialize_payment(row), "company": {"name": "Zenthex", "service": "Zenthex SaaS Platform"}}
-
-def serialize_payment(row: BillingHistory):
-    return {
-        "id": row.id,
-        "plan_id": row.plan_id,
-        "plan_name": row.plan_name,
-        "amount_krw": row.amount_krw,
-        "status": row.status,
-        "payment_method": row.payment_method,
-        "receipt_no": row.receipt_no,
-        "created_at": row.created_at.isoformat() if row.created_at else None,
-    }
+  </script>
+</body>
+</html>

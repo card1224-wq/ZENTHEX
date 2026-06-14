@@ -3,297 +3,229 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Zenthex Login</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap');
-    * { box-sizing: border-box; }
-    body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; background:#050507; color:white; font-family:Inter,system-ui,sans-serif; padding:24px; }
-    .card { width:min(520px,100%); background:#111116; border:1px solid rgba(255,255,255,.12); border-radius:12px; padding:32px; box-shadow:0 30px 80px rgba(0,0,0,.45); }
-    a { color:#a1a1aa; text-decoration:none; font-size:13px; font-weight:800; }
-    h1 { margin:16px 0 6px; letter-spacing:4px; font-size:28px; }
-    p { color:#a1a1aa; line-height:1.6; margin:0 0 22px; font-size:14px; }
-    .tabs { display:grid; grid-template-columns:1fr 1fr; border:1px solid rgba(255,255,255,.1); border-radius:8px; overflow:hidden; margin-bottom:18px; }
-    .tab { padding:12px; text-align:center; cursor:pointer; color:#a1a1aa; font-weight:900; background:#0b0b10; }
-    .tab.active { color:#04110e; background:#00ffcc; }
-    .panel { display:none; }
-    .panel.active { display:block; }
-    label { display:block; color:#d4d4d8; font-size:13px; font-weight:800; margin:14px 0 7px; }
-    input, select { width:100%; padding:13px; border-radius:8px; border:1px solid rgba(255,255,255,.14); background:#060609; color:white; font-size:15px; }
-    button.submit { width:100%; margin-top:18px; padding:14px; border:0; border-radius:8px; background:#00ffcc; color:#04110e; font-weight:900; cursor:pointer; }
-    .link-row { display:flex; justify-content:center; gap:12px; margin-top:14px; flex-wrap:wrap; }
-    .link-row button { background:none; border:0; color:#a1a1aa; font-weight:800; cursor:pointer; }
-    .inline-actions { display:grid; grid-template-columns:1fr auto; gap:8px; align-items:center; }
-    .mini { padding:12px 14px; border:0; border-radius:8px; background:#24242c; color:white; font-weight:900; cursor:pointer; white-space:nowrap; }
-    .err { color:#ff6b6b; min-height:18px; margin-top:10px; font-size:13px; text-align:center; line-height:1.5; }
-    .ok { color:#00ffcc; min-height:18px; margin-top:10px; font-size:13px; text-align:center; line-height:1.5; }
-    .muted { color:#71717a; font-size:12px; margin-top:6px; line-height:1.5; }
-  </style>
+  <title>Zenthex CEO Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <div class="card">
-    <a href="index.html">← 메인으로</a>
-    <h1>ZENTHEX</h1>
-    <p>이메일 주소로 로그인합니다. 비밀번호를 잊은 경우 힌트 질문 또는 인증 코드로 새 비밀번호를 만들 수 있습니다.</p>
-
-    <div class="tabs">
-      <div class="tab active" onclick="switchTab('login')">로그인</div>
-      <div class="tab" onclick="switchTab('signup')">회원가입</div>
+<body class="bg-[#07070a] text-white min-h-screen p-6">
+  <div class="max-w-6xl mx-auto">
+    <div class="flex items-center justify-between mb-6 gap-4 flex-wrap">
+      <a href="index.html" class="text-sm text-gray-400 hover:text-white font-bold">← 메인으로</a>
+      <button onclick="logout()" class="px-4 py-2 rounded-lg bg-white/10 border border-white/10 text-sm font-bold">로그아웃</button>
     </div>
 
-    <section id="login-panel" class="panel active">
-      <label>이메일</label>
-      <input type="email" id="login-email" placeholder="example@zenthex.com" />
-      <label>비밀번호</label>
-      <input type="password" id="login-password" />
-      <button class="submit" onclick="doLogin()">로그인</button>
-      <div class="link-row">
-        <button onclick="findId()">아이디 찾기</button>
-        <button onclick="requestReset()">비밀번호 찾기</button>
+    <header class="p-6 rounded-xl bg-white/[.03] border border-white/10 mb-6 flex justify-between gap-4 flex-wrap items-center">
+      <div>
+        <p class="text-xs tracking-[.3em] text-red-400 font-black uppercase">Operations Workspace</p>
+        <h1 class="text-3xl font-black tracking-tight mt-2">Zenthex CEO Dashboard</h1>
+        <p class="text-gray-400 mt-2">운영, 가입자, 구독, 고객 문의, 출시 전 검토, 긴급 정지를 관리합니다.</p>
       </div>
-      <div id="login-error" class="err"></div>
-      <div id="login-ok" class="ok"></div>
+      <div id="system-status" class="px-4 py-2 rounded-lg bg-green-500/15 text-green-300 border border-green-500/40 font-black">SYSTEM ONLINE</div>
+    </header>
+
+    <section class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div class="p-5 rounded-xl bg-white/[.03] border border-white/10"><p class="text-gray-500 text-xs font-black uppercase">가입자</p><strong id="stat-users" class="text-4xl mt-2 block">0</strong></div>
+      <div class="p-5 rounded-xl bg-white/[.03] border border-white/10"><p class="text-gray-500 text-xs font-black uppercase">유료 사용자</p><strong id="stat-paid" class="text-4xl mt-2 block text-[#00ffcc]">0</strong></div>
+      <div class="p-5 rounded-xl bg-white/[.03] border border-white/10"><p class="text-gray-500 text-xs font-black uppercase">예상 MRR</p><strong id="stat-mrr" class="text-4xl mt-2 block">0</strong></div>
+      <div class="p-5 rounded-xl bg-white/[.03] border border-white/10"><p class="text-gray-500 text-xs font-black uppercase">실행 봇</p><strong id="stat-bots" class="text-4xl mt-2 block text-amber-300">0</strong></div>
     </section>
 
-    <section id="signup-panel" class="panel">
-      <label>이름</label>
-      <input id="signup-name" placeholder="홍길동" />
-      <label>이메일</label>
-      <input type="email" id="signup-email" placeholder="example@zenthex.com" />
-      <label>비밀번호</label>
-      <input type="password" id="signup-password" />
-      <label>비밀번호 확인</label>
-      <input type="password" id="signup-password-confirm" />
-      <label>생년월일</label>
-      <input type="date" id="signup-birth-date" />
-      <p class="muted">본인 확인과 결제 계정 관리를 위해 생년월일을 입력합니다.</p>
-      <label>휴대폰 번호</label>
-      <div class="inline-actions">
-        <input id="signup-phone" placeholder="01012345678" oninput="phoneVerified=false; document.getElementById('phone-status').innerText='';" />
-        <button class="mini" onclick="sendPhoneCode()">인증코드 받기</button>
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+      <div class="lg:col-span-2 p-6 rounded-xl bg-white/[.03] border border-white/10">
+        <div class="flex items-center justify-between gap-3 flex-wrap mb-4">
+          <h2 class="font-black text-xl">출시 전 검토</h2>
+          <button onclick="fetchReview()" class="px-4 py-2 rounded-lg bg-[#00ffcc] text-black text-sm font-black">다시 검사</button>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-[150px_1fr] gap-4 mb-4">
+          <div class="p-5 rounded-xl bg-black/30 border border-white/10">
+            <p class="text-gray-500 text-xs font-black uppercase">검사 점수</p>
+            <strong id="review-score" class="text-4xl mt-2 block">-</strong>
+            <p id="review-ready" class="text-xs mt-2 text-gray-400">검사 대기</p>
+          </div>
+          <div id="review-list" class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm"></div>
+        </div>
+        <p class="text-xs text-gray-500 leading-5">자동 검토는 코드와 환경설정 기준입니다. 실제 결제, 실제 문자/메일 발송, 실거래 주문은 별도 운영 테스트가 필요합니다.</p>
       </div>
-      <label>휴대폰 인증코드</label>
-      <div class="inline-actions">
-        <input id="signup-phone-code" placeholder="테스트 코드 122492" />
-        <button class="mini" onclick="verifyPhoneCode()">인증 확인</button>
+
+      <div class="p-6 rounded-xl bg-red-500/[.06] border border-red-500/30">
+        <h2 class="text-red-300 font-black text-xl mb-3">GLOBAL KILL SWITCH</h2>
+        <p class="text-sm text-gray-400 leading-6 mb-5">전체 트레이딩 엔진의 신규 매매를 즉시 정지합니다. 긴급 상황에서만 사용하세요.</p>
+        <button id="btn-kill" onclick="toggleKillSwitch()" class="w-full py-5 rounded-xl bg-red-600 hover:bg-red-500 font-black">ACTIVATE</button>
       </div>
-      <div id="phone-status" class="ok"></div>
-      <label>비밀번호 힌트 질문</label>
-      <select id="signup-hint-question">
-        <option value="">질문을 선택하세요</option>
-        <option value="처음 다닌 초등학교 이름은?">처음 다닌 초등학교 이름은?</option>
-        <option value="가장 기억에 남는 여행지는?">가장 기억에 남는 여행지는?</option>
-        <option value="처음 키운 반려동물 이름은?">처음 키운 반려동물 이름은?</option>
-        <option value="가장 좋아하는 음식은?">가장 좋아하는 음식은?</option>
-        <option value="어릴 때 별명은?">어릴 때 별명은?</option>
-      </select>
-      <label>힌트 답변</label>
-      <input id="signup-hint-answer" placeholder="본인만 알 수 있는 답변" />
-      <p class="muted">힌트 답변에는 실제 비밀번호를 적지 마세요. 비밀번호 찾기 때 본인 확인용으로만 사용됩니다.</p>
-      <button class="submit" onclick="doSignup()">회원가입</button>
-      <div id="signup-error" class="err"></div>
     </section>
 
-    <section id="reset-panel" class="panel">
-      <label>이메일</label>
-      <input type="email" id="reset-email" />
-      <label>비밀번호 힌트 질문</label>
-      <input id="reset-hint-question" readonly placeholder="이메일 입력 후 질문을 불러오세요" />
-      <button class="submit" onclick="loadHintQuestion()">힌트 질문 불러오기</button>
-      <div id="hint-answer-box">
-        <label>힌트 답변</label>
-        <input id="reset-hint-answer" />
-        <button class="submit" onclick="checkHintAndSendCode()">힌트 확인 후 코드 받기</button>
+    <section class="p-6 rounded-xl bg-white/[.03] border border-white/10 mb-6">
+      <div class="flex items-center justify-between gap-3 flex-wrap mb-4">
+        <h2 class="font-black text-xl">고객 문의</h2>
+        <button onclick="fetchSupportTickets()" class="px-4 py-2 rounded-lg bg-white/10 border border-white/10 text-sm font-bold">새로고침</button>
       </div>
-      <button id="direct-reset-btn" class="submit" style="display:none" onclick="requestResetCodeOnly()">이메일 코드 받기</button>
-      <label>재설정 코드</label>
-      <input id="reset-code" placeholder="테스트 코드 122492" />
-      <label>새 비밀번호</label>
-      <input type="password" id="reset-password" />
-      <button class="submit" onclick="resetPassword()">비밀번호 변경</button>
-      <div class="link-row"><button onclick="switchTab('login')">로그인으로 돌아가기</button></div>
-      <div id="reset-msg" class="ok"></div>
+      <div id="support-list" class="space-y-3 text-sm"></div>
+    </section>
+
+    <section class="p-6 rounded-xl bg-white/[.03] border border-white/10 mb-6">
+      <div class="flex items-center justify-between gap-3 flex-wrap mb-4">
+        <h2 class="font-black text-xl">가입자 관리</h2>
+        <button onclick="fetchUsers()" class="px-4 py-2 rounded-lg bg-white/10 border border-white/10 text-sm font-bold">새로고침</button>
+      </div>
+      <div id="user-list" class="space-y-3 text-sm"></div>
+    </section>
+
+    <section class="p-6 rounded-xl bg-white/[.03] border border-white/10">
+      <h2 class="font-black text-xl mb-4">운영 체크</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-300">
+        <div class="p-4 bg-black/30 rounded-lg border border-white/10">Studio 사용량과 GPU Queue는 다음 단계에서 연결</div>
+        <div class="p-4 bg-black/30 rounded-lg border border-white/10">Trading Signal Guard / 전략 검증 상태 감시</div>
+        <div class="p-4 bg-black/30 rounded-lg border border-white/10">대표 계정은 구독 체크 없이 전체 권한</div>
+        <div class="p-4 bg-black/30 rounded-lg border border-white/10">사용자는 체험 후 필요한 서비스만 구독 전환</div>
+      </div>
     </section>
   </div>
 
   <script>
-    let phoneVerified = false;
-    let resetWithoutHint = false;
+    const token=localStorage.getItem('zx_token');
+    const user=JSON.parse(localStorage.getItem('zx_user')||'null');
+    const expiresAt=Number(localStorage.getItem('zx_expires_at')||0);
+    let isKillSwitchActive=false;
 
-    function switchTab(tab){
-      document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-      document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
-      if(tab==='login'){
-        document.querySelectorAll('.tab')[0].classList.add('active');
-        document.getElementById('login-panel').classList.add('active');
-      } else if(tab==='signup') {
-        document.querySelectorAll('.tab')[1].classList.add('active');
-        document.getElementById('signup-panel').classList.add('active');
-      } else {
-        document.getElementById('reset-panel').classList.add('active');
+    if(token&&expiresAt&&Date.now()>expiresAt){logout();}
+    if(!token||!user||user.role!=='owner'){
+      alert('운영 권한 로그인이 필요합니다.');
+      location.href='login.html';
+    }
+
+    function logout(){localStorage.removeItem('zx_token');localStorage.removeItem('zx_user');localStorage.removeItem('zx_expires_at');location.href='index.html'}
+    function authHeaders(){return {'Content-Type':'application/json','Authorization':`Bearer ${token}`}}
+    function escapeHtml(value){
+      return String(value||'').replace(/[&<>"']/g,(ch)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    }
+
+    async function fetchStatus(){
+      try{
+        const res=await fetch('/api/admin/status',{headers:authHeaders()});
+        const data=await res.json();
+        if(!res.ok)throw new Error(data.detail||'권한 오류');
+        document.getElementById('stat-users').innerText=data.total_users;
+        document.getElementById('stat-paid').innerText=data.paid_users;
+        document.getElementById('stat-mrr').innerText=(data.mrr_krw||0).toLocaleString()+'원';
+        document.getElementById('stat-bots').innerText=data.active_finance_bots;
+        isKillSwitchActive=data.global_kill_switch;
+        updateUI();
+      }catch(e){alert(e.message);location.href='login.html'}
+    }
+
+    async function fetchReview(){
+      const scoreEl=document.getElementById('review-score');
+      const readyEl=document.getElementById('review-ready');
+      const listEl=document.getElementById('review-list');
+      scoreEl.innerText='...';
+      readyEl.innerText='검사 중';
+      listEl.innerHTML='';
+      try{
+        const res=await fetch('/api/admin/review',{headers:authHeaders()});
+        const data=await res.json();
+        if(!res.ok)throw new Error(data.detail||'검사 실패');
+        scoreEl.innerText=data.score+'점';
+        readyEl.innerText=data.ready?'필수 항목 통과':'필수 항목 보완 필요';
+        readyEl.className=data.ready?'text-xs mt-2 text-[#00ffcc]':'text-xs mt-2 text-amber-300';
+        listEl.innerHTML=(data.checks||[]).map(item=>{
+          const pass=item.status==='pass';
+          const color=pass?'border-emerald-500/30 bg-emerald-500/[.06] text-emerald-200':'border-amber-500/30 bg-amber-500/[.06] text-amber-200';
+          const label=pass?'PASS':(item.level==='recommended'?'WARN':'FIX');
+          const titleKo=item.title_ko||item.title;
+          const detailKo=item.detail_ko||item.detail;
+          const titleEn=item.title_en&&item.title_en!==titleKo?item.title_en:'';
+          const detailEn=item.detail_en&&item.detail_en!==detailKo?item.detail_en:'';
+          return `<div class="p-4 rounded-lg border ${color}"><div class="flex justify-between gap-3 mb-2"><div><strong class="block">${escapeHtml(titleKo)}</strong>${titleEn?`<span class="text-[11px] text-gray-400">${escapeHtml(titleEn)}</span>`:''}</div><span class="text-xs font-black">${label}</span></div><p class="text-xs leading-5 text-gray-300">${escapeHtml(detailKo)}</p>${detailEn?`<p class="text-[11px] leading-5 text-gray-500 mt-2">${escapeHtml(detailEn)}</p>`:''}</div>`;
+        }).join('');
+      }catch(e){scoreEl.innerText='-';readyEl.innerText=e.message;readyEl.className='text-xs mt-2 text-red-300'}
+    }
+
+    async function fetchSupportTickets(){
+      const box=document.getElementById('support-list');
+      box.innerHTML='<div class="text-gray-500">문의 내역을 불러오는 중...</div>';
+      try{
+        const res=await fetch('/api/support/admin/tickets',{headers:authHeaders()});
+        const data=await res.json();
+        if(!res.ok)throw new Error(data.detail||'문의 조회 실패');
+        if(!data.tickets.length){box.innerHTML='<div class="text-gray-500">접수된 문의가 없습니다.</div>';return;}
+        box.innerHTML=data.tickets.map(row=>`<div class="p-4 rounded-lg bg-black/30 border border-white/10">
+          <div class="grid grid-cols-1 lg:grid-cols-[1fr_160px] gap-3">
+            <div>
+              <strong class="block text-white">#${row.id} ${escapeHtml(row.title)}</strong>
+              <span class="text-xs text-gray-400">${escapeHtml(row.email)} / ${escapeHtml(row.category)} / ${escapeHtml(row.created_at||'')}</span>
+              <p class="mt-3 text-gray-300 leading-6 whitespace-pre-wrap">${escapeHtml(row.message)}</p>
+            </div>
+            <div>
+              <select id="ticket-status-${row.id}" class="w-full bg-black border border-white/10 rounded-lg p-2 mb-2">
+                <option value="open" ${row.status==='open'?'selected':''}>접수</option>
+                <option value="reviewing" ${row.status==='reviewing'?'selected':''}>확인 중</option>
+                <option value="answered" ${row.status==='answered'?'selected':''}>답변 완료</option>
+                <option value="closed" ${row.status==='closed'?'selected':''}>종료</option>
+              </select>
+              <textarea id="ticket-reply-${row.id}" class="w-full min-h-[90px] bg-black border border-white/10 rounded-lg p-2 text-sm" placeholder="대표 메모 또는 답변">${escapeHtml(row.admin_reply||'')}</textarea>
+              <button onclick="updateTicket(${row.id})" class="mt-2 w-full px-3 py-2 rounded-lg bg-[#00ffcc] text-black font-black">처리 저장</button>
+            </div>
+          </div>
+        </div>`).join('');
+      }catch(e){box.innerHTML=`<div class="text-red-300">${escapeHtml(e.message)}</div>`}
+    }
+
+    async function updateTicket(id){
+      const status=document.getElementById(`ticket-status-${id}`).value;
+      const admin_reply=document.getElementById(`ticket-reply-${id}`).value;
+      const res=await fetch(`/api/support/admin/tickets/${id}`,{method:'PATCH',headers:authHeaders(),body:JSON.stringify({status,admin_reply})});
+      const data=await res.json().catch(()=>null);
+      if(!res.ok){alert((data&&data.detail)||'문의 처리 저장 실패');return;}
+      fetchSupportTickets();
+    }
+
+    async function fetchUsers(){
+      const box=document.getElementById('user-list');
+      box.innerHTML='<div class="text-gray-500">불러오는 중...</div>';
+      try{
+        const res=await fetch('/api/admin/users',{headers:authHeaders()});
+        const data=await res.json();
+        if(!res.ok)throw new Error(data.detail||'가입자 조회 실패');
+        if(!data.users.length){box.innerHTML='<div class="text-gray-500">가입자가 없습니다.</div>';return;}
+        box.innerHTML=data.users.map(row=>`<div class="p-4 rounded-lg bg-black/30 border border-white/10 grid grid-cols-1 xl:grid-cols-[1fr_140px_140px_140px_auto] gap-3 items-center"><div><strong class="block text-white">${escapeHtml(row.email)}</strong><span class="text-xs text-gray-400">${escapeHtml(row.full_name||'-')} / 이메일 ${row.email_verified?'인증':'미인증'} / 휴대폰 ${row.phone_verified?'인증':'미인증'} / 가입승인 ${escapeHtml(row.approval_status||'approved')}</span></div><select onchange="changePlan(${row.id},this.value)" class="bg-black border border-white/10 rounded-lg p-2"><option value="free" ${row.plan==='free'?'selected':''}>free</option><option value="studio_pro" ${row.plan==='studio_pro'?'selected':''}>studio_pro</option><option value="trading_pro" ${row.plan==='trading_pro'?'selected':''}>trading_pro</option><option value="ultimate" ${row.plan==='ultimate'?'selected':''}>ultimate</option></select><select onchange="changeRole(${row.id},this.value)" class="bg-black border border-white/10 rounded-lg p-2"><option value="user" ${row.role==='user'?'selected':''}>user</option><option value="admin" ${row.role==='admin'?'selected':''}>admin</option><option value="owner" ${row.role==='owner'?'selected':''}>owner</option></select><select onchange="changeApproval(${row.id},this.value)" class="bg-black border border-white/10 rounded-lg p-2"><option value="pending" ${row.approval_status==='pending'?'selected':''}>승인 대기</option><option value="approved" ${(row.approval_status||'approved')==='approved'?'selected':''}>승인 완료</option><option value="rejected" ${row.approval_status==='rejected'?'selected':''}>거절</option></select><button onclick="deleteUser(${row.id},'${escapeHtml(row.email)}')" class="px-4 py-2 rounded-lg bg-red-600 text-white font-black">삭제</button></div>`).join('');
+      }catch(e){box.innerHTML=`<div class="text-red-300">${escapeHtml(e.message)}</div>`}
+    }
+
+    async function changePlan(id,plan){await fetch(`/api/admin/users/${id}`,{method:'PATCH',headers:authHeaders(),body:JSON.stringify({plan})});fetchStatus();fetchUsers()}
+    async function changeRole(id,role){await fetch(`/api/admin/users/${id}`,{method:'PATCH',headers:authHeaders(),body:JSON.stringify({role})});fetchStatus();fetchUsers()}
+    async function changeApproval(id,approval_status){await fetch(`/api/admin/users/${id}`,{method:'PATCH',headers:authHeaders(),body:JSON.stringify({approval_status})});fetchStatus();fetchUsers()}
+    async function deleteUser(id,email){if(!confirm(`${email} 계정을 삭제할까요?`))return;const res=await fetch(`/api/admin/users/${id}`,{method:'DELETE',headers:authHeaders()});const data=await res.json().catch(()=>null);if(!res.ok){alert((data&&data.detail)||'삭제 실패');return;}fetchStatus();fetchUsers()}
+
+    async function toggleKillSwitch(){
+      const next=!isKillSwitchActive;
+      if(next&&!confirm('전체 트레이딩 엔진을 긴급 정지할까요?'))return;
+      const res=await fetch('/api/admin/killswitch',{method:'POST',headers:authHeaders(),body:JSON.stringify({enabled:next})});
+      const data=await res.json();
+      if(!res.ok){alert(data.detail||'실패');return}
+      isKillSwitchActive=data.kill_switch_active;
+      updateUI();
+    }
+
+    function updateUI(){
+      const status=document.getElementById('system-status');
+      const btn=document.getElementById('btn-kill');
+      if(isKillSwitchActive){
+        status.innerText='SYSTEM HALTED';
+        status.className='px-4 py-2 rounded-lg bg-red-500/15 text-red-300 border border-red-500/50 font-black';
+        btn.innerText='RELEASE HALT';
+        btn.className='w-full py-5 rounded-xl bg-white text-black font-black';
+      }else{
+        status.innerText='SYSTEM ONLINE';
+        status.className='px-4 py-2 rounded-lg bg-green-500/15 text-green-300 border border-green-500/40 font-black';
+        btn.innerText='ACTIVATE';
+        btn.className='w-full py-5 rounded-xl bg-red-600 hover:bg-red-500 font-black';
       }
     }
 
-    function messageFrom(data,fallback){
-      if(!data) return fallback;
-      if(typeof data.detail==='string') return data.detail;
-      if(Array.isArray(data.detail)) return data.detail.map(item=>item.msg||JSON.stringify(item)).join(' / ');
-      return data.message||fallback;
-    }
-
-    function showCodeMessage(box, data, fallback){
-      box.innerText = data && data.dev_code ? `${data.message || fallback} 테스트 코드: ${data.dev_code}` : messageFrom(data, fallback);
-    }
-
-    async function doLogin(){
-      const email=document.getElementById('login-email').value.trim();
-      const password=document.getElementById('login-password').value;
-      const errorDiv=document.getElementById('login-error');
-      errorDiv.innerText='';
-      if(!email){ errorDiv.innerText='이메일을 입력해주세요.'; return; }
-      if(!password){ errorDiv.innerText='비밀번호를 입력해주세요.'; return; }
-      try{
-        const res=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
-        const data=await res.json().catch(()=>null);
-        if(!res.ok) throw new Error(messageFrom(data,'로그인에 실패했습니다.'));
-        localStorage.setItem('zx_token',data.access_token);
-        localStorage.setItem('zx_user',JSON.stringify(data.user_info));
-        localStorage.setItem('zx_expires_at',String(Date.now()+((data.expires_in||86400)*1000)));
-        location.href=data.user_info.role==='owner'?'admin.html':'account.html';
-      }catch(e){ errorDiv.innerText=e.message; }
-    }
-
-    async function doSignup(){
-      const full_name=document.getElementById('signup-name').value.trim();
-      const email=document.getElementById('signup-email').value.trim();
-      const password=document.getElementById('signup-password').value;
-      const passwordConfirm=document.getElementById('signup-password-confirm').value;
-      const birth_date=document.getElementById('signup-birth-date').value;
-      const phone_number=document.getElementById('signup-phone').value.trim();
-      const password_hint_question=document.getElementById('signup-hint-question').value;
-      const password_hint_answer=document.getElementById('signup-hint-answer').value.trim();
-      const errorDiv=document.getElementById('signup-error');
-      errorDiv.innerText='';
-      if(full_name.length<2){ errorDiv.innerText='이름을 입력해주세요.'; return; }
-      if(!email){ errorDiv.innerText='이메일을 입력해주세요.'; return; }
-      if(!birth_date){ errorDiv.innerText='생년월일을 입력해주세요.'; return; }
-      if(!phone_number){ errorDiv.innerText='휴대폰 번호를 입력해주세요.'; return; }
-      if(!phoneVerified){ errorDiv.innerText='휴대폰 인증을 완료해주세요.'; return; }
-      if(password.length<6){ errorDiv.innerText='비밀번호는 6자 이상이어야 합니다.'; return; }
-      if(password!==passwordConfirm){ errorDiv.innerText='비밀번호 확인이 일치하지 않습니다.'; return; }
-      if(!password_hint_question){ errorDiv.innerText='비밀번호 힌트 질문을 선택해주세요.'; return; }
-      if(password_hint_answer.length<2){ errorDiv.innerText='힌트 답변을 입력해주세요.'; return; }
-      if(password_hint_answer.includes(password)){ errorDiv.innerText='힌트 답변에 비밀번호를 그대로 넣으면 안 됩니다.'; return; }
-      try{
-        const res=await fetch('/api/auth/signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password,full_name,birth_date,phone_number,password_hint_question,password_hint_answer})});
-        const data=await res.json().catch(()=>null);
-        if(!res.ok) throw new Error(messageFrom(data,'회원가입에 실패했습니다.'));
-        alert(data.role==='owner' ? '대표 계정 회원가입이 완료되었습니다. 로그인 후 이메일 인증을 진행하세요.' : '회원가입 신청이 접수되었습니다. 대표 승인 후 로그인할 수 있습니다.');
-        document.getElementById('login-email').value=email;
-        switchTab('login');
-      }catch(e){ errorDiv.innerText=e.message||'회원가입에 실패했습니다.'; }
-    }
-
-    async function sendPhoneCode(){
-      const phone_number=document.getElementById('signup-phone').value.trim();
-      const box=document.getElementById('phone-status');
-      phoneVerified=false;
-      box.innerText='';
-      if(!phone_number){ box.innerText='휴대폰 번호를 입력해주세요.'; return; }
-      const res=await fetch('/api/auth/phone/send-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone_number})});
-      const data=await res.json().catch(()=>null);
-      if(!res.ok){ box.innerText=messageFrom(data,'인증코드 발송에 실패했습니다.'); return; }
-      showCodeMessage(box, data, '인증코드를 발송했습니다.');
-    }
-
-    async function verifyPhoneCode(){
-      const phone_number=document.getElementById('signup-phone').value.trim();
-      const code=document.getElementById('signup-phone-code').value.trim();
-      const box=document.getElementById('phone-status');
-      if(!phone_number || !code){ box.innerText='휴대폰 번호와 인증코드를 입력해주세요.'; return; }
-      const res=await fetch('/api/auth/phone/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone_number,code})});
-      const data=await res.json().catch(()=>null);
-      if(!res.ok){ phoneVerified=false; box.innerText=messageFrom(data,'휴대폰 인증에 실패했습니다.'); return; }
-      phoneVerified=true;
-      box.innerText='휴대폰 인증이 완료되었습니다.';
-    }
-
-    async function findId(){
-      const email=document.getElementById('login-email').value.trim();
-      const box=document.getElementById('login-ok');
-      if(!email){ box.innerText='이메일을 입력해주세요.'; return; }
-      const res=await fetch('/api/auth/find-id',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
-      const data=await res.json().catch(()=>null);
-      box.innerText=messageFrom(data,'가입 정보가 있다면 이메일로 안내됩니다.');
-    }
-
-    function requestReset(){
-      document.getElementById('reset-email').value=document.getElementById('login-email').value.trim();
-      document.getElementById('reset-msg').innerText='';
-      document.getElementById('reset-hint-question').value='';
-      document.getElementById('reset-hint-answer').value='';
-      document.getElementById('reset-code').value='';
-      document.getElementById('reset-password').value='';
-      resetWithoutHint=false;
-      document.getElementById('hint-answer-box').style.display='block';
-      document.getElementById('direct-reset-btn').style.display='none';
-      switchTab('reset');
-    }
-
-    async function loadHintQuestion(){
-      const email=document.getElementById('reset-email').value.trim();
-      const box=document.getElementById('reset-msg');
-      box.innerText='';
-      if(!email){ box.innerText='이메일을 입력해주세요.'; return; }
-      const res=await fetch('/api/auth/password/question',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
-      const data=await res.json().catch(()=>null);
-      if(!res.ok){ box.innerText=messageFrom(data,'힌트 질문을 찾을 수 없습니다.'); return; }
-      document.getElementById('reset-hint-question').value=data.password_hint_question;
-      resetWithoutHint=!!data.reset_without_hint;
-      document.getElementById('hint-answer-box').style.display=resetWithoutHint?'none':'block';
-      document.getElementById('direct-reset-btn').style.display=resetWithoutHint?'block':'none';
-      box.innerText=resetWithoutHint?'기존 계정입니다. 이메일 코드 받기를 눌러 재설정하세요.':'힌트 질문을 불러왔습니다. 답변을 입력해주세요.';
-    }
-
-    async function requestResetCodeOnly(){
-      const email=document.getElementById('reset-email').value.trim();
-      const box=document.getElementById('reset-msg');
-      if(!email){ box.innerText='이메일을 입력해주세요.'; return; }
-      const res=await fetch('/api/auth/password/request-reset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
-      const data=await res.json().catch(()=>null);
-      showCodeMessage(box, data, res.ok?'재설정 코드를 발송했습니다.':'재설정 코드 발송 실패');
-    }
-
-    async function checkHintAndSendCode(){
-      if(resetWithoutHint){ await requestResetCodeOnly(); return; }
-      const email=document.getElementById('reset-email').value.trim();
-      const password_hint_question=document.getElementById('reset-hint-question').value;
-      const password_hint_answer=document.getElementById('reset-hint-answer').value.trim();
-      const box=document.getElementById('reset-msg');
-      box.innerText='';
-      if(!email){ box.innerText='이메일을 입력해주세요.'; return; }
-      if(!password_hint_question){ box.innerText='힌트 질문을 먼저 불러와주세요.'; return; }
-      if(!password_hint_answer){ box.innerText='힌트 답변을 입력해주세요.'; return; }
-      const res=await fetch('/api/auth/password/hint',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password_hint_question,password_hint_answer})});
-      const data=await res.json().catch(()=>null);
-      showCodeMessage(box, data, res.ok?'재설정 코드를 발송했습니다.':'힌트 확인 실패');
-    }
-
-    async function resetPassword(){
-      const email=document.getElementById('reset-email').value.trim();
-      const code=document.getElementById('reset-code').value.trim();
-      const new_password=document.getElementById('reset-password').value;
-      const box=document.getElementById('reset-msg');
-      if(!email){ box.innerText='이메일을 입력해주세요.'; return; }
-      if(!code){ box.innerText='재설정 코드를 입력해주세요.'; return; }
-      if(new_password.length<6){ box.innerText='새 비밀번호는 6자 이상이어야 합니다.'; return; }
-      const res=await fetch('/api/auth/password/reset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,code,new_password})});
-      const data=await res.json().catch(()=>null);
-      box.innerText=messageFrom(data,res.ok?'비밀번호가 변경되었습니다.':'비밀번호 변경 실패');
-      if(res.ok){
-        document.getElementById('login-email').value=email;
-        setTimeout(()=>switchTab('login'),900);
-      }
-    }
+    fetchStatus();
+    fetchReview();
+    fetchSupportTickets();
+    fetchUsers();
+    setInterval(fetchStatus,5000);
   </script>
 </body>
 </html>

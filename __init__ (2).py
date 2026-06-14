@@ -1,768 +1,414 @@
-﻿<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zenthex Studio - AI 3D Workspace</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
-    <style>
-        :root { --accent-indigo: #00e6c3; --accent-purple: #91a7ff; --bg-dark: #050507; }
-        body { font-family: 'Outfit', sans-serif; background-color: var(--bg-dark); color: #d1d5db; margin: 0; overflow-x: hidden; }
-        * { box-sizing: border-box; }
-        nav { min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 14px 24px; border-bottom: 1px solid rgba(255,255,255,.08); background: rgba(0,0,0,.45); }
-        nav a { color: #a1a1aa; text-decoration: none; }
-        main { display: grid; grid-template-columns: minmax(340px, 430px) minmax(0, 1fr); min-height: calc(100vh - 72px); }
-        main > div:first-child { padding: 22px; background: #0c0c0e; border-right: 1px solid rgba(255,255,255,.08); }
-        main > div:last-child { min-height: calc(100vh - 72px); position: relative; background: #050507; }
-        h2 { margin: 0 0 16px; }
-        textarea, input, select { width: 100%; border: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.55); color: #fff; border-radius: 10px; padding: 12px; }
-        button { cursor: pointer; }
-        #drop-zone { border: 2px dashed rgba(255,255,255,.14); border-radius: 16px; padding: 28px; text-align: center; cursor: pointer; }
-        #btn-generate { width: 100%; margin-top: 12px; border: 1px solid rgba(0,230,195,.45); background: rgba(0,230,195,.16); color: #99f6e4; border-radius: 12px; padding: 13px; font-weight: 800; }
-        #btn-demo-render { width: 100%; margin-top: 10px; border: 1px solid rgba(255,255,255,.16); background: rgba(255,255,255,.08); color: #f8fafc; border-radius: 12px; padding: 12px; font-weight: 800; }
-        #status-box { margin-top: 16px; padding: 14px; border-radius: 12px; border: 1px solid rgba(99,102,241,.28); background: rgba(99,102,241,.08); color: #c7d2fe; }
-        .fallback-preview {
-            position: absolute; inset: 14%; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.12);
-            border-radius: 18px; background: linear-gradient(135deg, rgba(99,102,241,.12), rgba(0,255,204,.06));
-            color: #e5e7eb; text-align: center; padding: 24px; z-index: 15;
-        }
-        .preview-result-card {
-            position: absolute; right: 18px; top: 18px; z-index: 24; width: min(320px, calc(100% - 36px));
-            border: 1px solid rgba(0,230,195,.22); background: rgba(5,5,7,.74); backdrop-filter: blur(16px);
-            border-radius: 14px; padding: 14px; box-shadow: 0 18px 60px rgba(0,0,0,.32);
-        }
-        .preview-result-card strong { color:#f8fafc; font-size:14px; display:block; margin-bottom:7px; }
-        .preview-result-card p { color:#a1a1aa; font-size:12px; line-height:1.55; margin:0; }
-        .preview-result-card span { display:inline-flex; margin:8px 6px 0 0; border:1px solid rgba(255,255,255,.10); border-radius:999px; padding:5px 8px; color:#99f6e4; font-size:11px; font-weight:800; }
-        .google-ai-studio-preview {
-            position:absolute; left:50%; top:50%; transform:translate(-50%, -50%); z-index:23;
-            width:min(860px, calc(100% - 56px)); max-height:calc(100% - 56px);
-            border:1px solid rgba(0,230,195,.22); background:rgba(0,0,0,.72); backdrop-filter:blur(18px);
-            border-radius:18px; padding:12px; box-shadow:0 28px 90px rgba(0,0,0,.50);
-        }
-        .google-ai-studio-preview img { width:100%; display:block; border-radius:14px; aspect-ratio:16/10; object-fit:cover; max-height:calc(100vh - 210px); }
-        .google-ai-studio-preview p { margin:10px 2px 0; color:#99f6e4; font-size:12px; font-weight:900; line-height:1.55; }
-        .google-ai-studio-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
-        .google-ai-studio-actions a, .google-ai-studio-actions button { border:0; border-radius:8px; padding:9px 12px; font-weight:900; font-size:12px; text-decoration:none; }
-        .google-ai-studio-actions a { background:#00e6c3; color:#050507; }
-        .google-ai-studio-actions button { background:rgba(255,255,255,.10); color:#f8fafc; border:1px solid rgba(255,255,255,.12); }
-        .hidden { display: none !important; }
-        .glass-panel { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.1); }
-        #viewer-container { width: 100%; height: 100%; position: relative; }
-        .zenthex-mark {
-            width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px;
-            border: 1px solid rgba(0,230,195,.35); background: rgba(0,230,195,.08);
-        }
-        .zenthex-mark svg { width: 24px; height: 24px; }
-        .account-chip { border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 7px 10px; font-size: 11px; font-weight: 800; color: #c7d2fe; }
-        .account-chip.full { color: #99f6e4; border-color: rgba(0,230,195,.35); background: rgba(0,230,195,.08); }
-        .account-chip.trial { color: #fcd34d; border-color: rgba(252,211,77,.28); background: rgba(252,211,77,.06); }
-        .download-link { display: inline-flex; margin-top: 10px; color: #050507; background: #00e6c3; border-radius: 8px; padding: 9px 12px; font-weight: 900; text-decoration: none; }
-        .export-button { display: inline-flex; margin-top: 10px; margin-left: 8px; color: #050507; background: #fff; border-radius: 8px; padding: 9px 12px; font-weight: 900; border: 0; }
-        .studio-format-note { margin-top:10px; color:#a1a1aa; font-size:12px; line-height:1.6; }
-        .sample-badge { position:absolute; left:18px; bottom:18px; z-index:25; border:1px solid rgba(0,230,195,.28); background:rgba(0,230,195,.08); color:#99f6e4; border-radius:999px; padding:8px 11px; font-size:11px; font-weight:900; pointer-events:none; }
-        .studio-static-render {
-            position:absolute; inset:42px; z-index:8; display:grid; place-items:center; overflow:hidden;
-            border:1px solid rgba(0,230,195,.18); border-radius:22px;
-            background:
-                radial-gradient(circle at 18% 18%, rgba(0,230,195,.16), transparent 28%),
-                radial-gradient(circle at 82% 10%, rgba(145,167,255,.18), transparent 30%),
-                linear-gradient(145deg, #0a0c11, #050507 58%, #0b1117);
-            box-shadow: inset 0 0 80px rgba(0,0,0,.45);
-        }
-        .studio-static-plane {
-            width:min(760px, 86%); aspect-ratio: 16/9; position:relative;
-            transform: rotateX(58deg) rotateZ(-36deg); transform-style:preserve-3d;
-            border:7px solid #101010; border-radius:12px; background:#c9b08b;
-            box-shadow: 34px 40px 80px rgba(0,0,0,.58);
-        }
-        .studio-room {
-            position:absolute; border:4px solid #111; display:grid; place-items:center; color:#111;
-            font-size:clamp(11px, 1.1vw, 16px); font-weight:900; text-align:center;
-            box-shadow: inset 0 0 0 999px rgba(255,255,255,.16);
-        }
-        .studio-room::after {
-            content:""; position:absolute; left:10%; right:10%; bottom:8%; height:12%;
-            background:rgba(255,255,255,.25); border-radius:999px; filter:blur(2px);
-        }
-        .room-living { left:27%; top:35%; width:42%; height:42%; background:#caa982; }
-        .room-kitchen { left:35%; top:0; width:30%; height:30%; background:#b99771; }
-        .room-bed1 { right:0; top:12%; width:28%; height:34%; background:#d8c5a8; }
-        .room-bed2 { left:0; top:0; width:28%; height:35%; background:#d5c9b8; }
-        .room-bath { right:0; bottom:0; width:24%; height:24%; background:#9fb8c6; }
-        .room-entry { left:0; bottom:0; width:24%; height:28%; background:#b8afa2; }
-        .room-balcony { left:28%; bottom:-13%; width:42%; height:12%; background:#8cc7bd; border-color:#0d2c2b; }
-        .studio-static-caption {
-            position:absolute; left:22px; top:20px; z-index:12; max-width:min(460px, calc(100% - 44px));
-            border:1px solid rgba(255,255,255,.12); border-radius:14px; padding:14px;
-            background:rgba(5,5,7,.72); backdrop-filter:blur(14px);
-        }
-        .studio-static-caption strong { display:block; color:#f8fafc; font-size:15px; margin-bottom:6px; }
-        .studio-static-caption p { margin:0; color:#99f6e4; font-size:12px; line-height:1.55; font-weight:800; }
-        
-        .loading-overlay {
-            position: absolute; inset: 0; background: rgba(9, 9, 11, 0.95);
-            backdrop-filter: blur(20px); z-index: 1000;
-            display: none; flex-direction: column; align-items: center; justify-content: center;
-            transition: opacity 0.5s; opacity: 0;
-        }
-        .loading-overlay.active { display: flex; opacity: 1; }
-        .spinner {
-            border: 2px solid rgba(255, 255, 255, 0.05); border-top: 2px solid var(--accent-indigo);
-            border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite;
-        }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
-        .preview-watermark {
-            position: absolute; inset: 0; z-index: 20; pointer-events: none;
-            background-image: repeating-linear-gradient(-28deg, rgba(255,255,255,0.035) 0 2px, transparent 2px 120px);
-        }
-        .preview-watermark::after {
-            content: "ZENTHEX PREVIEW · VIEW ONLY";
-            position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(-18deg);
-            color: rgba(255,255,255,0.11); font-size: 44px; font-weight: 800; letter-spacing: 6px;
-            white-space: nowrap;
-        }
-        @media print {
-            #viewer-container { display: none !important; }
-            body::before { content: "Zenthex Studio preview cannot be printed."; color: #111; font-size: 20px; }
-        }
-        @media (max-width: 1023px) {
-            body { overflow-y: auto; }
-            nav { padding: 14px 16px; }
-            main { grid-template-columns: 1fr; }
-            main > div:first-child { border-right: 0; border-bottom: 1px solid rgba(255,255,255,.08); padding: 20px; }
-            main > div:last-child { min-height: 58vh; }
-            .preview-watermark::after { font-size: 20px; letter-spacing: 3px; }
-            #viewer-container { min-height: 56vh; }
-        }
-    </style>
-</head>
-<body class="bg-[#050507] text-white">
+﻿from fastapi import APIRouter, Depends, HTTPException, Header, Request, status
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+from database.session import get_db
+from database.models import User
+from auth.schemas import (
+    EmailRequest,
+    PasswordHintRequest,
+    PasswordResetRequest,
+    PhoneCodeRequest,
+    PhoneVerifyRequest,
+    UserCreate,
+    UserLogin,
+    Token,
+    UserResponse,
+    VerifyEmailRequest,
+)
+from auth.hash import get_password_hash, verify_password
+import os
+import random
+import smtplib
+import ssl
+import uuid
+import hmac
+import hashlib
+import base64
+import time
+from email.message import EmailMessage
 
-    <nav class="sticky top-0 z-50 backdrop-blur-2xl bg-black/40 border-b border-white/5 min-h-20 flex items-center px-4 md:px-10 py-4 justify-between gap-4 flex-wrap">
-        <div class="flex items-center gap-3 md:gap-4 min-w-0">
-            <a href="index.html" class="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-white border-r border-white/10 pr-4 md:pr-6 mr-1 md:mr-2 transition-colors shrink-0">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></svg>
-                메인으로
-            </a>
-            <div class="zenthex-mark" aria-hidden="true">
-                <svg viewBox="0 0 120 120">
-                    <path d="M60 8 104 33v54L60 112 16 87V33L60 8Z" fill="#10141d" stroke="#dbeafe" stroke-width="7"/>
-                    <path d="M31 38h44L45 82h44" fill="none" stroke="#00e6c3" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-            </div>
-            <span class="font-extrabold tracking-widest text-sm md:text-base uppercase truncate">Zenthex Studio <span class="text-xs text-indigo-400 ml-1">AI 3D ENGINE</span></span>
-        </div>
-        <div class="flex items-center gap-2">
-            <span id="studio-access-chip" class="account-chip trial">권한 확인 중</span>
-            <a id="studio-account-link" href="account.html" class="text-xs font-bold text-gray-400 hover:text-white">구독/계정</a>
-        </div>
-    </nav>
+router = APIRouter(prefix="/api/auth", tags=["auth"])
+SESSION_TOKENS = {}
+DEFAULT_OWNER_EMAILS = {"7foliath@naver.com"}
+DEV_EMAIL_OUTBOX = []
+PHONE_VERIFICATION_CODES = {}
+PHONE_VERIFIED_NUMBERS = set()
+DEV_PHONE_OUTBOX = []
+TEST_PHONE_CODE = "122492"
+TEST_EMAIL_CODE = "122492"
 
-    <main class="flex-grow grid grid-cols-1 lg:grid-cols-12 lg:overflow-hidden min-h-[calc(100vh-5rem)] lg:h-[calc(100vh-5rem)]">
-        <!-- Left Sidebar -->
-        <div class="col-span-1 lg:col-span-3 border-r border-white/5 p-5 md:p-8 flex flex-col gap-6 bg-[#0c0c0e]">
-            <div id="studio-access-note" class="glass-panel p-4 rounded-xl border-indigo-500/30 text-indigo-200 text-xs font-bold leading-relaxed mb-4">Zenthex Studio 권한을 확인하고 있습니다.</div>
+def normalize_email(email: str) -> str:
+    return (email or "").strip().lower()
 
-            <!-- Upload flow -->
-            <div>
-                <h2 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <span class="w-1 h-3 bg-indigo-500 rounded-full"></span> 2D 도면 업로드 (Image to 3D)
-                </h2>
-                <div id="drop-zone" class="border-2 border-dashed border-white/10 rounded-2xl p-8 text-center hover:border-indigo-500/50 hover:bg-white/5 transition-all cursor-pointer">
-                    <p class="text-xs text-gray-400 font-medium">클릭하여 2D 도면 업로드</p>
-                </div>
-                <input type="file" id="file-input" class="hidden" accept="image/*">
-            </div>
+def normalize_phone(phone_number: str) -> str:
+    return "".join(ch for ch in (phone_number or "") if ch.isdigit())
 
-            <div class="h-px bg-white/10 my-2"></div>
+def normalize_hint_answer(answer: str) -> str:
+    return " ".join((answer or "").strip().lower().split())
 
-            <!-- Prompt flow -->
-            <div>
-                <h2 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <span class="w-1 h-3 bg-purple-500 rounded-full"></span> AI 프롬프트 생성 (Text to 3D)
-                </h2>
-                <textarea id="ai-prompt" rows="4" class="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-purple-500 transition-colors resize-none" placeholder="예: 통유리 창이 넓고 루프탑 정원이 있는 2층 모던 카페를 만들어줘"></textarea>
-                <button id="btn-generate" class="w-full mt-3 py-3 bg-purple-500/20 hover:bg-purple-500/40 border border-purple-500/50 text-purple-300 text-xs font-bold rounded-xl transition-all">
-                    프롬프트로 3D 생성
-                </button>
-                <button id="btn-demo-render" type="button">
-                    시연용 32평 아파트 3D 바로 보기
-                </button>
-            </div>
+def find_user_by_email(db: Session, email: str):
+    return db.query(User).filter(func.lower(User.email) == normalize_email(email)).first()
 
-            <div id="status-box" class="hidden mt-4 p-4 rounded-xl text-xs font-medium border border-indigo-500/20 bg-indigo-500/5 text-indigo-300"></div>
-        </div>
+def get_owner_emails():
+    configured = os.getenv("ZENTHEX_OWNER_EMAILS", "")
+    emails = {normalize_email(email) for email in configured.split(",") if email.strip()}
+    return DEFAULT_OWNER_EMAILS | emails
 
-        <!-- Right 3D Viewport -->
-        <div class="col-span-1 lg:col-span-9 relative bg-[#050507] min-h-[56vh] lg:min-h-0">
-            <div id="viewer-container" class="w-full h-full">
-                <div id="preview-watermark" class="preview-watermark"></div>
-                <div id="placeholder" class="absolute inset-0 flex items-center justify-center pointer-events-none z-10 hidden">
-                    <p class="text-xs uppercase tracking-[0.4em] text-gray-600 font-bold">프롬프트 또는 도면을 입력하세요</p>
-                </div>
-                <div id="studio-static-render" class="studio-static-render">
-                    <div class="studio-static-caption">
-                        <strong>Zenthex Studio 32평 아파트 3D 조감도</strong>
-                        <p>외부 AI/Three.js 로딩 전에도 보이는 기본 3D 프리뷰입니다. 프롬프트 생성 또는 시연 버튼을 누르면 이 구조를 기준으로 재설계 흐름을 보여줍니다.</p>
-                    </div>
-                    <div class="studio-static-plane" aria-label="32평 아파트 3D 조감도">
-                        <div class="studio-room room-living">거실</div>
-                        <div class="studio-room room-kitchen">주방/식당</div>
-                        <div class="studio-room room-bed1">안방</div>
-                        <div class="studio-room room-bed2">침실</div>
-                        <div class="studio-room room-bath">욕실</div>
-                        <div class="studio-room room-entry">현관</div>
-                        <div class="studio-room room-balcony">발코니</div>
-                    </div>
-                </div>
-                <div id="sample-badge" class="sample-badge">샘플 3D 미리보기 표시 중</div>
-                <div id="loading" class="loading-overlay">
-                    <div class="spinner mb-4"></div>
-                    <div class="text-xs text-indigo-400 font-bold uppercase tracking-widest animate-pulse" id="loading-text">공간을 생성하는 중...</div>
-                </div>
-            </div>
-        </div>
-    </main>
+def resolve_role(email: str) -> str:
+    return "owner" if normalize_email(email) in get_owner_emails() else "user"
 
-    <script>
-        let zxToken = localStorage.getItem("zx_token");
-        let zxUser = JSON.parse(localStorage.getItem("zx_user") || "null");
-        window.zxCurrentImageUrl = "";
-        function zxCanExport() {
-            return zxUser && (zxUser.role === "owner" || ["studio_pro", "ultimate"].includes(zxUser.plan));
-        }
-        function zxIsSignedIn() {
-            return !!zxToken && !!zxUser;
-        }
-        function zxRenderAccessState() {
-            const chip = document.getElementById("studio-access-chip");
-            const note = document.getElementById("studio-access-note");
-            const watermark = document.getElementById("preview-watermark");
-            if (zxCanExport()) {
-                chip.className = "account-chip full";
-                chip.innerText = zxUser.role === "owner" ? "대표 전체 권한" : "Studio 구독 권한";
-                note.innerHTML = "Zenthex Studio 전체 권한입니다. 현재 3D 결과는 Google AI Studio/Gemini 건축 이미지로 먼저 제공하고, GLB 모델 파일은 3D Worker 서버 연결 후 제공합니다.";
-                if (watermark) watermark.classList.add("hidden");
-                return;
-            }
-            chip.className = "account-chip trial";
-            chip.innerText = zxIsSignedIn() ? "구독 필요" : "1일 1회 체험";
-            note.innerHTML = zxIsSignedIn()
-                ? "현재 계정은 Studio 구독 권한이 없습니다. 생성 미리보기 후 다운로드는 Studio Pro 또는 Ultimate 구독이 필요합니다."
-                : "로그인 없이도 같은 IP 기준 하루 1회 Studio 체험이 가능합니다. 구독하면 다운로드와 작업 보관이 열립니다.";
-            if (watermark) watermark.classList.remove("hidden");
-        }
-        async function zxRefreshUser() {
-            zxToken = localStorage.getItem("zx_token");
-            const zxExpiresAt = Number(localStorage.getItem("zx_expires_at") || 0);
-            if (zxToken && zxExpiresAt && Date.now() > zxExpiresAt) {
-                localStorage.removeItem("zx_token");
-                localStorage.removeItem("zx_user");
-                localStorage.removeItem("zx_expires_at");
-                zxToken = null;
-                zxUser = null;
-            }
-            if (!zxToken) { zxUser = null; zxRenderAccessState(); return; }
-            try {
-                const res = await fetch("/api/auth/me", { headers: { "Authorization": `Bearer ${zxToken}` } });
-                if (res.ok) {
-                    zxUser = await res.json();
-                    localStorage.setItem("zx_user", JSON.stringify(zxUser));
-                } else if (res.status === 401) {
-                    localStorage.removeItem("zx_token");
-                    localStorage.removeItem("zx_user");
-                    localStorage.removeItem("zx_expires_at");
-                    zxToken = null;
-                    zxUser = null;
-                }
-            } catch (_) {}
-            zxRenderAccessState();
-        }
-        function zxAuthHeaders() {
-            zxToken = localStorage.getItem("zx_token");
-            return zxToken ? { "Authorization": `Bearer ${zxToken}` } : {};
-        }
-        async function zxStudioFetch(url, options) {
-            const first = await fetch(url, { ...options, headers: { ...(options.headers || {}), ...zxAuthHeaders() } });
-            if (first.status !== 401) return first;
-            const text = await first.clone().text();
-            if (!text.toLowerCase().includes("invalid token")) return first;
-            localStorage.removeItem("zx_token");
-            localStorage.removeItem("zx_user");
-            localStorage.removeItem("zx_expires_at");
-            zxToken = null;
-            zxUser = null;
-            zxRenderAccessState();
-            return fetch(url, { ...options, headers: options.headers || {} });
-        }
-        function zxShowStatus(html) {
-            const box = document.getElementById('status-box');
-            box.classList.remove('hidden');
-            box.innerHTML = html;
-        }
-        function zxExportMessage(result) {
-            const imageExport = result.image_url && zxCanExport()
-                ? `<br><a class="download-link" href="${result.image_url}" download>JPG 이미지 저장</a>`
-                : "";
-            if (!result.worker_ready) {
-                return `${imageExport}<br><span style="color:#fcd34d">현재 Zenthex 자체 3D Worker가 없으므로 Google AI Studio/Gemini에서 가져온 3D 건축 이미지를 메인 결과로 제공합니다. GLB 파일은 Worker 서버 연결 후 제공합니다.</span>`;
-            }
-            return result.model_url
-                ? `<br><button class="export-button" onclick="window.zxDownloadJpg()">JPG 저장</button>${imageExport}<a class="download-link" href="${result.model_url}" download>GLB 3D 모델 다운로드</a><div class="studio-format-note">JPG는 현재 보이는 화면 이미지이고, GLB는 Blender/Three.js 같은 도구에서 여는 실제 3D 모델 파일입니다.</div>`
-                : `<br><span style="color:#fcd34d">체험 미리보기는 보기 전용입니다. JPG/GLB 저장은 구독 후 제공됩니다.</span>`;
-        }
-        function zxRenderResultCard(preview) {
-            let card = document.getElementById("preview-result-card");
-            if (!card) {
-                card = document.createElement("div");
-                card.id = "preview-result-card";
-                card.className = "preview-result-card";
-                document.getElementById("viewer-container").appendChild(card);
-            }
-            const rooms = (preview?.rooms || []).map(room => `<span>${room}</span>`).join("");
-            card.innerHTML = `<strong>${preview?.title || "Zenthex 3D Preview"}</strong><p>${preview?.summary || "생성된 공간 미리보기입니다."}</p><div>${rooms}</div>`;
-        }
-        function zxRenderGoogleAIStudioImage(result) {
-            let panel = document.getElementById("google-ai-studio-preview");
-            if (!result?.image_url) {
-                if (panel) panel.remove();
-                window.zxCurrentImageUrl = "";
-                return;
-            }
-            window.zxCurrentImageUrl = result.image_url;
-            if (!panel) {
-                panel = document.createElement("div");
-                panel.id = "google-ai-studio-preview";
-                panel.className = "google-ai-studio-preview";
-                document.getElementById("viewer-container").appendChild(panel);
-            }
-            const actions = zxCanExport()
-                ? `<div class="google-ai-studio-actions"><a href="${result.image_url}" download>JPG 이미지 저장</a><button type="button" onclick="window.zxClearNanoPreview()">Zenthex 기본 3D 보기</button></div>`
-                : "";
-            panel.innerHTML = `<img src="${result.image_url}" alt="Google AI Studio generated Studio preview"><p>Google AI Studio/Gemini에서 가져온 3D 건축 이미지입니다. 현재 Studio의 메인 결과이며, 실제 GLB/OBJ 3D 모델은 Zenthex 3D Worker 서버 연결 후 제공합니다.</p>${actions}`;
-        }
-        window.zxRenderGoogleAIStudioImage = zxRenderGoogleAIStudioImage;
-        window.zxClearNanoPreview = () => {
-            const panel = document.getElementById("google-ai-studio-preview");
-            if (panel) panel.remove();
-        };
-        window.zxRenderDemoStudioPanel = (preview) => {
-            window.zxClearNanoPreview();
-            window.zxCurrentImageUrl = "";
-            const staticRender = document.getElementById("studio-static-render");
-            if (staticRender) staticRender.classList.remove("hidden");
-            zxRenderResultCard(preview);
-            zxShowStatus(`<span class="text-[#00e6c3]">시연용 32평 아파트 3D가 즉시 표시되었습니다.</span><br><span class="text-white">${preview.title}</span><br><span class="text-gray-400">Google AI Studio/Gemini 연결 전에도 Zenthex Studio의 목표 화면을 안정적으로 보여주는 데모 렌더입니다. 실제 서비스에서는 이 결과를 기반으로 재설계, 설계변경, JPG 저장, 이후 GLB/OBJ Worker로 확장합니다.</span>`);
-        };
-        window.zxLoadDemoStudioBasic = () => {
-            const preview = {
-                kind: "apartment_32",
-                title: "대한민국 대표 32평 아파트 재설계 시연",
-                summary: "거실, 주방/식당, 침실, 욕실, 현관, 발코니를 나눈 3D 조감도입니다. 외부 렌더러가 늦어도 이 프리뷰는 즉시 표시됩니다.",
-                rooms: ["거실", "주방/식당", "침실", "욕실", "현관", "발코니"]
-            };
-            window.zxRenderDemoStudioPanel(preview);
-        };
-        function zxShowFallbackPreview(profile) {
-            const placeholder = document.getElementById('placeholder');
-            if (placeholder) placeholder.classList.add('hidden');
-            let previewBox = document.getElementById('fallback-preview');
-            if (!previewBox) {
-                previewBox = document.createElement('div');
-                previewBox.id = 'fallback-preview';
-                previewBox.className = 'fallback-preview';
-                previewBox.innerHTML = '<div><strong style="font-size:24px">Zenthex 3D Preview</strong><p id="fallback-preview-copy" style="margin-top:12px;color:#a1a1aa"></p></div>';
-                document.getElementById('viewer-container').appendChild(previewBox);
-            }
-            document.getElementById("fallback-preview-copy").innerHTML = zxCanExport()
-                ? "전체 권한으로 생성 미리보기가 완료되었습니다.<br>다운로드 링크가 제공됩니다."
-                : "체험 미리보기가 완료되었습니다.<br>다운로드는 Studio Pro 또는 Ultimate 구독 후 제공됩니다.";
-            zxRenderResultCard(profile);
-        }
-        async function zxFallbackUpload(file) {
-            const formData = new FormData();
-            formData.append("file", file);
-            const response = await zxStudioFetch("/api/studio/upload", { method: "POST", body: formData });
-            const result = await response.json();
-            if (!response.ok || result.status !== "success") throw new Error(result.detail || result.message || "업로드 체험에 실패했습니다.");
-            await zxRefreshUser();
-            zxShowFallbackPreview(result.preview);
-            zxRenderGoogleAIStudioImage(result);
-            const exportMsg = zxExportMessage(result);
-            zxShowStatus(`3D 생성 요청이 완료되었습니다.${exportMsg}`);
-        }
-        async function zxFallbackGenerate() {
-            const promptStr = document.getElementById('ai-prompt').value.trim();
-            if (!promptStr) return alert("프롬프트를 입력해주세요.");
-            const formData = new FormData();
-            formData.append("prompt", promptStr);
-            const response = await zxStudioFetch("/api/studio/generate", { method: "POST", body: formData });
-            const result = await response.json();
-            if (!response.ok || result.status !== "success") throw new Error(result.detail || result.message || "프롬프트 체험에 실패했습니다.");
-            await zxRefreshUser();
-            zxShowFallbackPreview(result.preview);
-            zxRenderGoogleAIStudioImage(result);
-            const exportMsg = zxExportMessage(result);
-            zxShowStatus(`프롬프트 기반 3D 생성 요청이 완료되었습니다.${exportMsg}`);
-        }
-        document.addEventListener('DOMContentLoaded', () => {
-            zxRefreshUser();
-            const dropZone = document.getElementById('drop-zone');
-            const fileInput = document.getElementById('file-input');
-            const generateBtn = document.getElementById('btn-generate');
-            dropZone.onclick = () => fileInput.click();
-            fileInput.onchange = async (event) => {
-                if (!event.target.files[0]) return;
-                try { zxShowStatus('업로드 및 분석 중...'); await zxFallbackUpload(event.target.files[0]); }
-                catch (error) { zxShowStatus(`<span style="color:#f87171">오류 발생: ${error.message}</span>`); }
-            };
-            generateBtn.onclick = async () => {
-                try { zxShowStatus('프롬프트로 공간을 생성하는 중...'); await zxFallbackGenerate(); }
-                catch (error) { zxShowStatus(`<span style="color:#f87171">오류 발생: ${error.message}</span>`); }
-            };
-            const demoBtn = document.getElementById('btn-demo-render');
-            if (demoBtn) demoBtn.onclick = () => (window.zxLoadDemoStudio || window.zxLoadDemoStudioBasic)();
-        });
-    </script>
+def make_code() -> str:
+    return f"{random.randint(100000, 999999)}"
 
-    <!-- Three.js renderer -->
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-            }
-        }
-    </script>
+def is_local_request(request: Request) -> bool:
+    if not request.client:
+        return False
+    return request.client.host in {"127.0.0.1", "localhost", "::1"}
 
-    <script type="module">
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+def smtp_configured() -> bool:
+    host = (os.getenv("ZENTHEX_SMTP_HOST") or "").strip()
+    user = (os.getenv("ZENTHEX_SMTP_USER") or "").strip()
+    password = (os.getenv("ZENTHEX_SMTP_PASSWORD") or "").strip()
+    if not host or not user or not password:
+        return False
+    blocked_values = {"smtp.example.com", "no-reply@example.com", "change-me"}
+    return host not in blocked_values and user not in blocked_values and password not in blocked_values
 
-        document.addEventListener('contextmenu', (event) => event.preventDefault());
-        document.addEventListener('dragstart', (event) => event.preventDefault());
-        document.addEventListener('keydown', async (event) => {
-            const key = event.key.toLowerCase();
-            if (key === 'printscreen' || (event.ctrlKey && ['s', 'p'].includes(key))) {
-                event.preventDefault();
-                try { await navigator.clipboard.writeText(''); } catch (_) {}
-                alert('체험 미리보기는 저장, 출력, 스크린샷 단축키를 지원하지 않습니다. 다운로드는 구독 후 제공됩니다.');
-            }
-        });
+def send_account_email(to_email: str, subject: str, body: str):
+    smtp_host = os.getenv("ZENTHEX_SMTP_HOST")
+    smtp_port = int(os.getenv("ZENTHEX_SMTP_PORT", "587"))
+    smtp_user = os.getenv("ZENTHEX_SMTP_USER")
+    smtp_password = os.getenv("ZENTHEX_SMTP_PASSWORD")
+    smtp_from = os.getenv("ZENTHEX_SMTP_FROM", smtp_user or "no-reply@zenthex.com")
+    use_ssl = os.getenv("ZENTHEX_SMTP_SSL", "false").lower() == "true"
 
-        // Set up Scene
-        const container = document.getElementById('viewer-container');
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x0a0a0f);
-        scene.fog = new THREE.FogExp2(0x0a0a0f, 0.003);
+    message = EmailMessage()
+    message["From"] = smtp_from
+    message["To"] = to_email
+    message["Subject"] = subject
+    message.set_content(body)
 
-        const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-        camera.position.set(40, 30, 40);
+    if smtp_configured():
+        try:
+            if use_ssl:
+                context = ssl.create_default_context()
+                with smtplib.SMTP_SSL(smtp_host, smtp_port, context=context) as server:
+                    server.login(smtp_user, smtp_password)
+                    server.send_message(message)
+            else:
+                with smtplib.SMTP(smtp_host, smtp_port) as server:
+                    server.starttls(context=ssl.create_default_context())
+                    server.login(smtp_user, smtp_password)
+                    server.send_message(message)
+            print(f"[Zenthex Mail] sent to={to_email} subject={subject}")
+            return {"sent": True, "mode": "smtp"}
+        except Exception as exc:
+            print(f"[Zenthex Mail] SMTP failed: {exc}. Falling back to dev outbox.")
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.setSize(container.clientWidth, container.clientHeight);
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        container.appendChild(renderer.domElement);
-        const staticRender = document.getElementById('studio-static-render');
-        if (staticRender) staticRender.classList.add('hidden');
-        window.zxDownloadJpg = () => {
-            if (!zxCanExport()) {
-                alert('JPG 저장은 Studio Pro 또는 Ultimate 구독 후 사용할 수 있습니다.');
-                return;
-            }
-            const link = document.createElement('a');
-            link.download = `zenthex-studio-${Date.now()}.jpg`;
-            link.href = window.zxCurrentImageUrl || renderer.domElement.toDataURL('image/jpeg', 0.92);
-            link.click();
-        };
+    DEV_EMAIL_OUTBOX.append({"to": to_email, "subject": subject, "body": body})
+    print(f"[Zenthex Mail:DEV] to={to_email} subject={subject} body={body}")
+    return {"sent": False, "mode": "dev_outbox"}
 
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.autoRotate = true;
-        controls.autoRotateSpeed = 1.0;
+def token_secret() -> str:
+    return os.getenv("ZENTHEX_TOKEN_SECRET", "zenthex-local-dev-token-secret")
 
-        // Lighting
-        const ambient = new THREE.AmbientLight(0xffffff, 0.4);
-        scene.add(ambient);
+def sign_token_payload(payload: str) -> str:
+    return hmac.new(token_secret().encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).hexdigest()
 
-        const sun = new THREE.DirectionalLight(0xffffff, 1.5);
-        sun.position.set(50, 100, 20);
-        sun.castShadow = true;
-        sun.shadow.mapSize.set(2048, 2048);
-        scene.add(sun);
+def session_ttl_seconds() -> int:
+    hours = float(os.getenv("ZENTHEX_SESSION_HOURS", "24") or 24)
+    return max(1, int(hours * 3600))
 
-        const fillLight = new THREE.PointLight(0x6366f1, 2, 100);
-        fillLight.position.set(-20, 10, -20);
-        scene.add(fillLight);
+def make_signed_token(user_id: int) -> str:
+    issued_at = int(time.time())
+    payload = f"{user_id}:{issued_at}:{uuid.uuid4().hex}"
+    signature = sign_token_payload(payload)
+    raw = f"{payload}:{signature}".encode("utf-8")
+    return "zx." + base64.urlsafe_b64encode(raw).decode("utf-8").rstrip("=")
 
-        // Grid Environment
-        const grid = new THREE.GridHelper(200, 100, 0x1f2937, 0x1f2937);
-        grid.position.y = -0.05;
-        scene.add(grid);
+def read_signed_token(token: str):
+    if not token or not token.startswith("zx."):
+        return None
+    encoded = token[3:]
+    encoded += "=" * (-len(encoded) % 4)
+    try:
+        raw = base64.urlsafe_b64decode(encoded.encode("utf-8")).decode("utf-8")
+        user_id, issued_at, nonce, signature = raw.split(":", 3)
+    except Exception:
+        return None
+    payload = f"{user_id}:{issued_at}:{nonce}"
+    if not hmac.compare_digest(sign_token_payload(payload), signature):
+        return None
+    try:
+        if int(time.time()) - int(issued_at) > session_ttl_seconds():
+            return None
+    except ValueError:
+        return None
+    try:
+        return int(user_id)
+    except ValueError:
+        return None
 
-        // Core Procedural Generation Function (Zenthex Preview Style)
-        const generateProceduralBuilding = (profile = {}) => {
-            const group = new THREE.Group();
-            const kind = typeof profile === 'string' ? profile : (profile.kind || 'premium');
-            
-            // Premium Materials
-            const glassMat = new THREE.MeshPhysicalMaterial({
-                color: 0xffffff, transmission: 0.9, opacity: 1, transparent: true,
-                roughness: 0.1, metalness: 0.2, ior: 1.5, side: THREE.DoubleSide
-            });
-            const frameMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.5 });
-            const floorMat = new THREE.MeshStandardMaterial({ color: 0xe5e7eb, roughness: 0.8 });
-            const lightStripMat = new THREE.MeshStandardMaterial({ color: 0x00ffcc, emissive: 0x00ffcc, emissiveIntensity: 2 });
+def issue_user_token(user: User):
+    access_token = make_signed_token(user.id)
+    SESSION_TOKENS[access_token] = {"user_id": user.id, "expires_at": int(time.time()) + session_ttl_seconds()}
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "expires_in": session_ttl_seconds(),
+        "user_info": UserResponse.model_validate(user),
+    }
 
-            const wallMat = new THREE.MeshStandardMaterial({ color: 0xd7dde7, roughness: 0.62 });
-            const warmFloorMat = new THREE.MeshStandardMaterial({ color: 0xc9b89a, roughness: 0.76 });
-            const accentMat = new THREE.MeshStandardMaterial({ color: 0x00e6c3, roughness: 0.45, emissive: 0x003c35, emissiveIntensity: 0.65 });
-            const addBox = (name, size, pos, mat) => {
-                const mesh = new THREE.Mesh(new THREE.BoxGeometry(size[0], size[1], size[2]), mat);
-                mesh.name = name;
-                mesh.position.set(pos[0], pos[1], pos[2]);
-                mesh.castShadow = true;
-                mesh.receiveShadow = true;
-                group.add(mesh);
-                return mesh;
-            };
+def apply_owner_privileges(user: User):
+    user.role = "owner"
+    user.plan = "ultimate"
+    user.studio_generations_left = 999999
+    user.approval_status = "approved"
+    user.is_active = True
 
-            if (kind === 'apartment_32') {
-                addBox('apartment-floor', [34, 0.45, 22], [0, 0, 0], warmFloorMat);
-                addBox('living-room', [13, 0.22, 11], [-8, 0.38, -3], new THREE.MeshStandardMaterial({ color: 0xe8edf2, roughness: 0.8 }));
-                addBox('kitchen', [8, 0.26, 7], [6, 0.42, -5], new THREE.MeshStandardMaterial({ color: 0xd8d1c5, roughness: 0.72 }));
-                addBox('bedroom-main', [9, 0.3, 7], [-9, 0.5, 7], new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.7 }));
-                addBox('bedroom-sub', [7, 0.3, 6], [5, 0.5, 7], new THREE.MeshStandardMaterial({ color: 0xbfd7d3, roughness: 0.72 }));
-                addBox('bath', [5, 0.34, 4], [13, 0.54, 5], new THREE.MeshStandardMaterial({ color: 0xa7c7d9, roughness: 0.55 }));
-                addBox('outer-wall-front', [35, 3.2, 0.45], [0, 1.8, -11.2], wallMat);
-                addBox('outer-wall-back', [35, 3.2, 0.45], [0, 1.8, 11.2], wallMat);
-                addBox('outer-wall-left', [0.45, 3.2, 22], [-17.2, 1.8, 0], wallMat);
-                addBox('outer-wall-right', [0.45, 3.2, 22], [17.2, 1.8, 0], wallMat);
-                addBox('partition-1', [0.35, 2.7, 16], [-1.5, 1.65, 3], wallMat);
-                addBox('partition-2', [14, 2.7, 0.35], [-7, 1.65, 2.2], wallMat);
-                addBox('partition-3', [15, 2.7, 0.35], [8, 1.65, 1.2], wallMat);
-                addBox('balcony-glass', [13, 2.6, 0.18], [-8, 1.6, -10.85], glassMat);
-                addBox('entry-accent', [4, 0.35, 3], [13, 0.66, -7.5], accentMat);
-                return group;
-            }
+@router.post("/phone/send-code")
+def send_phone_verification(req: PhoneCodeRequest, request: Request):
+    phone_number = normalize_phone(req.phone_number)
+    if len(phone_number) < 10:
+        raise HTTPException(status_code=400, detail="Please enter a valid phone number.")
+    sms_configured = all(os.getenv(key) for key in [
+        "ZENTHEX_SMS_PROVIDER",
+        "ZENTHEX_SMS_ACCESS_KEY",
+        "ZENTHEX_SMS_SECRET_KEY",
+        "ZENTHEX_SMS_FROM",
+    ])
+    code = make_code() if sms_configured else TEST_PHONE_CODE
+    PHONE_VERIFICATION_CODES[phone_number] = code
+    DEV_PHONE_OUTBOX.append({"phone_number": phone_number, "code": code})
+    response = {"status": "success", "message": "Phone verification code has been sent."}
+    if is_local_request(request) or not sms_configured or os.getenv("ZENTHEX_ENABLE_DEV_OUTBOX", "false").lower() == "true":
+        response["dev_code"] = code
+        response["message"] = "Test phone verification code is available."
+    return response
 
-            if (kind === 'office') {
-                addBox('office-floor', [34, 0.45, 24], [0, 0, 0], floorMat);
-                addBox('open-office', [17, 0.25, 12], [-6, 0.42, -2], new THREE.MeshStandardMaterial({ color: 0xdfe7ef, roughness: 0.76 }));
-                addBox('meeting-room-glass', [9, 3.8, 6], [9, 2, 5], glassMat);
-                addBox('focus-room', [7, 3.4, 5], [-11, 1.9, 7], frameMat);
-                addBox('neon-axis', [28, 0.18, 0.18], [0, 3.1, -8], lightStripMat);
-                return group;
-            }
+@router.post("/phone/verify")
+def verify_phone(req: PhoneVerifyRequest):
+    phone_number = normalize_phone(req.phone_number)
+    if not phone_number or PHONE_VERIFICATION_CODES.get(phone_number) != req.code.strip():
+        raise HTTPException(status_code=400, detail="Invalid phone verification code.")
+    PHONE_VERIFIED_NUMBERS.add(phone_number)
+    PHONE_VERIFICATION_CODES.pop(phone_number, None)
+    return {"status": "success", "message": "Phone verification completed."}
 
-            // Foundation
-            const base = new THREE.Mesh(new THREE.BoxGeometry(30, 0.5, 30), floorMat);
-            base.receiveShadow = true;
-            group.add(base);
+@router.post("/signup", response_model=UserResponse)
+def signup(user: UserCreate, db: Session = Depends(get_db)):
+    email = normalize_email(user.email)
+    if find_user_by_email(db, email):
+        raise HTTPException(status_code=400, detail="This email is already registered.")
 
-            // Level 1 Glass Box
-            const l1 = new THREE.Mesh(new THREE.BoxGeometry(20, 8, 20), glassMat);
-            l1.position.y = 4.25;
-            l1.castShadow = true;
-            group.add(l1);
+    role = resolve_role(email)
+    verification_code = make_code() if smtp_configured() else TEST_EMAIL_CODE
+    hint_answer = normalize_hint_answer(user.password_hint_answer)
+    phone_number = normalize_phone(user.phone_number or "")
 
-            // Internal Core (Elevator shaft)
-            const core = new THREE.Mesh(new THREE.BoxGeometry(4, 18, 4), frameMat);
-            core.position.set(-2, 9, -2);
-            core.castShadow = true;
-            group.add(core);
+    if len(user.full_name.strip()) < 2:
+        raise HTTPException(status_code=400, detail="Please enter your name.")
+    if len(user.birth_date or "") < 8:
+        raise HTTPException(status_code=400, detail="Please enter your birth date.")
+    if len(phone_number) < 10:
+        raise HTTPException(status_code=400, detail="Please enter your phone number.")
+    if role != "owner" and phone_number not in PHONE_VERIFIED_NUMBERS:
+        raise HTTPException(status_code=400, detail="Please complete phone verification.")
+    if len(user.password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters.")
+    if not user.password_hint_question.strip() or len(hint_answer) < 2:
+        raise HTTPException(status_code=400, detail="Please enter a password hint question and answer.")
 
-            // Level 2 Cantilever
-            const l2 = new THREE.Mesh(new THREE.BoxGeometry(25, 6, 15), frameMat);
-            l2.position.set(2, 11, 2);
-            l2.castShadow = true;
-            group.add(l2);
+    new_user = User(
+        full_name=user.full_name.strip()[:80],
+        email=email,
+        hashed_password=get_password_hash(user.password),
+        birth_date=(user.birth_date or "").strip()[:20],
+        phone_number=phone_number[:30],
+        phone_verified=True,
+        phone_verification_code=None,
+        password_hint_question=user.password_hint_question.strip()[:120],
+        password_hint_answer_hash=get_password_hash(hint_answer),
+        role=role,
+        plan="ultimate" if role == "owner" else "free",
+        studio_generations_left=999999 if role == "owner" else 3,
+        approval_status="approved" if role == "owner" else "pending",
+        is_active=True if role == "owner" else False,
+        email_verified=False,
+        email_verification_code=verification_code,
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
 
-            // Aesthetic Light Strips
-            const strip = new THREE.Mesh(new THREE.BoxGeometry(25.1, 0.2, 0.2), lightStripMat);
-            strip.position.set(2, 8.1, 9.6);
-            group.add(strip);
-            
-            // Pool
-            const pool = new THREE.Mesh(new THREE.BoxGeometry(10, 0.1, 20), new THREE.MeshPhysicalMaterial({
-                color: 0x0ea5e9, transmission: 0.9, roughness: 0.1
-            }));
-            pool.position.set(10, 0.3, -5);
-            group.add(pool);
+    send_account_email(email, "Zenthex email verification code", f"Verification code: {verification_code}")
+    PHONE_VERIFIED_NUMBERS.discard(phone_number)
+    return new_user
 
-            return group;
-        };
+@router.post("/login", response_model=Token)
+def login(user: UserLogin, db: Session = Depends(get_db)):
+    db_user = find_user_by_email(db, user.email)
+    if not db_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="가입된 이메일이 없습니다. 배포 후 기존 계정이 사라진 것처럼 보이면 서버 DB가 새로 만들어진 상태일 수 있습니다.",
+        )
+    if not verify_password(user.password, db_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="비밀번호가 맞지 않습니다. 비밀번호 찾기에서 힌트 질문 또는 인증 코드로 재설정하세요.",
+        )
 
-        let currentModel = null;
-        currentModel = generateProceduralBuilding();
-        scene.add(currentModel);
-        controls.target.set(0, 5, 0);
-        document.getElementById('status-box').classList.remove('hidden');
-        document.getElementById('status-box').innerHTML = '샘플 3D 미리보기가 표시되어 있습니다. 프롬프트를 입력하면 Google AI Studio/Gemini 3D 건축 이미지가 메인 결과로 표시됩니다.<div class="studio-format-note">구독 권한에서는 JPG 저장을 먼저 제공하고, GLB는 Zenthex 3D Worker 서버 연결 후 제공합니다.</div>';
-        window.zxLoadDemoStudio = () => {
-            const staticRender = document.getElementById('studio-static-render');
-            if (staticRender) staticRender.classList.add('hidden');
-            if (currentModel) scene.remove(currentModel);
-            currentModel = generateProceduralBuilding({ kind: 'apartment_32' });
-            scene.add(currentModel);
-            const badge = document.getElementById('sample-badge');
-            if (badge) {
-                badge.classList.remove('hidden');
-                badge.innerText = '시연용 32평 아파트 3D 렌더';
-            }
-            const preview = {
-                kind: 'apartment_32',
-                title: '대한민국 대표 32평 아파트 재설계 시연',
-                summary: '거실 중심 동선, 주방/식당, 침실 2개, 욕실, 현관, 발코니를 분리한 3D 공간입니다. 시연에서는 이 상태에서 “방 하나 추가”, “주방 확장”, “거실 통유리 변경” 같은 설계변경 흐름을 설명합니다.',
-                rooms: ['거실', '주방/식당', '침실 1', '침실 2', '욕실', '현관', '발코니']
-            };
-            if (window.zxRenderDemoStudioPanel) window.zxRenderDemoStudioPanel(preview);
-            camera.position.set(42, 32, 42);
-            controls.target.set(0, 2.5, 0);
-            controls.update();
-        };
+    desired_role = resolve_role(db_user.email)
+    if desired_role != "owner" and (db_user.approval_status or "approved") != "approved":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="가입 신청은 완료되었지만 대표 승인 대기 중입니다. 승인 후 로그인할 수 있습니다.",
+        )
+    if desired_role != "owner" and db_user.is_active is False:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="대표 승인 대기 중인 계정입니다. 승인 후 사용할 수 있습니다.",
+        )
+    if db_user.role != desired_role or desired_role == "owner":
+        if desired_role == "owner":
+            apply_owner_privileges(db_user)
+        else:
+            db_user.role = desired_role
+        db.commit()
+        db.refresh(db_user)
 
-        // Front-end file upload flow
-        document.getElementById('drop-zone').onclick = () => document.getElementById('file-input').click();
-        
-        document.getElementById('file-input').onchange = async (e) => {
-            if(!e.target.files[0]) return;
-            const file = e.target.files[0];
-            
-            document.getElementById('status-box').classList.remove('hidden');
-            document.getElementById('status-box').innerHTML = `업로드 및 분석 중...<br/>${file.name}`;
-            document.getElementById('placeholder').classList.add('hidden');
-            
-            const loader = document.getElementById('loading');
-            const loadText = document.getElementById('loading-text');
-            loader.classList.add('active');
-            loadText.innerText = 'Zenthex AI 엔진으로 전송 중...';
+    return issue_user_token(db_user)
 
-            const formData = new FormData();
-            formData.append("file", file);
+@router.get("/me", response_model=UserResponse)
+def me(Authorization: str = Header(None), db: Session = Depends(get_db)):
+    if not Authorization:
+        raise HTTPException(status_code=401, detail="Login required.")
+    token = Authorization.replace("Bearer ", "")
+    user = get_current_user(token, db)
+    if resolve_role(user.email) == "owner" and (user.role != "owner" or user.plan != "ultimate"):
+        apply_owner_privileges(user)
+        db.commit()
+        db.refresh(user)
+    return user
 
-            try {
-                // Send to Real Unified Backend
-                const response = await zxStudioFetch("/api/studio/upload", {
-                    method: "POST",
-                    body: formData
-                });
-                
-                const result = await response.json();
-                
-                if (result.status === "success") {
-                    loadText.innerText = '3D 모델을 불러오는 중...';
-                    
-                    if(currentModel) scene.remove(currentModel);
-                    const badge = document.getElementById('sample-badge');
-                    if (badge) badge.classList.add('hidden');
-                    
-                    // Load a generated preview while the GLB pipeline result is prepared
-                    // In a full implementation, you would load result.model_url using GLTFLoader.
-                    // Preview generation keeps the workspace responsive:
-                    currentModel = generateProceduralBuilding(result.preview || {});
-                    scene.add(currentModel);
-                    window.zxRenderResultCard(result.preview);
-                    window.zxRenderGoogleAIStudioImage(result);
-                    
-                    loader.classList.remove('active');
-                    const exportLinks = result.model_url ? `<br><button class="export-button" onclick="window.zxDownloadJpg()">JPG 저장</button><a class="download-link" href="${result.model_url}" download>GLB 3D 모델 다운로드</a><div class="studio-format-note">JPG는 현재 보이는 화면 이미지이고, GLB는 Blender/Three.js에서 여는 실제 3D 모델 파일입니다.</div>` : '';
-                    const providerMsg = result.provider_message ? `<br><span class="text-gray-400">${result.provider_message}</span>` : '';
-                    const workerMsg = !result.worker_ready ? '<br><span class="text-amber-300">Zenthex 자체 3D Worker가 아직 없으므로 Google AI Studio/Gemini 3D 건축 이미지와 JPG 저장을 우선 제공합니다. GLB 파일은 Worker 서버 연결 후 제공합니다.</span>' : '';
-                    const lockedMsg = result.preview_only ? '<br><span class="text-amber-300">체험 미리보기는 보기 전용입니다. JPG/GLB 저장은 구독 후 제공됩니다.</span>' : `<br><span class="text-[#00ffcc]">구독 권한으로 JPG 저장과 GLB 3D 모델 다운로드가 가능합니다.</span>${exportLinks}${workerMsg}`;
-                    document.getElementById('status-box').innerHTML = `3D 생성이 완료되었습니다.<br><span class="text-white">${result.preview?.title || '생성된 공간'}을 마우스로 둘러보세요.</span>${providerMsg}${lockedMsg}`;
-                    
-                    // Fly-in Camera Animation
-                    camera.position.set(60, 50, 60);
-                    controls.target.set(0, 5, 0);
-                } else {
-                    throw new Error(result.detail || result.message || "3D 생성에 실패했습니다.");
-                }
-            } catch(error) {
-                loader.classList.remove('active');
-                document.getElementById('status-box').innerHTML = `<span class="text-red-400">오류 발생: ${error.message}</span>`;
-            }
-        };
+@router.post("/email/resend")
+def resend_verification(request: Request, Authorization: str = Header(None), db: Session = Depends(get_db)):
+    user = require_current_user(Authorization, db)
+    if user.email_verified:
+        return {"status": "success", "message": "Email is already verified."}
+    if resolve_role(user.email) == "owner":
+        apply_owner_privileges(user)
+    user.email_verification_code = make_code() if smtp_configured() else TEST_EMAIL_CODE
+    db.commit()
+    send_account_email(user.email, "Zenthex email verification code", f"Verification code: {user.email_verification_code}")
+    response = {"status": "success", "message": "Verification code has been sent."}
+    if is_local_request(request) or not smtp_configured() or os.getenv("ZENTHEX_ENABLE_DEV_OUTBOX", "false").lower() == "true":
+        response["dev_code"] = user.email_verification_code
+    return response
 
-        // Render Loop
-        const animate = () => {
-            requestAnimationFrame(animate);
-            controls.update();
-            renderer.render(scene, camera);
-        };
-        animate();
+@router.post("/email/verify")
+def verify_email(req: VerifyEmailRequest, Authorization: str = Header(None), db: Session = Depends(get_db)):
+    user = require_current_user(Authorization, db)
+    if user.email_verified:
+        return {"status": "success", "message": "Email is already verified."}
+    if not user.email_verification_code or user.email_verification_code != req.code:
+        raise HTTPException(status_code=400, detail="Invalid verification code.")
+    if resolve_role(user.email) == "owner":
+        apply_owner_privileges(user)
+    user.email_verified = True
+    user.email_verification_code = None
+    db.commit()
+    return {"status": "success", "message": "Email verification completed."}
 
-        window.addEventListener('resize', () => {
-            camera.aspect = container.clientWidth / container.clientHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(container.clientWidth, container.clientHeight);
-        });
+@router.post("/find-id")
+def find_id(req: EmailRequest, db: Session = Depends(get_db)):
+    user = find_user_by_email(db, req.email)
+    if user:
+        send_account_email(user.email, "Zenthex ID notice", f"Your Zenthex ID is your email address: {user.email}")
+    return {"status": "success", "message": "If an account exists, ID information has been sent by email."}
 
-        // Prompt Generation Logic
-        document.getElementById('btn-generate').onclick = async () => {
-            const promptStr = document.getElementById('ai-prompt').value;
-            if(!promptStr) return alert("프롬프트를 입력해주세요.");
-            
-            document.getElementById('status-box').classList.remove('hidden');
-            document.getElementById('status-box').innerHTML = `프롬프트로 공간을 생성하는 중...`;
-            document.getElementById('placeholder').classList.add('hidden');
-            
-            const loader = document.getElementById('loading');
-            const loadText = document.getElementById('loading-text');
-            loader.classList.add('active');
-            loadText.innerText = '프롬프트를 Zenthex AI 엔진으로 전송 중...';
+@router.post("/password/request-reset")
+def request_password_reset(req: EmailRequest, request: Request, db: Session = Depends(get_db)):
+    user = find_user_by_email(db, req.email)
+    dev_code = None
+    if user:
+        user.password_reset_code = make_code() if smtp_configured() else TEST_EMAIL_CODE
+        dev_code = user.password_reset_code
+        db.commit()
+        hint_text = f"\nPassword hint question: {user.password_hint_question}" if user.password_hint_question else ""
+        send_account_email(user.email, "Zenthex password reset code", f"Reset code: {user.password_reset_code}{hint_text}")
+    response = {"status": "success", "message": "If an account exists, reset instructions have been sent by email."}
+    if dev_code and (is_local_request(request) or not smtp_configured() or os.getenv("ZENTHEX_ENABLE_DEV_OUTBOX", "false").lower() == "true"):
+        response["dev_code"] = dev_code
+    return response
 
-            const formData = new FormData();
-            formData.append("prompt", promptStr);
+@router.post("/password/question")
+def get_password_hint_question(req: EmailRequest, db: Session = Depends(get_db)):
+    user = find_user_by_email(db, req.email)
+    if not user:
+        raise HTTPException(status_code=404, detail="No account found for this email.")
+    if not user.password_hint_question or not user.password_hint_answer_hash:
+        return {"status": "success", "password_hint_question": "湲곗〈 怨꾩젙?낅땲?? ?대찓???몄쬆 肄붾뱶濡?鍮꾨?踰덊샇瑜??ъ꽕?뺥븯?몄슂.", "reset_without_hint": True}
+    return {"status": "success", "password_hint_question": user.password_hint_question, "reset_without_hint": False}
 
-            try {
-                const response = await zxStudioFetch("/api/studio/generate", {
-                    method: "POST",
-                    body: formData
-                });
-                
-                const result = await response.json();
-                
-                if (result.status === "success") {
-                    loadText.innerText = '3D 공간을 구성하는 중...';
-                    
-                    if(currentModel) scene.remove(currentModel);
-                    const badge = document.getElementById('sample-badge');
-                    if (badge) badge.classList.add('hidden');
-                    
-                    currentModel = generateProceduralBuilding(result.preview || {});
-                    scene.add(currentModel);
-                    window.zxRenderResultCard(result.preview);
-                    window.zxRenderGoogleAIStudioImage(result);
-                    
-                    loader.classList.remove('active');
-                    const exportLinks = result.model_url ? `<br><button class="export-button" onclick="window.zxDownloadJpg()">JPG 저장</button><a class="download-link" href="${result.model_url}" download>GLB 3D 모델 다운로드</a><div class="studio-format-note">JPG는 현재 보이는 화면 이미지이고, GLB는 Blender/Three.js에서 여는 실제 3D 모델 파일입니다.</div>` : '';
-                    const providerMsg = result.provider_message ? `<br><span class="text-gray-400">${result.provider_message}</span>` : '';
-                    const workerMsg = !result.worker_ready ? '<br><span class="text-amber-300">Zenthex 자체 3D Worker가 아직 없으므로 Google AI Studio/Gemini 3D 건축 이미지와 JPG 저장을 우선 제공합니다. GLB 파일은 Worker 서버 연결 후 제공합니다.</span>' : '';
-                    const lockedMsg = result.preview_only ? '<br><span class="text-amber-300">체험 미리보기는 보기 전용입니다. JPG/GLB 저장은 구독 후 제공됩니다.</span>' : `<br><span class="text-[#00ffcc]">구독 권한으로 JPG 저장과 GLB 3D 모델 다운로드가 가능합니다.</span>${exportLinks}${workerMsg}`;
-                    document.getElementById('status-box').innerHTML = `<span class="text-purple-400">프롬프트 기반 3D 생성이 완료되었습니다.<br>${result.preview?.title || '생성된 공간'}을 둘러보세요.</span>${providerMsg}${lockedMsg}`;
-                    
-                    camera.position.set(60, 50, 60);
-                    controls.target.set(0, 5, 0);
-                } else {
-                    throw new Error(result.detail || result.message || "3D 생성에 실패했습니다.");
-                }
-            } catch(error) {
-                loader.classList.remove('active');
-                document.getElementById('status-box').innerHTML = `<span class="text-red-400">오류 발생: ${error.message}</span>`;
-            }
-        };
-    </script>
-</body>
-</html>
+@router.post("/password/hint")
+def check_password_hint(req: PasswordHintRequest, db: Session = Depends(get_db)):
+    user = find_user_by_email(db, req.email)
+    if (
+        not user
+        or not user.password_hint_question
+        or not user.password_hint_answer_hash
+        or user.password_hint_question.strip() != req.password_hint_question.strip()
+        or not verify_password(normalize_hint_answer(req.password_hint_answer), user.password_hint_answer_hash)
+    ):
+        raise HTTPException(status_code=400, detail="Password hint does not match.")
+    user.password_reset_code = make_code() if smtp_configured() else TEST_EMAIL_CODE
+    db.commit()
+    send_account_email(user.email, "Zenthex password reset code", f"Reset code: {user.password_reset_code}")
+    return {"status": "success", "message": "Hint verified. Reset code has been sent.", "dev_code": user.password_reset_code if not smtp_configured() else None}
 
+@router.post("/password/reset")
+def reset_password(req: PasswordResetRequest, db: Session = Depends(get_db)):
+    user = find_user_by_email(db, req.email)
+    if not user or not user.password_reset_code or user.password_reset_code != req.code:
+        raise HTTPException(status_code=400, detail="Invalid reset code.")
+    if len(req.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters.")
+    user.hashed_password = get_password_hash(req.new_password)
+    user.password_reset_code = None
+    db.commit()
+    return {"status": "success", "message": "Password has been changed."}
 
+@router.get("/dev/outbox")
+def dev_outbox():
+    if os.getenv("ZENTHEX_ENABLE_DEV_OUTBOX", "false").lower() != "true":
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"messages": DEV_EMAIL_OUTBOX[-20:], "phone_messages": DEV_PHONE_OUTBOX[-20:]}
 
+def require_current_user(Authorization: str, db: Session):
+    if not Authorization:
+        raise HTTPException(status_code=401, detail="Login required.")
+    token = Authorization.replace("Bearer ", "")
+    return get_current_user(token, db)
 
-
+def get_current_user(token: str, db: Session = Depends(get_db)):
+    session = SESSION_TOKENS.get(token)
+    user_id = None
+    if isinstance(session, dict):
+        if int(time.time()) <= int(session.get("expires_at") or 0):
+            user_id = session.get("user_id")
+        else:
+            SESSION_TOKENS.pop(token, None)
+    if not user_id:
+        user_id = read_signed_token(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Login session expired. Please log in again.")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="濡쒓렇???좏겙? ?⑥븘 ?덉?留??쒕쾭??怨꾩젙 ?곗씠?곌? ?놁뒿?덈떎. 諛고룷 怨쇱젙?먯꽌 DB媛 珥덇린?붾릱??媛?μ꽦???쎈땲?? ?ㅼ떆 濡쒓렇?명븯嫄곕굹 怨꾩젙???ㅼ떆 ?앹꽦?댁빞 ?⑸땲??",
+        )
+    return user
 
