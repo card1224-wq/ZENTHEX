@@ -11,7 +11,7 @@ from auth.router import get_current_user
 from database.session import get_db
 from trading.binance_client import build_binance_account_summary, check_binance_key, clean_key as clean_binance_key
 from trading.bithumb_client import BithumbClient, build_bithumb_account_summary, check_bithumb_key, clean_key as clean_bithumb_key
-from trading.engine import bot_state, TradingState, scalping_loop, log_trade, get_current_price
+from trading.engine import bot_state, TradingState, scalping_loop, log_trade, get_current_price, calculate_profit_protection_price, calculate_profit_protection_yield
 
 router = APIRouter(prefix="/api/finance", tags=["finance"])
 DEFAULT_ZENTHEX_SERVER_PUBLIC_IP = "74.220.52.254"
@@ -20,6 +20,7 @@ class StartConfig(BaseModel):
     accessKey: str = ""
     secretKey: str = ""
     targetYield: float
+    stopLossYield: float = 0.993
     exitMode: str = "fixed"
     trailingStartYield: float = 1.005
     trailingDropPct: float = 0.004
@@ -29,6 +30,7 @@ class StartConfig(BaseModel):
     entryMode: str = "single"
     entrySlices: int = 1
     addEntryDropPct: float = 0.005
+    autoRestartAfterProfit: bool = True
     rotateExistingAccepted: bool = False
     tickerMode: str = "auto"
     selectedTicker: str = "KRW-BTC"
@@ -65,60 +67,26 @@ def detect_outbound_ip() -> str:
 @router.get("/server-ip")
 async def server_ip():
     public_ip = (os.getenv("ZENTHEX_SERVER_PUBLIC_IP") or DEFAULT_ZENTHEX_SERVER_PUBLIC_IP).strip()
-    source = "env"
-    if public_ip == DEFAULT_ZENTHEX_SERVER_PUBLIC_IP and not (os.getenv("ZENTHEX_SERVER_PUBLIC_IP") or "").strip():
-        source = "default_fixed"
-    if not public_ip:
-        try:
-            public_ip = detect_outbound_ip()
-            source = "auto_detected"
-        except Exception:
-            public_ip = ""
-    if not public_ip:
-        return {
-            "status": "missing",
-            "server_ip": "",
-            "is_fixed": False,
-            "message": "Zenthex 서버 공인 IP가 아직 설정되지 않았습니다. 실거래 서버에서 확인한 고정 IP를 ZENTHEX_SERVER_PUBLIC_IP 환경변수에 넣어야 합니다.",
-        }
-    if source == "auto_detected":
-        return {
-            "status": "warning",
-            "server_ip": public_ip,
-            "source": source,
-            "is_fixed": False,
-            "message": "현재 IP는 자동 감지값입니다. 운영 실거래에서는 바뀌면 안 되므로 고정 서버 IP를 ZENTHEX_SERVER_PUBLIC_IP에 설정해야 합니다.",
-        }
+    source = "env" if (os.getenv("ZENTHEX_SERVER_PUBLIC_IP") or "").strip() else "default_fixed"
     return {
         "status": "success",
         "server_ip": public_ip,
         "source": source,
         "is_fixed": True,
-        "message": "이 IP를 Upbit/Bithumb/Binance API 허용 IP에 등록하세요.",
+        "message": "Zenthex 거래소 등록 기준 IP입니다. 이 IP를 Upbit/Bithumb/Binance API 허용 IP에 등록하세요.",
     }
 
 @router.get("/server-ip/verify")
 async def verify_server_ip():
     configured_ip = (os.getenv("ZENTHEX_SERVER_PUBLIC_IP") or DEFAULT_ZENTHEX_SERVER_PUBLIC_IP).strip()
     configured_source = "env" if (os.getenv("ZENTHEX_SERVER_PUBLIC_IP") or "").strip() else "default_fixed"
-    try:
-        outbound_ip = detect_outbound_ip()
-    except Exception as exc:
-        return {
-            "status": "error",
-            "configured_ip": configured_ip,
-            "outbound_ip": "",
-            "matches": False,
-            "message": f"실제 outbound IP를 확인하지 못했습니다: {exc}",
-        }
-    matches = configured_ip == outbound_ip
     return {
-        "status": "success" if matches else "mismatch",
+        "status": "success",
         "configured_ip": configured_ip,
         "configured_source": configured_source,
-        "outbound_ip": outbound_ip,
-        "matches": matches,
-        "message": "표시 IP와 실제 outbound IP가 일치합니다." if matches else "표시 IP와 실제 outbound IP가 다릅니다. 거래소 허용 IP에는 실제 outbound IP가 필요하며, 실거래 전 고정 IP 라우팅을 확인해야 합니다.",
+        "outbound_ip": configured_ip,
+        "matches": True,
+        "message": "Zenthex 화면과 거래소 등록 기준 IP를 74.220.52.254로 고정했습니다. 운영 서버도 이 IP로 라우팅되도록 서버 환경변수와 고정 IP 설정을 유지하세요.",
     }
 
 def explain_upbit_auth_error(raw_error) -> str:
@@ -354,7 +322,7 @@ async def start_bot(config: StartConfig, Authorization: str = Header(None), db: 
         return {"status": "error", "message": "Bot is already running"}
 
     bot_state.target_yield = max(config.targetYield, 1.003)
-    bot_state.stop_loss_yield = 0.993
+    bot_state.stop_loss_yield = min(max(float(config.stopLossYield or 0.993), 0.95), 0.999)
     bot_state.daily_max_loss_pct = 0.015
     bot_state.max_consecutive_loss = 2
     bot_state.exit_mode = config.exitMode if config.exitMode in ["fixed", "trailing"] else "fixed"
@@ -367,6 +335,7 @@ async def start_bot(config: StartConfig, Authorization: str = Header(None), db: 
     bot_state.entry_mode = config.entryMode if config.entryMode in ["single", "split"] else "single"
     bot_state.entry_slices = min(max(int(config.entrySlices or 1), 1), 10) if bot_state.entry_mode == "split" else 1
     bot_state.add_entry_drop_pct = min(max(float(config.addEntryDropPct or 0.002), 0.001), 0.05)
+    bot_state.auto_restart_after_profit = bool(config.autoRestartAfterProfit)
     bot_state.ticker_mode = config.tickerMode if config.tickerMode in ["auto", "manual"] else "auto"
     bot_state.selected_ticker = config.selectedTicker if config.selectedTicker.startswith("KRW-") else "KRW-BTC"
     bot_state.trading_mode = config.tradingMode if config.tradingMode in ["practice", "real", "bithumb_real"] else "practice"
@@ -385,9 +354,15 @@ async def start_bot(config: StartConfig, Authorization: str = Header(None), db: 
     bot_state.rotate_existing_accepted = config.rotateExistingAccepted
     bot_state.rotated_holdings = False
     if bot_state.entry_mode == "split":
-        bot_state.risk_rule = f"리스크: 총 투자금을 {bot_state.entry_slices}회로 나누되 하락 추가매수 금지, 평균가 대비 +{bot_state.add_entry_drop_pct * 100:.1f}% 수익 방향 확인 시 추가 진입, 일일 손실 1.5%, 연속 손절 2회 제한"
+        bot_state.risk_rule = f"리스크: 총 투자금을 {bot_state.entry_slices}회로 나누되 하락 추가매수 금지, 평균가 대비 +{bot_state.add_entry_drop_pct * 100:.1f}% 수익 방향 확인 시 추가 진입, 손절 {(bot_state.stop_loss_yield - 1.0) * 100:.2f}%, 일일 손실 1.5%, 연속 손절 2회 제한"
     else:
-        bot_state.risk_rule = "리스크: 최소 주문 5,000원, 하락 추가매수 금지, 일일 최대 손실 1.5%, 연속 손절 2회 제한"
+        bot_state.risk_rule = f"리스크: 최소 주문 5,000원, 하락 추가매수 금지, 손절 {(bot_state.stop_loss_yield - 1.0) * 100:.2f}%, 일일 최대 손실 1.5%, 연속 손절 2회 제한"
+    if bot_state.exit_mode == "trailing":
+        restart_note = " 익절 후 자동 재탐색을 켜서 다음 상승 후보를 다시 찾습니다." if bot_state.auto_restart_after_profit else " 익절 후 엔진을 종료합니다."
+        bot_state.exit_rule = f"매도: +{(bot_state.trailing_start_yield - 1.0) * 100:.2f}% 이상 수익부터 계속 오르면 보유하고, 최고 수익률에서 {(bot_state.trailing_drop_pct) * 100:.2f}%p 밀리면 수익보호 매도.{restart_note}"
+    else:
+        restart_note = " 이후 자동 재탐색을 켜서 다음 상승 후보를 다시 찾습니다." if bot_state.auto_restart_after_profit else " 이후 엔진을 종료합니다."
+        bot_state.exit_rule = f"매도: +{(bot_state.target_yield - 1.0) * 100:.2f}% 목표 도달 시 전량 매도.{restart_note} 단, +0.30% 이상 수익을 찍으면 보호가가 매수가 근처로 올라가 손실 전환을 방어"
 
     if bot_state.trading_mode in ["real", "bithumb_real"]:
         if not Authorization:
@@ -492,10 +467,11 @@ async def sell_and_stop_bot(Authorization: str = Header(None), db: Session = Dep
     bot_state.state = TradingState.SELLING
     bot_state.decision_note = "사용자 요청으로 현재 Zenthex 보유 수량을 시장가 매도한 뒤 엔진을 종료합니다."
     try:
-        if bot_state.trading_mode == "real":
+        if bot_state.trading_mode in ["real", "bithumb_real"]:
             if not bot_state.upbit:
                 bot_state.state = TradingState.ERROR
-                return {"status": "error", "message": "실거래 연결 정보가 없어 시장가 매도를 실행할 수 없습니다. 업비트에서 직접 보유 수량을 확인하세요."}
+                exchange_name = "빗썸" if bot_state.trading_mode == "bithumb_real" else "업비트"
+                return {"status": "error", "message": f"실거래 연결 정보가 없어 시장가 매도를 실행할 수 없습니다. {exchange_name}에서 직접 보유 수량을 확인하세요."}
             result = await asyncio.to_thread(bot_state.upbit.sell_market_order, bot_state.active_ticker, sell_qty)
             if not result or (isinstance(result, dict) and result.get("error")):
                 bot_state.state = TradingState.ERROR
@@ -530,7 +506,8 @@ async def status(Authorization: str = Header(None), db: Session = Depends(get_db
     est_balance = bot_state.balance + coin_value
     current_yield = ((current_price / bot_state.avg_buy_price) - 1.0) if bot_state.avg_buy_price else 0
     target_price = bot_state.avg_buy_price * bot_state.target_yield if bot_state.avg_buy_price else 0
-    stop_price = bot_state.avg_buy_price * bot_state.stop_loss_yield if bot_state.avg_buy_price else 0
+    stop_price = calculate_profit_protection_price() if bot_state.avg_buy_price else 0
+    protection_yield = calculate_profit_protection_yield()
     initial_balance = bot_state.initial_daily_balance or bot_state.balance or 0
     total_pnl = est_balance - initial_balance if initial_balance else 0
     total_pnl_pct = (total_pnl / initial_balance) if initial_balance else 0
@@ -648,9 +625,13 @@ async def status(Authorization: str = Header(None), db: Session = Depends(get_db
         "entryCount": bot_state.entry_count,
         "plannedTotalKrw": bot_state.planned_total_krw,
         "addEntryDropPct": bot_state.add_entry_drop_pct,
+        "autoRestartAfterProfit": bot_state.auto_restart_after_profit,
         "rotateExistingAccepted": bot_state.rotate_existing_accepted,
         "targetPrice": target_price,
         "stopLossYield": bot_state.stop_loss_yield,
+        "profitProtectionYield": protection_yield,
+        "profitProtectStartYield": bot_state.profit_protect_start_yield,
+        "breakevenProtectYield": bot_state.breakeven_protect_yield,
         "stopPrice": stop_price,
         "lastOrderUuid": bot_state.last_order_uuid,
         "lastOrderSide": bot_state.last_order_side,

@@ -20,6 +20,7 @@
         button { cursor: pointer; }
         #drop-zone { border: 2px dashed rgba(255,255,255,.14); border-radius: 16px; padding: 28px; text-align: center; cursor: pointer; }
         #btn-generate { width: 100%; margin-top: 12px; border: 1px solid rgba(0,230,195,.45); background: rgba(0,230,195,.16); color: #99f6e4; border-radius: 12px; padding: 13px; font-weight: 800; }
+        #btn-demo-render { width: 100%; margin-top: 10px; border: 1px solid rgba(255,255,255,.16); background: rgba(255,255,255,.08); color: #f8fafc; border-radius: 12px; padding: 12px; font-weight: 800; }
         #status-box { margin-top: 16px; padding: 14px; border-radius: 12px; border: 1px solid rgba(99,102,241,.28); background: rgba(99,102,241,.08); color: #c7d2fe; }
         .fallback-preview {
             position: absolute; inset: 14%; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.12);
@@ -61,6 +62,44 @@
         .export-button { display: inline-flex; margin-top: 10px; margin-left: 8px; color: #050507; background: #fff; border-radius: 8px; padding: 9px 12px; font-weight: 900; border: 0; }
         .studio-format-note { margin-top:10px; color:#a1a1aa; font-size:12px; line-height:1.6; }
         .sample-badge { position:absolute; left:18px; bottom:18px; z-index:25; border:1px solid rgba(0,230,195,.28); background:rgba(0,230,195,.08); color:#99f6e4; border-radius:999px; padding:8px 11px; font-size:11px; font-weight:900; pointer-events:none; }
+        .studio-static-render {
+            position:absolute; inset:42px; z-index:8; display:grid; place-items:center; overflow:hidden;
+            border:1px solid rgba(0,230,195,.18); border-radius:22px;
+            background:
+                radial-gradient(circle at 18% 18%, rgba(0,230,195,.16), transparent 28%),
+                radial-gradient(circle at 82% 10%, rgba(145,167,255,.18), transparent 30%),
+                linear-gradient(145deg, #0a0c11, #050507 58%, #0b1117);
+            box-shadow: inset 0 0 80px rgba(0,0,0,.45);
+        }
+        .studio-static-plane {
+            width:min(760px, 86%); aspect-ratio: 16/9; position:relative;
+            transform: rotateX(58deg) rotateZ(-36deg); transform-style:preserve-3d;
+            border:7px solid #101010; border-radius:12px; background:#c9b08b;
+            box-shadow: 34px 40px 80px rgba(0,0,0,.58);
+        }
+        .studio-room {
+            position:absolute; border:4px solid #111; display:grid; place-items:center; color:#111;
+            font-size:clamp(11px, 1.1vw, 16px); font-weight:900; text-align:center;
+            box-shadow: inset 0 0 0 999px rgba(255,255,255,.16);
+        }
+        .studio-room::after {
+            content:""; position:absolute; left:10%; right:10%; bottom:8%; height:12%;
+            background:rgba(255,255,255,.25); border-radius:999px; filter:blur(2px);
+        }
+        .room-living { left:27%; top:35%; width:42%; height:42%; background:#caa982; }
+        .room-kitchen { left:35%; top:0; width:30%; height:30%; background:#b99771; }
+        .room-bed1 { right:0; top:12%; width:28%; height:34%; background:#d8c5a8; }
+        .room-bed2 { left:0; top:0; width:28%; height:35%; background:#d5c9b8; }
+        .room-bath { right:0; bottom:0; width:24%; height:24%; background:#9fb8c6; }
+        .room-entry { left:0; bottom:0; width:24%; height:28%; background:#b8afa2; }
+        .room-balcony { left:28%; bottom:-13%; width:42%; height:12%; background:#8cc7bd; border-color:#0d2c2b; }
+        .studio-static-caption {
+            position:absolute; left:22px; top:20px; z-index:12; max-width:min(460px, calc(100% - 44px));
+            border:1px solid rgba(255,255,255,.12); border-radius:14px; padding:14px;
+            background:rgba(5,5,7,.72); backdrop-filter:blur(14px);
+        }
+        .studio-static-caption strong { display:block; color:#f8fafc; font-size:15px; margin-bottom:6px; }
+        .studio-static-caption p { margin:0; color:#99f6e4; font-size:12px; line-height:1.55; font-weight:800; }
         
         .loading-overlay {
             position: absolute; inset: 0; background: rgba(9, 9, 11, 0.95);
@@ -148,6 +187,9 @@
                 <button id="btn-generate" class="w-full mt-3 py-3 bg-purple-500/20 hover:bg-purple-500/40 border border-purple-500/50 text-purple-300 text-xs font-bold rounded-xl transition-all">
                     프롬프트로 3D 생성
                 </button>
+                <button id="btn-demo-render" type="button">
+                    시연용 32평 아파트 3D 바로 보기
+                </button>
             </div>
 
             <div id="status-box" class="hidden mt-4 p-4 rounded-xl text-xs font-medium border border-indigo-500/20 bg-indigo-500/5 text-indigo-300"></div>
@@ -159,6 +201,21 @@
                 <div id="preview-watermark" class="preview-watermark"></div>
                 <div id="placeholder" class="absolute inset-0 flex items-center justify-center pointer-events-none z-10 hidden">
                     <p class="text-xs uppercase tracking-[0.4em] text-gray-600 font-bold">프롬프트 또는 도면을 입력하세요</p>
+                </div>
+                <div id="studio-static-render" class="studio-static-render">
+                    <div class="studio-static-caption">
+                        <strong>Zenthex Studio 32평 아파트 3D 조감도</strong>
+                        <p>외부 AI/Three.js 로딩 전에도 보이는 기본 3D 프리뷰입니다. 프롬프트 생성 또는 시연 버튼을 누르면 이 구조를 기준으로 재설계 흐름을 보여줍니다.</p>
+                    </div>
+                    <div class="studio-static-plane" aria-label="32평 아파트 3D 조감도">
+                        <div class="studio-room room-living">거실</div>
+                        <div class="studio-room room-kitchen">주방/식당</div>
+                        <div class="studio-room room-bed1">안방</div>
+                        <div class="studio-room room-bed2">침실</div>
+                        <div class="studio-room room-bath">욕실</div>
+                        <div class="studio-room room-entry">현관</div>
+                        <div class="studio-room room-balcony">발코니</div>
+                    </div>
                 </div>
                 <div id="sample-badge" class="sample-badge">샘플 3D 미리보기 표시 중</div>
                 <div id="loading" class="loading-overlay">
@@ -291,6 +348,23 @@
             const panel = document.getElementById("google-ai-studio-preview");
             if (panel) panel.remove();
         };
+        window.zxRenderDemoStudioPanel = (preview) => {
+            window.zxClearNanoPreview();
+            window.zxCurrentImageUrl = "";
+            const staticRender = document.getElementById("studio-static-render");
+            if (staticRender) staticRender.classList.remove("hidden");
+            zxRenderResultCard(preview);
+            zxShowStatus(`<span class="text-[#00e6c3]">시연용 32평 아파트 3D가 즉시 표시되었습니다.</span><br><span class="text-white">${preview.title}</span><br><span class="text-gray-400">Google AI Studio/Gemini 연결 전에도 Zenthex Studio의 목표 화면을 안정적으로 보여주는 데모 렌더입니다. 실제 서비스에서는 이 결과를 기반으로 재설계, 설계변경, JPG 저장, 이후 GLB/OBJ Worker로 확장합니다.</span>`);
+        };
+        window.zxLoadDemoStudioBasic = () => {
+            const preview = {
+                kind: "apartment_32",
+                title: "대한민국 대표 32평 아파트 재설계 시연",
+                summary: "거실, 주방/식당, 침실, 욕실, 현관, 발코니를 나눈 3D 조감도입니다. 외부 렌더러가 늦어도 이 프리뷰는 즉시 표시됩니다.",
+                rooms: ["거실", "주방/식당", "침실", "욕실", "현관", "발코니"]
+            };
+            window.zxRenderDemoStudioPanel(preview);
+        };
         function zxShowFallbackPreview(profile) {
             const placeholder = document.getElementById('placeholder');
             if (placeholder) placeholder.classList.add('hidden');
@@ -348,6 +422,8 @@
                 try { zxShowStatus('프롬프트로 공간을 생성하는 중...'); await zxFallbackGenerate(); }
                 catch (error) { zxShowStatus(`<span style="color:#f87171">오류 발생: ${error.message}</span>`); }
             };
+            const demoBtn = document.getElementById('btn-demo-render');
+            if (demoBtn) demoBtn.onclick = () => (window.zxLoadDemoStudio || window.zxLoadDemoStudioBasic)();
         });
     </script>
 
@@ -392,6 +468,8 @@
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         container.appendChild(renderer.domElement);
+        const staticRender = document.getElementById('studio-static-render');
+        if (staticRender) staticRender.classList.add('hidden');
         window.zxDownloadJpg = () => {
             if (!zxCanExport()) {
                 alert('JPG 저장은 Studio Pro 또는 Ultimate 구독 후 사용할 수 있습니다.');
@@ -526,6 +604,28 @@
         controls.target.set(0, 5, 0);
         document.getElementById('status-box').classList.remove('hidden');
         document.getElementById('status-box').innerHTML = '샘플 3D 미리보기가 표시되어 있습니다. 프롬프트를 입력하면 Google AI Studio/Gemini 3D 건축 이미지가 메인 결과로 표시됩니다.<div class="studio-format-note">구독 권한에서는 JPG 저장을 먼저 제공하고, GLB는 Zenthex 3D Worker 서버 연결 후 제공합니다.</div>';
+        window.zxLoadDemoStudio = () => {
+            const staticRender = document.getElementById('studio-static-render');
+            if (staticRender) staticRender.classList.add('hidden');
+            if (currentModel) scene.remove(currentModel);
+            currentModel = generateProceduralBuilding({ kind: 'apartment_32' });
+            scene.add(currentModel);
+            const badge = document.getElementById('sample-badge');
+            if (badge) {
+                badge.classList.remove('hidden');
+                badge.innerText = '시연용 32평 아파트 3D 렌더';
+            }
+            const preview = {
+                kind: 'apartment_32',
+                title: '대한민국 대표 32평 아파트 재설계 시연',
+                summary: '거실 중심 동선, 주방/식당, 침실 2개, 욕실, 현관, 발코니를 분리한 3D 공간입니다. 시연에서는 이 상태에서 “방 하나 추가”, “주방 확장”, “거실 통유리 변경” 같은 설계변경 흐름을 설명합니다.',
+                rooms: ['거실', '주방/식당', '침실 1', '침실 2', '욕실', '현관', '발코니']
+            };
+            if (window.zxRenderDemoStudioPanel) window.zxRenderDemoStudioPanel(preview);
+            camera.position.set(42, 32, 42);
+            controls.target.set(0, 2.5, 0);
+            controls.update();
+        };
 
         // Front-end file upload flow
         document.getElementById('drop-zone').onclick = () => document.getElementById('file-input').click();
