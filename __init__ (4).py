@@ -1,124 +1,155 @@
-import hashlib
-import hmac
-import time
-import urllib.parse
-import urllib.request
-from decimal import Decimal, InvalidOperation
+# Zenthex Stock Master Plan
 
+## 1. Service Position
 
-BINANCE_LIVE_BASE = "https://api.binance.com"
-BINANCE_TESTNET_BASE = "https://testnet.binance.vision"
+Zenthex is one SaaS company with three service lines:
 
+- Zenthex Studio: AI architecture and 3D visualization
+- Zenthex Trading: crypto auto-trading for Upbit, Bithumb, and Binance
+- Zenthex Stock: stock strategy automation for domestic stocks first and overseas stocks later
 
-def clean_key(value: str) -> str:
-    return (value or "").strip().replace("\u200b", "").replace("\ufeff", "")
+Zenthex Stock is not a separate company at the MVP stage. It is the third product line inside Zenthex. A legal subsidiary can be considered later only if revenue, compliance, operations, or investment structure requires it.
 
+## 2. Why Stock Must Be Separate From Crypto
 
-def base_url(testnet: bool = False) -> str:
-    return BINANCE_TESTNET_BASE if testnet else BINANCE_LIVE_BASE
+Stock automation must not be mixed directly into the current crypto engine.
 
+- Stocks have market open and close times.
+- Stocks use broker APIs, not exchange APIs.
+- Order types, tick sizes, account rules, fees, tax, and settlement are different.
+- Domestic and overseas stocks have different calendars and currency risks.
+- Stock automation needs stricter compliance wording than a simple crypto signal page.
 
-def explain_binance_error(raw_error) -> str:
-    text = str(raw_error or "")
-    lowered = text.lower()
-    if "-2015" in lowered or "invalid api-key" in lowered:
-        return "Binance API 키, 허용 IP, 또는 권한이 맞지 않습니다. Spot 거래 권한과 Zenthex 서버 IP 등록을 확인하세요."
-    if "signature" in lowered or "-1022" in lowered:
-        return "Binance Secret Key 서명 검증에 실패했습니다. Secret Key 복사 상태를 확인하거나 새 키를 발급하세요."
-    if "timestamp" in lowered or "-1021" in lowered:
-        return "Binance 서버 시간과 Zenthex 서버 시간이 맞지 않습니다. 서버 시간 동기화가 필요합니다."
-    if "ip" in lowered or "permission" in lowered or "restricted" in lowered:
-        return "Binance API 키의 IP 제한 또는 권한 설정 문제입니다. 출금 권한은 끄고 Spot 거래/조회 권한만 켜세요."
-    return "Binance 인증에 실패했습니다. API 키, Secret Key, Spot 권한, IP 화이트리스트, Testnet/Live 선택을 확인하세요."
+Correct product structure:
 
+```text
+Zenthex
+├── Zenthex Studio
+├── Zenthex Trading
+│   ├── Upbit
+│   ├── Bithumb
+│   └── Binance
+└── Zenthex Stock
+    ├── Korea Investment Securities
+    ├── Kiwoom Securities
+    └── Overseas stock connector later
+```
 
-def _request_json(url: str, headers: dict | None = None):
-    request = urllib.request.Request(url, headers=headers or {})
-    with urllib.request.urlopen(request, timeout=8) as response:
-        import json
+## 3. Investment Direction
 
-        return json.loads(response.read().decode("utf-8"))
+Zenthex Trading and Zenthex Stock must use different strategies.
 
+Zenthex Trading:
 
-def _signed_query(secret_key: str, params: dict) -> str:
-    query = urllib.parse.urlencode(params)
-    signature = hmac.new(secret_key.encode("utf-8"), query.encode("utf-8"), hashlib.sha256).hexdigest()
-    return f"{query}&signature={signature}"
+- short-term crypto strategy
+- enter only after rising confirmation
+- avoid falling coins
+- sell by target profit, trailing protection, or stop loss
+- never present profit as guaranteed
 
+Zenthex Stock:
 
-def signed_get(path: str, access_key: str, secret_key: str, testnet: bool = False, params: dict | None = None):
-    access_key = clean_key(access_key)
-    secret_key = clean_key(secret_key)
-    payload = {"timestamp": int(time.time() * 1000), "recvWindow": 5000}
-    if params:
-        payload.update(params)
-    query = _signed_query(secret_key, payload)
-    return _request_json(
-        f"{base_url(testnet)}{path}?{query}",
-        headers={"X-MBX-APIKEY": access_key},
-    )
+- longer-term strategy
+- look for undervalued but improving companies
+- consider future growth industries
+- consider earnings improvement
+- consider positive corporate or sector news
+- consider institutional/foreign inflow when available
+- avoid buying a falling stock only because it looks cheap
+- manage risk when the original investment thesis breaks
 
+The stock product should feel more like a future-oriented portfolio engine than a fast scalping engine.
 
-def public_get(path: str, testnet: bool = False, params: dict | None = None):
-    query = urllib.parse.urlencode(params or {})
-    url = f"{base_url(testnet)}{path}" + (f"?{query}" if query else "")
-    return _request_json(url)
+## 4. First Broker Recommendation
 
+Recommended first target: Korea Investment Securities Open API.
 
-def check_binance_key(access_key: str, secret_key: str, testnet: bool = False):
-    try:
-        account = signed_get("/api/v3/account", access_key, secret_key, testnet=testnet)
-        balances = account.get("balances", [])
-        usdt_balance = Decimal("0")
-        non_zero = []
-        for row in balances:
-            free = _to_decimal(row.get("free"))
-            locked = _to_decimal(row.get("locked"))
-            total = free + locked
-            asset = row.get("asset")
-            if asset == "USDT":
-                usdt_balance = free
-            if total > 0:
-                non_zero.append({"asset": asset, "free": str(free), "locked": str(locked), "total": str(total)})
-        return {
-            "status": "success",
-            "verified": True,
-            "usdt_balance": float(usdt_balance),
-            "assets": non_zero[:30],
-            "message": f"Binance {'Testnet' if testnet else 'Live'} 키 인증 성공. 조회 가능한 USDT 잔고는 약 {float(usdt_balance):,.4f} USDT입니다.",
-        }
-    except Exception as exc:
-        return {
-            "status": "error",
-            "verified": False,
-            "message": explain_binance_error(exc),
-            "raw": str(exc),
-            "checklist": [
-                "Binance API Management에서 Spot & Margin Trading 권한 확인",
-                "출금 권한은 반드시 끄기",
-                "IP Restriction에 Zenthex 서버 outbound IP 등록",
-                "Testnet 키와 Live 키를 섞어 쓰지 않았는지 확인",
-                "Secret Key 앞뒤 공백과 줄바꿈 제거",
-            ],
-        }
+Reason:
 
+- REST and WebSocket style is suitable for a server-based SaaS.
+- Domestic stock, overseas stock, quote, and order APIs can expand in one direction.
+- It is easier to design with FastAPI workers than a PC-only automation model.
 
-def build_binance_account_summary(access_key: str, secret_key: str, testnet: bool = False):
-    result = check_binance_key(access_key, secret_key, testnet=testnet)
-    if result.get("status") != "success":
-        return result
-    assets = result.get("assets", [])
-    return {
-        "status": "success",
-        "message": "Binance 잔고를 불러왔습니다. 자동매매 주문은 Spot 리스크 검증 후 열립니다.",
-        "cashBalance": result.get("usdt_balance", 0),
-        "quoteAsset": "USDT",
-        "positions": assets,
-    }
+Kiwoom can be reviewed later because it is popular in Korea, but its PC/Windows dependency can make SaaS operation harder.
 
+## 5. Core User Flow
 
-def _to_decimal(value) -> Decimal:
-    try:
-        return Decimal(str(value or "0"))
-    except (InvalidOperation, ValueError):
-        return Decimal("0")
+1. User subscribes to Stock Pro or Ultimate.
+2. User connects a brokerage API key.
+3. Zenthex verifies lookup/order permission.
+4. User starts Paper Trading first.
+5. The engine scans domestic stocks during market hours.
+6. The engine selects candidates by valuation, trend, volume, catalyst, and risk.
+7. The engine buys only when the entry rule is satisfied.
+8. The engine sells or reduces when target profit, trailing protection, stop loss, market-close rule, or thesis-break rule is triggered.
+9. Mobile and web screens show holdings, realized PnL, unrealized PnL, thesis status, and engine status.
+
+## 6. Candidate Selection Formula
+
+The first formula should be conservative and future-oriented.
+
+- trading value filter
+- current price above important trend lines
+- medium-term trend confirmation
+- valuation discount against growth or sector peers
+- earnings growth or turnaround signal
+- news/catalyst watchlist
+- institutional/foreign buying flow when available
+- volume increase with price stability or rising price
+- gap-up chase protection
+- KOSPI/KOSDAQ market guard
+- volatility cap
+- stop-loss cooldown per stock
+
+The engine must wait when no stock passes the quality and risk checks.
+
+## 7. Risk Manager
+
+Required controls:
+
+- Paper Trading default before live orders
+- per-position stop loss
+- target profit sell
+- trailing profit protection
+- thesis-break exit rule
+- daily maximum loss
+- maximum trades per day
+- maximum capital per stock
+- duplicate order prevention
+- market-close forced review or liquidation setting
+- owner emergency stop
+- full order and decision logs
+
+Zenthex Stock must never use wording such as guaranteed profit, no loss, or investment advice.
+
+## 8. Product Plans
+
+Initial plan proposal:
+
+- Stock Basic: watchlist, scanner, paper trading
+- Stock Pro: broker connection, live order gate, mobile status
+- Ultimate: Studio + Crypto Trading + Stock after Stock is proven
+
+Pricing can be reviewed after the crypto engine stabilizes. Do not sell Stock Pro live trading until Paper Trading and risk logs are proven.
+
+## 9. MVP Milestones
+
+1. Stock public product page and master plan
+2. Stock screen skeleton
+3. Broker API selection and environment variables
+4. Paper Trading stock simulator
+5. Domestic stock quote scanner
+6. Value/growth/news candidate scoring
+7. Strategy and risk-manager logs
+8. Owner launch review checks
+9. Subscription gate
+10. Broker key verification
+11. Small live-order test
+12. Mobile status view
+13. Production compliance review
+
+## 10. Current Build Status
+
+This build introduces the blueprint and UI/route skeleton only.
+
+Live stock orders are intentionally disabled until the broker connector, paper trading, market-hours scheduler, and stock-specific risk disclosure are complete.
