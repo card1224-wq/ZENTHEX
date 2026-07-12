@@ -1,72 +1,80 @@
-﻿from sqlalchemy import Boolean, Column, Integer, String, DateTime
-from sqlalchemy.sql import func
-from .session import Base
+﻿from sqlalchemy import text
+from database.session import engine, is_sqlite_database
 
-class User(Base):
-    __tablename__ = "users"
+USER_COLUMNS = {
+    "full_name": "VARCHAR",
+    "email_verified": "BOOLEAN DEFAULT 0",
+    "email_verification_code": "VARCHAR",
+    "password_reset_code": "VARCHAR",
+    "birth_date": "VARCHAR",
+    "phone_number": "VARCHAR",
+    "phone_verified": "BOOLEAN DEFAULT 0",
+    "phone_verification_code": "VARCHAR",
+    "password_hint_question": "VARCHAR",
+    "password_hint_answer_hash": "VARCHAR",
+    "approval_status": "VARCHAR DEFAULT 'approved'",
+    "plan": "VARCHAR DEFAULT 'free'",
+    "role": "VARCHAR DEFAULT 'user'",
+    "binance_access_key": "VARCHAR",
+    "binance_secret_key": "VARCHAR",
+    "studio_generations_left": "INTEGER DEFAULT 3",
+}
 
-    id = Column(Integer, primary_key=True, index=True)
-    full_name = Column(String, nullable=True)
-    email = Column(String, unique=True, index=True)
-    hashed_password = Column(String)
-    birth_date = Column(String, nullable=True)
-    phone_number = Column(String, nullable=True)
-    phone_verified = Column(Boolean, default=False)
-    phone_verification_code = Column(String, nullable=True)
-    password_hint_question = Column(String, nullable=True)
-    password_hint_answer_hash = Column(String, nullable=True)
-    is_active = Column(Boolean, default=True)
-    approval_status = Column(String, default="approved")
-    email_verified = Column(Boolean, default=False)
-    email_verification_code = Column(String, nullable=True)
-    password_reset_code = Column(String, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+def _column_exists(conn, table_name: str, column_name: str) -> bool:
+    rows = conn.execute(text(f"PRAGMA table_info({table_name})")).fetchall()
+    return any(row[1] == column_name for row in rows)
 
-    plan = Column(String, default="free")
-    role = Column(String, default="user")
-
-    binance_access_key = Column(String, nullable=True)
-    binance_secret_key = Column(String, nullable=True)
-    studio_generations_left = Column(Integer, default=3)
-
-class BillingHistory(Base):
-    __tablename__ = "billing_history"
-
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, index=True)
-    plan_id = Column(String)
-    plan_name = Column(String)
-    amount_krw = Column(Integer, default=0)
-    status = Column(String, default="paid")
-    payment_method = Column(String, default="mock_checkout")
-    receipt_no = Column(String, unique=True, index=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-class Subscription(Base):
-    __tablename__ = "subscriptions"
-
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, unique=True, index=True)
-    plan_id = Column(String, default="free")
-    status = Column(String, default="inactive")
-    provider = Column(String, nullable=True)
-    provider_customer_id = Column(String, nullable=True)
-    provider_subscription_id = Column(String, nullable=True)
-    next_billing_date = Column(String, nullable=True)
-    cancel_at_period_end = Column(Boolean, default=False)
-    last_payment_status = Column(String, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-class SupportTicket(Base):
-    __tablename__ = "support_tickets"
-
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, nullable=True, index=True)
-    email = Column(String, index=True)
-    category = Column(String, default="general")
-    title = Column(String)
-    message = Column(String)
-    status = Column(String, default="open")
-    admin_reply = Column(String, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), nullable=True)
+def ensure_sqlite_schema():
+    if not is_sqlite_database():
+        return
+    with engine.begin() as conn:
+        for column_name, column_type in USER_COLUMNS.items():
+            if not _column_exists(conn, "users", column_name):
+                conn.execute(text(f"ALTER TABLE users ADD COLUMN {column_name} {column_type}"))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS billing_history (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER,
+                plan_id VARCHAR,
+                plan_name VARCHAR,
+                amount_krw INTEGER DEFAULT 0,
+                status VARCHAR DEFAULT 'paid',
+                payment_method VARCHAR DEFAULT 'mock_checkout',
+                receipt_no VARCHAR UNIQUE,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_billing_history_user_id ON billing_history (user_id)"))
+        conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_billing_history_receipt_no ON billing_history (receipt_no)"))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS subscriptions (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER UNIQUE,
+                plan_id VARCHAR DEFAULT 'free',
+                status VARCHAR DEFAULT 'inactive',
+                provider VARCHAR,
+                provider_customer_id VARCHAR,
+                provider_subscription_id VARCHAR,
+                next_billing_date VARCHAR,
+                cancel_at_period_end BOOLEAN DEFAULT 0,
+                last_payment_status VARCHAR,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_subscriptions_user_id ON subscriptions (user_id)"))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS support_tickets (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER,
+                email VARCHAR,
+                category VARCHAR DEFAULT 'general',
+                title VARCHAR,
+                message VARCHAR,
+                status VARCHAR DEFAULT 'open',
+                admin_reply VARCHAR,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME
+            )
+        """))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_support_tickets_user_id ON support_tickets (user_id)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_support_tickets_email ON support_tickets (email)"))
