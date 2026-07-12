@@ -1,6 +1,6 @@
 ﻿# Zenthex SaaS
 
-Zenthex is an AI SaaS platform with three product lines: Zenthex Studio, Zenthex Trading, and Zenthex Stock.
+Zenthex is an AI SaaS platform with three product lines: Zenthex Studio, Zenthex Trading, and Zenthex Stock. The latest alignment note is `ZENTHEX_ALIGNMENT_2026_07_13.md`.
 
 ## Features
 
@@ -9,7 +9,7 @@ Zenthex is an AI SaaS platform with three product lines: Zenthex Studio, Zenthex
 - Studio trial: anonymous users get 1 generation per IP per day
 - Studio preview protection: trial/free users receive view-only previews without download URLs
 - Zenthex Trading: risk-managed strategy experience and Signal Guard
-- Zenthex Stock: planned stock strategy line for domestic stocks first and overseas stocks later, focused on long-term value, growth, catalysts, and risk control
+- Zenthex Stock: planned stock strategy line for Korean and US markets, split into intraday Day Stock and future-oriented Long Stock
 - Trading split entry: divide a configured total budget into multiple entries and calculate take-profit/stop-loss from the average buy price
 - Trading stop controls: pause keeps holdings, while sell-and-stop market-sells the current Zenthex position before ending the engine
 - Trading logs use KST and the screen explains the automatic selection filters before entry
