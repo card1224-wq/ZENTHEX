@@ -3,156 +3,103 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Zenthex Customer Center</title>
+  <title>Zenthex Stock</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap');
-    * { box-sizing:border-box; }
-    body { margin:0; min-height:100vh; background:#06070a; color:white; font-family:Inter,system-ui,sans-serif; padding:24px; }
-    .wrap { width:min(1080px,100%); margin:0 auto; }
-    .top { display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:24px; }
-    a, button { font-family:inherit; }
-    a { color:#a1a1aa; text-decoration:none; font-weight:900; }
-    .card { border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.035); border-radius:10px; padding:24px; margin-bottom:14px; }
-    h1 { margin:0 0 10px; font-size:34px; letter-spacing:0; }
-    h2 { margin:0 0 12px; font-size:20px; }
-    p, li { color:#c7c9d1; line-height:1.75; }
-    .grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start; }
-    .pill { display:inline-flex; padding:8px 10px; border-radius:999px; border:1px solid rgba(0,230,195,.35); color:#99f6e4; background:rgba(0,230,195,.08); font-size:12px; font-weight:900; }
-    label { display:block; color:#d4d4d8; font-size:13px; font-weight:900; margin:14px 0 7px; }
-    input, select, textarea { width:100%; border:1px solid rgba(255,255,255,.14); background:#0b0d12; color:#fff; border-radius:8px; padding:12px; font:inherit; outline:none; }
-    textarea { min-height:150px; resize:vertical; }
-    input:focus, select:focus, textarea:focus { border-color:#00e6c3; box-shadow:0 0 0 3px rgba(0,230,195,.12); }
-    .submit { width:100%; margin-top:16px; border:0; background:#00e6c3; color:#00110e; border-radius:8px; padding:14px 16px; font-weight:900; cursor:pointer; }
-    .ghost { border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.05); color:#fff; border-radius:8px; padding:10px 12px; font-weight:900; cursor:pointer; }
-    .status { margin-top:12px; color:#99f6e4; font-size:13px; font-weight:800; min-height:20px; }
-    .ticket { border:1px solid rgba(255,255,255,.1); background:rgba(0,0,0,.24); border-radius:8px; padding:14px; margin-top:10px; }
-    .ticket strong { display:block; margin-bottom:5px; }
-    .ticket small { color:#8b93a7; }
-    @media (max-width:820px){ .grid{grid-template-columns:1fr;} h1{font-size:28px;} body{padding:18px;} }
+    :root{--bg:#06070a;--panel:#0d1016;--line:rgba(255,255,255,.12);--text:#f8fafc;--muted:#a1a1aa;--mint:#00e6c3;--gold:#f6c66a;--red:#f87171}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    body:before{content:"";position:fixed;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(255,255,255,.04),transparent 280px),radial-gradient(circle at 20% 0%,rgba(0,230,195,.12),transparent 30%),radial-gradient(circle at 80% 16%,rgba(246,198,106,.12),transparent 28%)}
+    a{color:inherit;text-decoration:none}
+    .nav{position:sticky;top:0;z-index:10;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:14px 28px;border-bottom:1px solid var(--line);background:rgba(6,7,10,.86);backdrop-filter:blur(18px)}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:900;letter-spacing:2px}
+    .brand img{width:34px;height:34px}
+    .nav-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .nav a,.nav button{border:1px solid var(--line);background:rgba(255,255,255,.04);color:white;border-radius:8px;padding:10px 12px;font-weight:800;cursor:pointer}
+    .shell{position:relative;z-index:1;width:min(1180px,calc(100% - 32px));margin:0 auto;padding:28px 0 42px}
+    .hero{display:grid;grid-template-columns:1.05fr .95fr;gap:18px;align-items:stretch}
+    .panel{border:1px solid var(--line);background:rgba(255,255,255,.035);border-radius:10px;padding:22px}
+    .eyebrow{display:inline-block;border:1px solid rgba(0,230,195,.28);background:rgba(0,230,195,.07);color:#bffef4;border-radius:999px;padding:8px 11px;font-size:11px;font-weight:900;letter-spacing:1px;text-transform:uppercase}
+    h1{margin:18px 0 12px;font-size:54px;line-height:.95;letter-spacing:0}
+    h2{margin:0 0 12px;font-size:18px}
+    p{color:#cbd5e1;line-height:1.65;word-break:keep-all}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+    .btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 16px;border-radius:8px;border:1px solid var(--line);background:rgba(255,255,255,.05);font-weight:900}
+    .btn.primary{background:var(--mint);color:#03100d;border:0}
+    .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:18px}
+    .metric strong{display:block;font-size:24px;margin-top:8px}
+    .metric span{color:var(--muted);font-size:12px;font-weight:800}
+    .market{display:grid;gap:8px}
+    .row{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:12px;border:1px solid rgba(255,255,255,.09);border-radius:8px;background:rgba(0,0,0,.22)}
+    .row b{font-size:14px}
+    .pos{color:var(--mint);font-weight:900}
+    .neg{color:var(--red);font-weight:900}
+    .roadmap{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:18px}
+    .check{display:flex;gap:10px;align-items:flex-start;padding:13px;border:1px solid rgba(255,255,255,.09);border-radius:8px;background:rgba(0,0,0,.18)}
+    .dot{width:10px;height:10px;margin-top:5px;border-radius:50%;background:var(--gold);box-shadow:0 0 20px rgba(246,198,106,.35)}
+    .warn{margin-top:18px;border-color:rgba(248,113,113,.32);background:rgba(248,113,113,.06)}
+    @media(max-width:900px){.hero,.grid,.roadmap{grid-template-columns:1fr}.nav{padding:12px 16px}.brand span{display:none}h1{font-size:42px}}
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="top">
-      <a href="index.html">Zenthex 메인</a>
-      <a href="account.html" id="account-link">마이페이지</a>
+  <nav class="nav">
+    <div class="brand"><img src="/static/zenthex-mark.svg" alt="" /><span>ZENTHEX STOCK</span></div>
+    <div class="nav-actions">
+      <a href="index.html">홈</a>
+      <a href="finance.html">Crypto Trading</a>
+      <a href="account.html">마이페이지</a>
     </div>
-
-    <section class="card">
-      <span class="pill">Customer Center</span>
-      <h1>Zenthex 고객센터</h1>
-      <p>계정, 구독, Studio 생성, Trading 및 Upbit 키 문제를 남겨주세요. 접수된 문의는 대표 대시보드에서 확인하고 처리 상태를 관리합니다.</p>
+  </nav>
+  <main class="shell">
+    <section class="hero">
+      <div class="panel">
+        <span class="eyebrow">Stock Auto-Trading Line</span>
+        <h1>Zenthex Stock</h1>
+        <p>국내주식과 향후 해외주식을 위한 별도 자동매매 서비스 라인입니다. 코인 엔진과 섞지 않고, 장 시간, 증권사 API, 손절/익절, 일일 손실 제한을 별도 리스크 매니저로 다룹니다.</p>
+        <div class="actions">
+          <a class="btn primary" href="#roadmap">구축 로드맵 보기</a>
+          <button class="btn" type="button" onclick="loadStockStatus()">시스템 상태 확인</button>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>시장 스캐너 미리보기</h2>
+        <div class="market">
+          <div class="row"><b>KOSPI 후보 A</b><span>거래량 2.4x</span><span class="pos">+1.18%</span></div>
+          <div class="row"><b>KOSDAQ 후보 B</b><span>돌파 감시</span><span class="pos">+0.76%</span></div>
+          <div class="row"><b>보유 종목 C</b><span>손절선 감시</span><span class="neg">-0.42%</span></div>
+          <div class="row"><b>현금</b><span>장중 대기</span><span>분할 진입</span></div>
+        </div>
+      </div>
     </section>
 
     <section class="grid">
-      <article class="card">
-        <h2>문의 남기기</h2>
-        <form id="ticket-form">
-          <label for="ticket-email">답변 받을 이메일</label>
-          <input id="ticket-email" type="email" placeholder="you@example.com" required />
-
-          <label for="ticket-category">문의 유형</label>
-          <select id="ticket-category">
-            <option value="account">계정 / 로그인</option>
-            <option value="billing">구독 / 결제 / 영수증</option>
-            <option value="studio">Zenthex Studio</option>
-            <option value="trading">Zenthex Trading / Upbit</option>
-            <option value="general">기타 문의</option>
-          </select>
-
-          <label for="ticket-title">제목</label>
-          <input id="ticket-title" maxlength="160" placeholder="문의 제목을 입력하세요" required />
-
-          <label for="ticket-message">내용</label>
-          <textarea id="ticket-message" maxlength="4000" placeholder="문제가 발생한 화면, 입력값, 오류 문구를 함께 적어주시면 더 빠르게 확인할 수 있습니다." required></textarea>
-
-          <button class="submit" type="submit">문의 접수하기</button>
-          <div id="ticket-status" class="status"></div>
-        </form>
-      </article>
-
-      <article class="card">
-        <h2>빠른 확인</h2>
-        <ul>
-          <li>로그인은 이메일 주소로 진행합니다.</li>
-          <li>비밀번호 재설정은 힌트 질문과 이메일 인증 코드로 진행합니다.</li>
-          <li>Studio 체험은 하루 1회 보기 전용이며, 다운로드는 구독 후 가능합니다.</li>
-          <li>Trading 실거래는 로그인 및 구독 권한 또는 대표 권한이 필요합니다.</li>
-          <li>Upbit 키는 자산조회와 주문 권한, Zenthex 서버 IP 허용이 필요합니다.</li>
-        </ul>
-        <button class="ghost" type="button" onclick="loadMyTickets()">내 문의 확인</button>
-        <div id="my-ticket-list"></div>
-      </article>
+      <div class="panel metric"><span>1차 증권사</span><strong>한국투자</strong><p>REST/WebSocket 기반으로 SaaS 서버 구조에 가장 먼저 검토합니다.</p></div>
+      <div class="panel metric"><span>실거래 전 단계</span><strong>Paper</strong><p>주식은 모의투자와 장중 로그 검증 후 실주문으로 넘어갑니다.</p></div>
+      <div class="panel metric"><span>권한 구조</span><strong>Stock Pro</strong><p>대표는 전체 검토, 구독자는 본인 계좌와 본인 엔진만 사용합니다.</p></div>
     </section>
-  </div>
 
+    <section id="roadmap" class="roadmap">
+      <div class="check"><span class="dot"></span><div><strong>1. 설계도 확정</strong><p>Studio, Crypto Trading, Stock 3개 서비스 라인을 마스터 플랜에 반영합니다.</p></div></div>
+      <div class="check"><span class="dot"></span><div><strong>2. 증권사 API 선택</strong><p>한국투자증권 Open API를 1순위로 검토하고 키/토큰 구조를 정리합니다.</p></div></div>
+      <div class="check"><span class="dot"></span><div><strong>3. 모의투자 엔진</strong><p>장중 후보 탐색, 가상 매수, 목표익절, 손절, 장마감 정책을 먼저 검증합니다.</p></div></div>
+      <div class="check"><span class="dot"></span><div><strong>4. 실거래 게이트</strong><p>구독, 위험동의, API 키 인증, 주문 권한, 대표 긴급정지를 통과해야 실주문을 허용합니다.</p></div></div>
+    </section>
+
+    <section class="panel warn">
+      <h2>투자위험 고지</h2>
+      <p>Zenthex Stock은 자동매매 도구이며 투자 자문 또는 수익 보장 서비스가 아닙니다. 모든 투자 판단과 손익 책임은 사용자 본인에게 있습니다. 이 빌드는 설계도와 화면 뼈대 단계이며 실제 주식 주문은 비활성화되어 있습니다.</p>
+      <p id="stock-status">상태 확인 버튼을 누르면 현재 Stock 모듈 준비 상태를 불러옵니다.</p>
+    </section>
+  </main>
   <script>
-    let token=localStorage.getItem('zx_token');
-    let user=JSON.parse(localStorage.getItem('zx_user')||'null');
-    const expiresAt=Number(localStorage.getItem('zx_expires_at')||0);
-    const accountLink=document.getElementById('account-link');
-    if(token&&expiresAt&&Date.now()>expiresAt){
-      localStorage.removeItem('zx_token');
-      localStorage.removeItem('zx_user');
-      localStorage.removeItem('zx_expires_at');
-      token=null;
-      user=null;
-    }
-    if(!token){
-      accountLink.href='login.html';
-      accountLink.innerText='로그인';
-    }
-    if(user&&user.email){
-      document.getElementById('ticket-email').value=user.email;
-    }
-
-    function headers(){
-      const base={'Content-Type':'application/json'};
-      if(token)base.Authorization=`Bearer ${token}`;
-      return base;
-    }
-
-    document.getElementById('ticket-form').addEventListener('submit',async(e)=>{
-      e.preventDefault();
-      const status=document.getElementById('ticket-status');
-      status.innerText='문의 접수 중입니다...';
-      const payload={
-        email:document.getElementById('ticket-email').value,
-        category:document.getElementById('ticket-category').value,
-        title:document.getElementById('ticket-title').value,
-        message:document.getElementById('ticket-message').value
-      };
+    async function loadStockStatus(){
+      const box=document.getElementById('stock-status');
+      box.innerText='Zenthex Stock 상태를 확인하는 중입니다.';
       try{
-        const res=await fetch('/api/support/tickets',{method:'POST',headers:headers(),body:JSON.stringify(payload)});
+        const res=await fetch('/api/stock/status');
         const data=await res.json();
-        if(!res.ok)throw new Error(data.detail||'문의 접수에 실패했습니다.');
-        status.innerText=`문의가 접수되었습니다. 접수번호: #${data.ticket.id}`;
-        document.getElementById('ticket-title').value='';
-        document.getElementById('ticket-message').value='';
-        if(token)loadMyTickets();
-      }catch(err){
-        status.innerText=err.message;
-      }
-    });
-
-    async function loadMyTickets(){
-      const box=document.getElementById('my-ticket-list');
-      if(!token){
-        box.innerHTML='<div class="ticket"><strong>로그인이 필요합니다.</strong><small>로그인 후 내 문의 내역을 볼 수 있습니다.</small></div>';
-        return;
-      }
-      box.innerHTML='<div class="ticket"><small>문의 내역을 불러오는 중...</small></div>';
-      try{
-        const res=await fetch('/api/support/my-tickets',{headers:headers()});
-        const data=await res.json();
-        if(!res.ok)throw new Error(data.detail||'문의 내역 조회 실패');
-        if(!data.tickets.length){
-          box.innerHTML='<div class="ticket"><small>아직 접수된 문의가 없습니다.</small></div>';
-          return;
-        }
-        box.innerHTML=data.tickets.map(row=>`<div class="ticket"><strong>#${row.id} ${row.title}</strong><small>${row.category} / ${row.status} / ${row.created_at||''}</small><p>${row.message}</p>${row.admin_reply?`<p><b>답변:</b> ${row.admin_reply}</p>`:''}</div>`).join('');
-      }catch(err){
-        box.innerHTML=`<div class="ticket"><small>${err.message}</small></div>`;
+        box.innerText=`${data.service}: ${data.phase}. ${data.message}`;
+      }catch(e){
+        box.innerText='Stock API에 연결하지 못했습니다. FastAPI 서버 실행 상태를 확인하세요.';
       }
     }
   </script>

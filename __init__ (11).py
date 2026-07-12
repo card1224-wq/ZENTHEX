@@ -1,72 +1,50 @@
-﻿from sqlalchemy import Boolean, Column, Integer, String, DateTime
-from sqlalchemy.sql import func
-from .session import Base
+from fastapi import APIRouter
 
-class User(Base):
-    __tablename__ = "users"
+router = APIRouter(prefix="/api/stock", tags=["stock"])
 
-    id = Column(Integer, primary_key=True, index=True)
-    full_name = Column(String, nullable=True)
-    email = Column(String, unique=True, index=True)
-    hashed_password = Column(String)
-    birth_date = Column(String, nullable=True)
-    phone_number = Column(String, nullable=True)
-    phone_verified = Column(Boolean, default=False)
-    phone_verification_code = Column(String, nullable=True)
-    password_hint_question = Column(String, nullable=True)
-    password_hint_answer_hash = Column(String, nullable=True)
-    is_active = Column(Boolean, default=True)
-    approval_status = Column(String, default="approved")
-    email_verified = Column(Boolean, default=False)
-    email_verification_code = Column(String, nullable=True)
-    password_reset_code = Column(String, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    plan = Column(String, default="free")
-    role = Column(String, default="user")
+@router.get("/status")
+async def stock_status():
+    return {
+        "status": "planned",
+        "service": "Zenthex Stock",
+        "phase": "blueprint",
+        "message": "Zenthex Stock is designed as a separate long-term stock strategy service line. Live brokerage orders are not enabled in this build.",
+        "supported_brokers_plan": [
+            {
+                "name": "Korea Investment Securities",
+                "priority": 1,
+                "reason": "REST and WebSocket Open API are suitable for a server-based SaaS architecture.",
+            },
+            {
+                "name": "Kiwoom Securities",
+                "priority": 2,
+                "reason": "Popular domestic stock automation API, but Windows/PC dependency must be reviewed before SaaS use.",
+            },
+        ],
+        "safety_rules": [
+            "No profit guarantee",
+            "Paper trading before live orders",
+            "Market-hours aware engine",
+            "Long-term thesis and catalyst review",
+            "No buying only because a stock is falling",
+            "Daily loss limit",
+            "Per-position stop loss",
+            "Owner kill switch",
+            "Broker API keys must be encrypted before production",
+        ],
+    }
 
-    binance_access_key = Column(String, nullable=True)
-    binance_secret_key = Column(String, nullable=True)
-    studio_generations_left = Column(Integer, default=3)
 
-class BillingHistory(Base):
-    __tablename__ = "billing_history"
-
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, index=True)
-    plan_id = Column(String)
-    plan_name = Column(String)
-    amount_krw = Column(Integer, default=0)
-    status = Column(String, default="paid")
-    payment_method = Column(String, default="mock_checkout")
-    receipt_no = Column(String, unique=True, index=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-class Subscription(Base):
-    __tablename__ = "subscriptions"
-
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, unique=True, index=True)
-    plan_id = Column(String, default="free")
-    status = Column(String, default="inactive")
-    provider = Column(String, nullable=True)
-    provider_customer_id = Column(String, nullable=True)
-    provider_subscription_id = Column(String, nullable=True)
-    next_billing_date = Column(String, nullable=True)
-    cancel_at_period_end = Column(Boolean, default=False)
-    last_payment_status = Column(String, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-class SupportTicket(Base):
-    __tablename__ = "support_tickets"
-
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, nullable=True, index=True)
-    email = Column(String, index=True)
-    category = Column(String, default="general")
-    title = Column(String)
-    message = Column(String)
-    status = Column(String, default="open")
-    admin_reply = Column(String, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), nullable=True)
+@router.get("/launch-check")
+async def stock_launch_check():
+    return {
+        "status": "review_required",
+        "checks": [
+            {"item": "Broker API selected", "ready": False, "note": "KIS is the recommended first target."},
+            {"item": "Paper trading simulator", "ready": False, "note": "Must be built before live stock orders."},
+            {"item": "Market-hours scheduler", "ready": False, "note": "Domestic stocks require session-aware execution."},
+            {"item": "Risk disclosure", "ready": False, "note": "Stock-specific risk wording must be added."},
+            {"item": "Subscription gate", "ready": False, "note": "Stock Pro or Ultimate permission should unlock this line."},
+        ],
+    }

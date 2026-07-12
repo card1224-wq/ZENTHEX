@@ -1,124 +1,110 @@
-import hashlib
-import hmac
-import time
-import urllib.parse
-import urllib.request
-from decimal import Decimal, InvalidOperation
+import cv2
+import numpy as np
+import trimesh
+import os
 
+def process_image_to_3d(img_path, output_glb_path, wall_height=15.0, style="gallery", output_png_path=None):
+    print(f"BIM Parametric Engine: Processing Masterpiece Architecture for {img_path} with style {style}")
+    
+    # 1. Vision Analysis (Extract Spatial Proportions)
+    img = cv2.imread(img_path)
+    if img is None:
+        raise ValueError("AI 이미지를 읽을 수 없습니다. 시스템 오류입니다.")
+    h, w, _ = img.shape
+    aspect = w / h
+    
+    # 2. PRO CAD Blueprint Rendering (2D Masterpiece)
+    bp_w, bp_h = 1000, max(600, int(1000 / aspect))
+    blueprint = np.zeros((bp_h, bp_w, 3), dtype=np.uint8)
+    blueprint[:] = (60, 28, 14) # Premium Navy Blue background BGR
+    
+    # Draw Grid System
+    grid_spacing = 40
+    for x in range(0, bp_w, grid_spacing):
+        thickness = 2 if x % 200 == 0 else 1
+        color = (120, 60, 30) if x % 200 == 0 else (90, 40, 20)
+        cv2.line(blueprint, (x, 0), (x, bp_h), color, thickness)
+    for y in range(0, bp_h, grid_spacing):
+        thickness = 2 if y % 200 == 0 else 1
+        color = (120, 60, 30) if y % 200 == 0 else (90, 40, 20)
+        cv2.line(blueprint, (0, y), (bp_w, y), color, thickness)
+        
+    # Parametric Architectural Metrics
+    margin_x, margin_y = int(bp_w * 0.15), int(bp_h * 0.15)
+    core_w, core_h = bp_w - 2 * margin_x, bp_h - 2 * margin_y
+    
+    # Draft Outer Layout
+    cv2.rectangle(blueprint, (margin_x, margin_y), (bp_w - margin_x, bp_h - margin_y), (255, 255, 255), 3)
+    cv2.rectangle(blueprint, (margin_x - 10, margin_y - 10), (bp_w - margin_x + 10, bp_h - margin_y + 10), (255, 255, 255), 1)
 
-BINANCE_LIVE_BASE = "https://api.binance.com"
-BINANCE_TESTNET_BASE = "https://testnet.binance.vision"
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    if style == "gallery":
+        cv2.rectangle(blueprint, (margin_x, margin_y), (bp_w - margin_x, margin_y + 80), (200, 200, 200), -1)
+        cv2.putText(blueprint, "GALLERY: EXPOSED CONCRETE CORE WITH WATER FEATURE", (margin_x + 20, margin_y + 40), font, 0.5, (40, 20, 10), 2)
+        cv2.putText(blueprint, "FRAMELESS CURTAIN WALL [TRANSMISSION: 0.95]", (margin_x + 20, bp_h - margin_y - 20), font, 0.45, (255, 255, 255), 1)
+    else:
+        cv2.rectangle(blueprint, (margin_x, margin_y), (margin_x + 80, bp_h - margin_y), (200, 200, 200), -1)
+        cv2.rectangle(blueprint, (bp_w - margin_x - 80, margin_y), (bp_w - margin_x, bp_h - margin_y), (200, 200, 200), -1)
+        cv2.putText(blueprint, "STUDIO: PRIVATE CONCRETE BUNKER WITH COURTYARD", (margin_x + 100, margin_y + 40), font, 0.5, (255, 255, 255), 1)
+    
+    cv2.putText(blueprint, f"W: {core_w*10} mm", (bp_w // 2 - 40, margin_y - 25), font, 0.5, (180, 210, 255), 1)
+    cv2.putText(blueprint, f"D: {core_h*10} mm", (margin_x - 110, bp_h // 2), font, 0.5, (180, 210, 255), 1)
+    cv2.putText(blueprint, "NANO BANANA PARAMETRIC PROTOCOL v2.0", (bp_w - 420, bp_h - 20), font, 0.5, (120, 120, 120), 1)
+    
+    if output_png_path:
+        cv2.imwrite(output_png_path, blueprint)
+    
+    # 3. BIM Assembly (3D Flawless Geometry Generation)
+    bim_scene = trimesh.Scene()
+    rm = trimesh.transformations.rotation_matrix(-np.pi/2, [1, 0, 0])
+    
+    # Scaling factor
+    scale_multiplier = 0.05 
+    width_extents = core_w * scale_multiplier
+    depth_extents = core_h * scale_multiplier
+    
+    def add_box(name, extents, translation):
+        box = trimesh.primitives.Box(extents=extents)
+        box.apply_translation(translation)
+        box.apply_transform(rm)
+        bim_scene.add_geometry(box, geom_name=name, node_name=name)
 
+    wall_thickness = 4.0
+    
+    # 3.1 Base Layers
+    if style == "gallery":
+        # Massive floating water feature foundation
+        add_box('layer_floor_water', [width_extents * 2.0, depth_extents * 2.0, 2.0], [0, 0, -3.0])
+        add_box('layer_floor_base', [width_extents * 1.1, depth_extents * 1.1, 1.0], [0, 0, 0.5])
+        
+        # Back Wall
+        add_box('layer_wall_core', [width_extents * 0.95, wall_thickness, wall_height], [0, depth_extents * 0.45, wall_height / 2 + 1.0])
+        # Side Concrete Fins
+        add_box('layer_wall_sideL', [wall_thickness, depth_extents * 0.9, wall_height], [-width_extents * 0.45, 0, wall_height / 2 + 1.0])
+        add_box('layer_wall_sideR', [wall_thickness, depth_extents * 0.9, wall_height], [width_extents * 0.45, 0, wall_height / 2 + 1.0])
+        # Full Glass Front
+        add_box('layer_window_front', [width_extents * 0.85, 1.5, wall_height - 2.0], [0, -depth_extents * 0.45, wall_height / 2 + 1.0])
+        
+        # Massive floating roof
+        add_box('layer_ceiling_roof', [width_extents * 1.4, depth_extents * 1.4, 2.0], [0, -depth_extents * 0.1, wall_height + 2.0])
+    
+    else: # studio (Bunker)
+        add_box('layer_floor_ground', [width_extents * 1.3, depth_extents * 1.3, 4.0], [0, 0, -2.0])
+        add_box('layer_floor_base', [width_extents * 1.0, depth_extents * 1.0, 1.0], [0, 0, 0.5])
+        
+        # U-shape solid bunker
+        add_box('layer_wall_sideL', [wall_thickness * 1.5, depth_extents * 0.95, wall_height], [-width_extents * 0.45, 0, wall_height / 2 + 1.0])
+        add_box('layer_wall_sideR', [wall_thickness * 1.5, depth_extents * 0.95, wall_height], [width_extents * 0.45, 0, wall_height / 2 + 1.0])
+        add_box('layer_wall_back', [width_extents * 0.95, wall_thickness * 1.5, wall_height], [0, depth_extents * 0.45, wall_height / 2 + 1.0])
+        
+        # Front has a thick wall with a small window strip
+        add_box('layer_wall_front_bottom', [width_extents * 0.95, wall_thickness, wall_height * 0.3], [0, -depth_extents * 0.45, wall_height * 0.15 + 1.0])
+        add_box('layer_wall_front_top', [width_extents * 0.95, wall_thickness, wall_height * 0.4], [0, -depth_extents * 0.45, wall_height * 0.8 + 1.0])
+        add_box('layer_window_strip', [width_extents * 0.8, 1.0, wall_height * 0.3], [0, -depth_extents * 0.45, wall_height * 0.45 + 1.0])
+        
+        # Concrete Block Roof
+        add_box('layer_ceiling_roof', [width_extents * 1.05, depth_extents * 1.05, 3.5], [0, 0, wall_height + 2.5])
 
-def clean_key(value: str) -> str:
-    return (value or "").strip().replace("\u200b", "").replace("\ufeff", "")
-
-
-def base_url(testnet: bool = False) -> str:
-    return BINANCE_TESTNET_BASE if testnet else BINANCE_LIVE_BASE
-
-
-def explain_binance_error(raw_error) -> str:
-    text = str(raw_error or "")
-    lowered = text.lower()
-    if "-2015" in lowered or "invalid api-key" in lowered:
-        return "Binance API 키, 허용 IP, 또는 권한이 맞지 않습니다. Spot 거래 권한과 Zenthex 서버 IP 등록을 확인하세요."
-    if "signature" in lowered or "-1022" in lowered:
-        return "Binance Secret Key 서명 검증에 실패했습니다. Secret Key 복사 상태를 확인하거나 새 키를 발급하세요."
-    if "timestamp" in lowered or "-1021" in lowered:
-        return "Binance 서버 시간과 Zenthex 서버 시간이 맞지 않습니다. 서버 시간 동기화가 필요합니다."
-    if "ip" in lowered or "permission" in lowered or "restricted" in lowered:
-        return "Binance API 키의 IP 제한 또는 권한 설정 문제입니다. 출금 권한은 끄고 Spot 거래/조회 권한만 켜세요."
-    return "Binance 인증에 실패했습니다. API 키, Secret Key, Spot 권한, IP 화이트리스트, Testnet/Live 선택을 확인하세요."
-
-
-def _request_json(url: str, headers: dict | None = None):
-    request = urllib.request.Request(url, headers=headers or {})
-    with urllib.request.urlopen(request, timeout=8) as response:
-        import json
-
-        return json.loads(response.read().decode("utf-8"))
-
-
-def _signed_query(secret_key: str, params: dict) -> str:
-    query = urllib.parse.urlencode(params)
-    signature = hmac.new(secret_key.encode("utf-8"), query.encode("utf-8"), hashlib.sha256).hexdigest()
-    return f"{query}&signature={signature}"
-
-
-def signed_get(path: str, access_key: str, secret_key: str, testnet: bool = False, params: dict | None = None):
-    access_key = clean_key(access_key)
-    secret_key = clean_key(secret_key)
-    payload = {"timestamp": int(time.time() * 1000), "recvWindow": 5000}
-    if params:
-        payload.update(params)
-    query = _signed_query(secret_key, payload)
-    return _request_json(
-        f"{base_url(testnet)}{path}?{query}",
-        headers={"X-MBX-APIKEY": access_key},
-    )
-
-
-def public_get(path: str, testnet: bool = False, params: dict | None = None):
-    query = urllib.parse.urlencode(params or {})
-    url = f"{base_url(testnet)}{path}" + (f"?{query}" if query else "")
-    return _request_json(url)
-
-
-def check_binance_key(access_key: str, secret_key: str, testnet: bool = False):
-    try:
-        account = signed_get("/api/v3/account", access_key, secret_key, testnet=testnet)
-        balances = account.get("balances", [])
-        usdt_balance = Decimal("0")
-        non_zero = []
-        for row in balances:
-            free = _to_decimal(row.get("free"))
-            locked = _to_decimal(row.get("locked"))
-            total = free + locked
-            asset = row.get("asset")
-            if asset == "USDT":
-                usdt_balance = free
-            if total > 0:
-                non_zero.append({"asset": asset, "free": str(free), "locked": str(locked), "total": str(total)})
-        return {
-            "status": "success",
-            "verified": True,
-            "usdt_balance": float(usdt_balance),
-            "assets": non_zero[:30],
-            "message": f"Binance {'Testnet' if testnet else 'Live'} 키 인증 성공. 조회 가능한 USDT 잔고는 약 {float(usdt_balance):,.4f} USDT입니다.",
-        }
-    except Exception as exc:
-        return {
-            "status": "error",
-            "verified": False,
-            "message": explain_binance_error(exc),
-            "raw": str(exc),
-            "checklist": [
-                "Binance API Management에서 Spot & Margin Trading 권한 확인",
-                "출금 권한은 반드시 끄기",
-                "IP Restriction에 Zenthex 서버 outbound IP 등록",
-                "Testnet 키와 Live 키를 섞어 쓰지 않았는지 확인",
-                "Secret Key 앞뒤 공백과 줄바꿈 제거",
-            ],
-        }
-
-
-def build_binance_account_summary(access_key: str, secret_key: str, testnet: bool = False):
-    result = check_binance_key(access_key, secret_key, testnet=testnet)
-    if result.get("status") != "success":
-        return result
-    assets = result.get("assets", [])
-    return {
-        "status": "success",
-        "message": "Binance 잔고를 불러왔습니다. 자동매매 주문은 Spot 리스크 검증 후 열립니다.",
-        "cashBalance": result.get("usdt_balance", 0),
-        "quoteAsset": "USDT",
-        "positions": assets,
-    }
-
-
-def _to_decimal(value) -> Decimal:
-    try:
-        return Decimal(str(value or "0"))
-    except (InvalidOperation, ValueError):
-        return Decimal("0")
+    # 4. Flawless Export
+    bim_scene.export(output_glb_path)
+    print(f"BIM Parametric Engine: Successfully exported mathematically perfect architecture to {output_glb_path}")
