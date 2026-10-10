@@ -1,6 +1,7 @@
 import os
 import time
 from pathlib import Path
+import base64
 
 
 DEFAULT_MODEL = "gemini-3.1-flash-image"
@@ -38,6 +39,19 @@ def _save_inline_image(part, output_path: Path) -> bool:
         output_path.write_bytes(data)
         return True
     return False
+
+
+def _save_output_image(output_image, output_path: Path) -> bool:
+    if not output_image:
+        return False
+    data = getattr(output_image, "data", None)
+    if not data:
+        return False
+    if isinstance(data, str):
+        output_path.write_bytes(base64.b64decode(data))
+        return True
+    output_path.write_bytes(data)
+    return True
 
 
 def _build_studio_prompt(prompt: str, has_reference: bool) -> str:
@@ -96,6 +110,29 @@ def generate_preview_image(prompt: str, output_dir: str = "static/models", refer
                     "status": "error",
                     "message": f"Google AI Studio/Gemini reference image preparation failed: {exc}",
                 }
+
+        try:
+            interaction_input = [{"type": "text", "text": studio_prompt}]
+            if reference_image_path:
+                path = Path(reference_image_path)
+                suffix = path.suffix.lower()
+                mime_type = "image/png" if suffix == ".png" else "image/jpeg"
+                interaction_input.append({
+                    "type": "image",
+                    "mime_type": mime_type,
+                    "data": base64.b64encode(path.read_bytes()).decode("utf-8"),
+                })
+            interaction = client.interactions.create(model=model, input=interaction_input)
+            if _save_output_image(getattr(interaction, "output_image", None), output_path):
+                return {
+                    "status": "success",
+                    "provider": "google_ai_studio",
+                    "model": model,
+                    "image_url": f"/static/models/{filename}",
+                    "message": "Google AI Studio/Nano Banana architectural image generated.",
+                }
+        except Exception:
+            pass
 
         response = client.models.generate_content(model=model, contents=contents)
         for part in _iter_response_parts(response):

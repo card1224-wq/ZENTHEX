@@ -1,4 +1,19 @@
-﻿ZENTHEX_UPLOAD_VERSION=2026-06-15-stock-home-final
+﻿ZENTHEX_UPLOAD_VERSION=2026-10-10-net-profit-risk-report
+Trading Fees: every yield decision (target, stop, profit protection, trailing, weak exit) now uses NET yield after buy+sell exchange fees (Upbit default 0.05% per side; override with ZENTHEX_UPBIT_FEE_RATE / ZENTHEX_BITHUMB_FEE_RATE)
+Trading Fees: live entry cost uses the real KRW that left the account; live exit uses the real KRW received
+Trading Protection: breakeven protection moved from gross +0.02% (a hidden loss after fees) to NET +0.05%; protection starts at NET +0.3%
+Trading Risk: start is blocked when fixed target < stop-loss distance (reward:risk below 1:1) or trailing drop >= trailing start
+Trading Defaults: target NET +0.8%, stop NET -0.6%, trailing drop 0.3%p, investment mode = fixed amount (all-KRW now labeled high risk)
+Trading Safety: if the current price cannot be fetched while holding, the engine waits instead of judging with a placeholder price (previously 80,000,000)
+Trading Report: every closed position is stored in trade_records; /api/finance/performance returns win rate, breakeven win rate, expectancy, profit factor, max drawdown and an up/down verdict; finance page shows the report and cumulative P&L curve
+Unchanged: Studio / Trading / Stock structure, subscription permissions, kill switch, daily loss limit, consecutive stop limit, no-withdrawal API key rule
+ZENTHEX_UPLOAD_VERSION=2026-10-10-real-ip-verify-seoul-vps
+Trading IP: /api/finance/server-ip/verify now checks the server's REAL outbound IP 3 times and reports match / mismatch / rotating IP (previously it always answered matches=true)
+Trading UI: exchange allowed-IP text and copy boxes now read ZENTHEX_SERVER_PUBLIC_IP from the server instead of a hard-coded IP; mismatch is shown in red
+Deploy: added deploy/ (setup_vps.sh, update_vps.sh, systemd service, nginx config, env template) and VPS_DEPLOY_GUIDE_KO.md for a Seoul static-IP VPS
+Deploy: VPS keeps the SQLite DB in /var/lib/zenthex (persists across updates) and generates ZENTHEX_TOKEN_SECRET / ZENTHEX_CRYPTO_KEY automatically
+Unchanged: Studio / Trading / Stock structure, subscription permissions, risk manager, no-withdrawal API key rule, render.yaml
+ZENTHEX_UPLOAD_VERSION=2026-06-15-stock-home-final
 Deploy Check: open /deploy-check.html after upload. If this page does not show the 2026-06-15 Stock included message, the hosting target is not using the newly uploaded root files.
 Homepage: root index.html is now a full Studio + Trading + Stock page, not a redirect-only page.
 Trading Goal: rising-confirmation entries, target profit, stop loss, and profit protection, without profit-guarantee wording.

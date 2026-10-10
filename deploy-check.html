@@ -1,152 +1,27 @@
-import os
-import time
-from pathlib import Path
-import base64
-
-
-DEFAULT_MODEL = "gemini-3.1-flash-image"
-
-
-def is_configured() -> bool:
-    return bool((os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or "").strip())
-
-
-def _iter_response_parts(response):
-    parts = getattr(response, "parts", None)
-    if parts:
-        yield from parts
-    for candidate in getattr(response, "candidates", []) or []:
-        content = getattr(candidate, "content", None)
-        for part in getattr(content, "parts", []) or []:
-            yield part
-
-
-def _save_inline_image(part, output_path: Path) -> bool:
-    inline_data = getattr(part, "inline_data", None) or getattr(part, "inlineData", None)
-    if not inline_data:
-        return False
-    if hasattr(part, "as_image"):
-        image = part.as_image()
-        image.save(output_path)
-        return True
-    data = getattr(inline_data, "data", None)
-    if isinstance(data, str):
-        import base64
-
-        output_path.write_bytes(base64.b64decode(data))
-        return True
-    if data:
-        output_path.write_bytes(data)
-        return True
-    return False
-
-
-def _save_output_image(output_image, output_path: Path) -> bool:
-    if not output_image:
-        return False
-    data = getattr(output_image, "data", None)
-    if not data:
-        return False
-    if isinstance(data, str):
-        output_path.write_bytes(base64.b64decode(data))
-        return True
-    output_path.write_bytes(data)
-    return True
-
-
-def _build_studio_prompt(prompt: str, has_reference: bool) -> str:
-    reference_note = (
-        "Use the attached reference image as the source layout and transform it into a polished 3D floor-plan render. "
-        if has_reference
-        else ""
-    )
-    return (
-        "Create the main Zenthex Studio result as a premium isometric 3D architectural floor-plan image. "
-        "The result should look like a detailed top-down 3D apartment or interior model: visible walls, rooms, "
-        "furniture, wood floors, windows, balconies, bathrooms, kitchen, lighting, and realistic depth. "
-        "If the user asks for a Korean apartment, use a modern Korean residential layout and Korean room labels "
-        "only where they help explain the floor plan. Do not create a flat 2D blueprint. Do not create abstract art. "
-        "Make it presentation-ready for a SaaS customer who wants to preview the space before subscribing. "
-        f"{reference_note}User request: {prompt}"
-    )
-
-
-def generate_preview_image(prompt: str, output_dir: str = "static/models", reference_image_path: str | None = None) -> dict:
-    api_key = (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or "").strip()
-    if not api_key:
-        return {"status": "skipped", "message": "GEMINI_API_KEY is missing, so Google AI Studio/Gemini image generation was skipped."}
-
-    try:
-        from google import genai
-    except Exception as exc:
-        return {
-            "status": "unavailable",
-            "message": f"google-genai package is unavailable, so Google AI Studio/Gemini could not be called: {exc}",
-        }
-
-    model = (
-        os.getenv("ZENTHEX_GOOGLE_AI_STUDIO_MODEL")
-        or os.getenv("ZENTHEX_NANOBANANA_MODEL")
-        or DEFAULT_MODEL
-    ).strip()
-    Path(output_dir).mkdir(parents=True, exist_ok=True)
-    filename = f"google_ai_studio_{int(time.time())}.png"
-    output_path = Path(output_dir) / filename
-    studio_prompt = _build_studio_prompt(prompt, bool(reference_image_path))
-
-    try:
-        client = genai.Client(api_key=api_key)
-        contents = [studio_prompt]
-        if reference_image_path:
-            try:
-                from google.genai import types
-
-                path = Path(reference_image_path)
-                suffix = path.suffix.lower()
-                mime_type = "image/png" if suffix == ".png" else "image/jpeg"
-                contents.append(types.Part.from_bytes(data=path.read_bytes(), mime_type=mime_type))
-            except Exception as exc:
-                return {
-                    "status": "error",
-                    "message": f"Google AI Studio/Gemini reference image preparation failed: {exc}",
-                }
-
-        try:
-            interaction_input = [{"type": "text", "text": studio_prompt}]
-            if reference_image_path:
-                path = Path(reference_image_path)
-                suffix = path.suffix.lower()
-                mime_type = "image/png" if suffix == ".png" else "image/jpeg"
-                interaction_input.append({
-                    "type": "image",
-                    "mime_type": mime_type,
-                    "data": base64.b64encode(path.read_bytes()).decode("utf-8"),
-                })
-            interaction = client.interactions.create(model=model, input=interaction_input)
-            if _save_output_image(getattr(interaction, "output_image", None), output_path):
-                return {
-                    "status": "success",
-                    "provider": "google_ai_studio",
-                    "model": model,
-                    "image_url": f"/static/models/{filename}",
-                    "message": "Google AI Studio/Nano Banana architectural image generated.",
-                }
-        except Exception:
-            pass
-
-        response = client.models.generate_content(model=model, contents=contents)
-        for part in _iter_response_parts(response):
-            if _save_inline_image(part, output_path):
-                return {
-                    "status": "success",
-                    "provider": "google_ai_studio",
-                    "model": model,
-                    "image_url": f"/static/models/{filename}",
-                    "message": "Google AI Studio/Gemini 3D architectural image generated.",
-                }
-        return {
-            "status": "empty",
-            "message": "Google AI Studio/Gemini returned no image data. Check API key, model name, and image-generation access.",
-        }
-    except Exception as exc:
-        return {"status": "error", "message": f"Google AI Studio/Gemini call failed: {exc}"}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>Zenthex Deploy Check</title>
+  <style>
+    body{margin:0;min-height:100vh;display:grid;place-items:center;background:#06070a;color:#f8fafc;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    main{width:min(760px,calc(100% - 32px));border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:32px;background:rgba(255,255,255,.04)}
+    h1{margin:0 0 12px;font-size:34px}
+    p{color:#cbd5e1;line-height:1.7}
+    strong{color:#f6c66a}
+    a{display:inline-flex;margin-top:12px;min-height:44px;align-items:center;justify-content:center;padding:0 16px;border-radius:8px;background:#00e6c3;color:#03100d;text-decoration:none;font-weight:900}
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Zenthex 배포 확인</h1>
+    <p><strong>2026-06-15 Stock 포함 버전</strong>입니다.</p>
+    <p>이 화면이 보이면 새 파일이 서버에 올라간 것입니다. 이 화면이 안 보이면 GitHub Pages 또는 호스팅이 다른 폴더/브랜치를 보고 있거나, 업로드가 저장소 루트에 덮어쓰기 되지 않은 상태입니다.</p>
+    <a href="index.html?v=20260615-stock-final">Zenthex 홈으로 이동</a>
+  </main>
+</body>
+</html>
