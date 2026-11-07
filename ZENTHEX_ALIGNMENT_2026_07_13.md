@@ -104,7 +104,7 @@ GitHub uploads must not erase:
 - `main.py`
 - Studio / Trading / Stock routes
 - Owner email `7foliath@naver.com`
-- Fixed displayed IP basis `74.220.52.254`
+- Server-configured public IPv4 matched against the actual outbound path (superseded on 2026-11-07; no hardcoded production IP)
 - Risk disclosure
 
 Environment variables such as `GEMINI_API_KEY`, database URL, SMTP keys, payment keys, and future broker keys belong in Render environment variables, not in GitHub files.

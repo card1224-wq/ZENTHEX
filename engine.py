@@ -1,110 +1,904 @@
-import cv2
-import numpy as np
-import trimesh
 import os
+import math
+import time
+import asyncio
+from datetime import datetime, timezone, timedelta
+import pyupbit
+from mobile.push import send_push_notification
+from admin.router import admin_state
+from trading.bithumb_client import get_bithumb_current_price
+from database.session import SessionLocal
+from database.models import TradeRecord
+from trading.orders import save_guard, clear_guard, wait_for_fill
 
-def process_image_to_3d(img_path, output_glb_path, wall_height=15.0, style="gallery", output_png_path=None):
-    print(f"BIM Parametric Engine: Processing Masterpiece Architecture for {img_path} with style {style}")
-    
-    # 1. Vision Analysis (Extract Spatial Proportions)
-    img = cv2.imread(img_path)
-    if img is None:
-        raise ValueError("AI 이미지를 읽을 수 없습니다. 시스템 오류입니다.")
-    h, w, _ = img.shape
-    aspect = w / h
-    
-    # 2. PRO CAD Blueprint Rendering (2D Masterpiece)
-    bp_w, bp_h = 1000, max(600, int(1000 / aspect))
-    blueprint = np.zeros((bp_h, bp_w, 3), dtype=np.uint8)
-    blueprint[:] = (60, 28, 14) # Premium Navy Blue background BGR
-    
-    # Draw Grid System
-    grid_spacing = 40
-    for x in range(0, bp_w, grid_spacing):
-        thickness = 2 if x % 200 == 0 else 1
-        color = (120, 60, 30) if x % 200 == 0 else (90, 40, 20)
-        cv2.line(blueprint, (x, 0), (x, bp_h), color, thickness)
-    for y in range(0, bp_h, grid_spacing):
-        thickness = 2 if y % 200 == 0 else 1
-        color = (120, 60, 30) if y % 200 == 0 else (90, 40, 20)
-        cv2.line(blueprint, (0, y), (bp_w, y), color, thickness)
-        
-    # Parametric Architectural Metrics
-    margin_x, margin_y = int(bp_w * 0.15), int(bp_h * 0.15)
-    core_w, core_h = bp_w - 2 * margin_x, bp_h - 2 * margin_y
-    
-    # Draft Outer Layout
-    cv2.rectangle(blueprint, (margin_x, margin_y), (bp_w - margin_x, bp_h - margin_y), (255, 255, 255), 3)
-    cv2.rectangle(blueprint, (margin_x - 10, margin_y - 10), (bp_w - margin_x + 10, bp_h - margin_y + 10), (255, 255, 255), 1)
+# 거래소 수수료(한쪽 기준). 업비트 KRW 마켓 기본 0.05%. 빗썸은 계정/쿠폰에 따라 다르므로 실제 수수료를 확인해 환경변수로 맞추세요.
+DEFAULT_FEE_RATES = {"upbit": 0.0005, "bithumb": 0.0005}
 
-    font = cv2.FONT_HERSHEY_SIMPLEX
-    if style == "gallery":
-        cv2.rectangle(blueprint, (margin_x, margin_y), (bp_w - margin_x, margin_y + 80), (200, 200, 200), -1)
-        cv2.putText(blueprint, "GALLERY: EXPOSED CONCRETE CORE WITH WATER FEATURE", (margin_x + 20, margin_y + 40), font, 0.5, (40, 20, 10), 2)
-        cv2.putText(blueprint, "FRAMELESS CURTAIN WALL [TRANSMISSION: 0.95]", (margin_x + 20, bp_h - margin_y - 20), font, 0.45, (255, 255, 255), 1)
+def exchange_fee_rate(exchange: str) -> float:
+    env_name = f"ZENTHEX_{(exchange or 'upbit').upper()}_FEE_RATE"
+    try:
+        value = float(os.getenv(env_name, "") or DEFAULT_FEE_RATES.get(exchange, 0.0005))
+    except ValueError:
+        value = DEFAULT_FEE_RATES.get(exchange, 0.0005)
+    return min(max(value, 0.0), 0.01)
+
+class TradingState:
+    IDLE = "IDLE"
+    SCANNING = "SCANNING"
+    BUYING = "BUYING"
+    HOLDING = "HOLDING"
+    SELLING = "SELLING"
+    ERROR = "ERROR"
+    STOPPED = "STOPPED"
+
+class BotState:
+    def __init__(self):
+        self.state = TradingState.STOPPED
+        self.is_real_key = False
+        self.trading_mode = "practice"
+        self.exchange = "upbit"
+        self.upbit = None
+        self.balance = 1000000.0
+        self.held_btc = 0.0
+        self.avg_buy_price = 0.0
+        self.entry_krw = 0.0
+        self.entry_cost_krw = 0.0
+        self.owner_user_id = None
+        self.closed_trades = []
+        self.active_ticker = "KRW-BTC"
+        self.ticker_mode = "auto"
+        self.selected_ticker = "KRW-BTC"
+        self.signal_candidates = []
+        # 아래 수익률 기준은 모두 '수수료 차감 후 실수익' 기준입니다.
+        self.fee_rate = exchange_fee_rate("upbit")
+        self.target_yield = 1.008
+        self.stop_loss_yield = 0.994
+        self.exit_mode = "fixed"
+        self.trailing_start_yield = 1.005
+        self.trailing_drop_pct = 0.003
+        self.profit_protect_start_yield = 1.003
+        self.breakeven_protect_yield = 1.0005
+        self.auto_restart_after_profit = True
+        self.peak_yield = 1.0
+        self.investment_mode = "fixed"
+        self.investment_amount = 50000.0
+        self.investment_ratio = 0.5
+        self.entry_mode = "single"
+        self.entry_slices = 1
+        self.entry_count = 0
+        self.add_entry_drop_pct = 0.002
+        self.planned_total_krw = 0.0
+        self.rotate_existing_accepted = False
+        self.rotated_holdings = False
+        self.cooldowns = {}
+        self.market_guard_note = "시장상태 필터 대기 중"
+        self.daily_max_loss_pct = 0.015
+        self.consecutive_loss_count = 0
+        self.max_consecutive_loss = 2
+        self.initial_daily_balance = self.balance
+        self.last_order_uuid = ""
+        self.last_order_side = ""
+        self.last_order_status = "대기"
+        self.decision_note = "대기 중입니다. 시작하면 전체 KRW 마켓을 스캔합니다."
+        self.entry_rule = "매수: BTC/ETH 시장 방어, 1m/3m/5m 모두 상승, 최근 양봉 우세, 거래량+가격 동행, 호가 방어 통과"
+        self.exit_rule = "매도: 목표 수익률 도달 시 전량 매도, 추적 익절은 계속 오르면 보유하고 최고점 대비 되밀림 시 매도, 실수익 +0.3% 이상 발생 후에는 보호가를 수수료 포함 본전(+0.05%) 위로 올림, 익절 후 자동 재탐색 선택 가능"
+        self.risk_rule = "리스크: 최소 주문 5,000원, 떨어지는 기존 보유 코인은 정리 가능, 하락 추가매수 금지, 일일 최대 손실 1.5%, 연속 손절 2회 제한"
+        self.current_score = 0.0
+        self.logs = ["[System] Zenthex Signal Guard 대기 중: 업비트 전체 KRW 마켓을 스캔합니다. 로그 시간은 한국시간(KST)입니다."]
+
+bot_state = BotState()
+
+def log_trade(msg: str):
+    timestamp = datetime.now(timezone(timedelta(hours=9))).strftime("[%H:%M:%S KST]")
+    full_msg = f"{timestamp} {msg}"
+    print(full_msg)
+    bot_state.logs.append(full_msg)
+    if len(bot_state.logs) > 80:
+        bot_state.logs.pop(0)
+
+def remember_order(result, side: str):
+    bot_state.last_order_side = side
+    if isinstance(result, dict):
+        bot_state.last_order_uuid = str(result.get("uuid") or result.get("order_id") or "")
+        bot_state.last_order_status = str(result.get("state") or "requested")
     else:
-        cv2.rectangle(blueprint, (margin_x, margin_y), (margin_x + 80, bp_h - margin_y), (200, 200, 200), -1)
-        cv2.rectangle(blueprint, (bp_w - margin_x - 80, margin_y), (bp_w - margin_x, bp_h - margin_y), (200, 200, 200), -1)
-        cv2.putText(blueprint, "STUDIO: PRIVATE CONCRETE BUNKER WITH COURTYARD", (margin_x + 100, margin_y + 40), font, 0.5, (255, 255, 255), 1)
-    
-    cv2.putText(blueprint, f"W: {core_w*10} mm", (bp_w // 2 - 40, margin_y - 25), font, 0.5, (180, 210, 255), 1)
-    cv2.putText(blueprint, f"D: {core_h*10} mm", (margin_x - 110, bp_h // 2), font, 0.5, (180, 210, 255), 1)
-    cv2.putText(blueprint, "NANO BANANA PARAMETRIC PROTOCOL v2.0", (bp_w - 420, bp_h - 20), font, 0.5, (120, 120, 120), 1)
-    
-    if output_png_path:
-        cv2.imwrite(output_png_path, blueprint)
-    
-    # 3. BIM Assembly (3D Flawless Geometry Generation)
-    bim_scene = trimesh.Scene()
-    rm = trimesh.transformations.rotation_matrix(-np.pi/2, [1, 0, 0])
-    
-    # Scaling factor
-    scale_multiplier = 0.05 
-    width_extents = core_w * scale_multiplier
-    depth_extents = core_h * scale_multiplier
-    
-    def add_box(name, extents, translation):
-        box = trimesh.primitives.Box(extents=extents)
-        box.apply_translation(translation)
-        box.apply_transform(rm)
-        bim_scene.add_geometry(box, geom_name=name, node_name=name)
+        bot_state.last_order_uuid = ""
+        bot_state.last_order_status = "requested"
 
-    wall_thickness = 4.0
-    
-    # 3.1 Base Layers
-    if style == "gallery":
-        # Massive floating water feature foundation
-        add_box('layer_floor_water', [width_extents * 2.0, depth_extents * 2.0, 2.0], [0, 0, -3.0])
-        add_box('layer_floor_base', [width_extents * 1.1, depth_extents * 1.1, 1.0], [0, 0, 0.5])
-        
-        # Back Wall
-        add_box('layer_wall_core', [width_extents * 0.95, wall_thickness, wall_height], [0, depth_extents * 0.45, wall_height / 2 + 1.0])
-        # Side Concrete Fins
-        add_box('layer_wall_sideL', [wall_thickness, depth_extents * 0.9, wall_height], [-width_extents * 0.45, 0, wall_height / 2 + 1.0])
-        add_box('layer_wall_sideR', [wall_thickness, depth_extents * 0.9, wall_height], [width_extents * 0.45, 0, wall_height / 2 + 1.0])
-        # Full Glass Front
-        add_box('layer_window_front', [width_extents * 0.85, 1.5, wall_height - 2.0], [0, -depth_extents * 0.45, wall_height / 2 + 1.0])
-        
-        # Massive floating roof
-        add_box('layer_ceiling_roof', [width_extents * 1.4, depth_extents * 1.4, 2.0], [0, -depth_extents * 0.1, wall_height + 2.0])
-    
-    else: # studio (Bunker)
-        add_box('layer_floor_ground', [width_extents * 1.3, depth_extents * 1.3, 4.0], [0, 0, -2.0])
-        add_box('layer_floor_base', [width_extents * 1.0, depth_extents * 1.0, 1.0], [0, 0, 0.5])
-        
-        # U-shape solid bunker
-        add_box('layer_wall_sideL', [wall_thickness * 1.5, depth_extents * 0.95, wall_height], [-width_extents * 0.45, 0, wall_height / 2 + 1.0])
-        add_box('layer_wall_sideR', [wall_thickness * 1.5, depth_extents * 0.95, wall_height], [width_extents * 0.45, 0, wall_height / 2 + 1.0])
-        add_box('layer_wall_back', [width_extents * 0.95, wall_thickness * 1.5, wall_height], [0, depth_extents * 0.45, wall_height / 2 + 1.0])
-        
-        # Front has a thick wall with a small window strip
-        add_box('layer_wall_front_bottom', [width_extents * 0.95, wall_thickness, wall_height * 0.3], [0, -depth_extents * 0.45, wall_height * 0.15 + 1.0])
-        add_box('layer_wall_front_top', [width_extents * 0.95, wall_thickness, wall_height * 0.4], [0, -depth_extents * 0.45, wall_height * 0.8 + 1.0])
-        add_box('layer_window_strip', [width_extents * 0.8, 1.0, wall_height * 0.3], [0, -depth_extents * 0.45, wall_height * 0.45 + 1.0])
-        
-        # Concrete Block Roof
-        add_box('layer_ceiling_roof', [width_extents * 1.05, depth_extents * 1.05, 3.5], [0, 0, wall_height + 2.5])
+def ticker_currency(ticker: str) -> str:
+    return ticker.split("-", 1)[1] if "-" in ticker else ticker
 
-    # 4. Flawless Export
-    bim_scene.export(output_glb_path)
-    print(f"BIM Parametric Engine: Successfully exported mathematically perfect architecture to {output_glb_path}")
+def get_current_price(ticker: str) -> float:
+    try:
+        if bot_state.exchange == "bithumb":
+            return get_bithumb_current_price(ticker)
+        return float(pyupbit.get_current_price(ticker) or 0)
+    except Exception:
+        return 0.0
+
+def clear_expired_cooldowns():
+    now = datetime.now(timezone.utc)
+    expired = [ticker for ticker, until in bot_state.cooldowns.items() if until <= now]
+    for ticker in expired:
+        bot_state.cooldowns.pop(ticker, None)
+
+def is_ticker_in_cooldown(ticker: str) -> bool:
+    clear_expired_cooldowns()
+    return ticker in bot_state.cooldowns
+
+def set_ticker_cooldown(ticker: str, minutes: int = 20, reason: str = "손실"):
+    until = datetime.now(timezone.utc) + timedelta(minutes=minutes)
+    bot_state.cooldowns[ticker] = until
+    log_trade(f"[Cooldown] {ticker} {reason} 후 {minutes}분 동안 자동 재진입을 막습니다.")
+
+def market_regime_allows_entry():
+    """Block new entries when the broad KRW crypto market is dropping fast."""
+    try:
+        checks = []
+        for ticker in ["KRW-BTC", "KRW-ETH"]:
+            frame = pyupbit.get_ohlcv(ticker, interval="minute1", count=6)
+            if frame is None or len(frame) < 6:
+                bot_state.market_guard_note = "BTC/ETH 시장상태 확인 실패. 신규 진입 보류"
+                return False, bot_state.market_guard_note
+            closes = frame["close"]
+            last = float(closes.iloc[-1])
+            five_minute = (last / float(closes.iloc[0])) - 1.0
+            last_candle = (last / float(closes.iloc[-2])) - 1.0
+            checks.append((ticker, five_minute, last_candle))
+
+        bad = [
+            f"{ticker} 5분 {five * 100:.2f}% / 1분 {one * 100:.2f}%"
+            for ticker, five, one in checks
+            if five <= -0.006 or one <= -0.0035
+        ]
+        if bad:
+            bot_state.market_guard_note = "시장 하락 방어: " + ", ".join(bad)
+            return False, bot_state.market_guard_note
+        bot_state.market_guard_note = "BTC/ETH 단기 급락 없음. 신규 진입 가능"
+        return True, bot_state.market_guard_note
+    except Exception as e:
+        bot_state.market_guard_note = f"시장상태 확인 오류로 신규 진입 보류: {e}"
+        return False, bot_state.market_guard_note
+
+def orderbook_allows_entry(ticker: str):
+    try:
+        orderbook = pyupbit.get_orderbook(ticker)
+        if isinstance(orderbook, list):
+            orderbook = orderbook[0] if orderbook else None
+        units = (orderbook or {}).get("orderbook_units") or []
+        if len(units) < 3:
+            return False, "호가 데이터가 부족합니다."
+        best_ask = float(units[0].get("ask_price") or 0)
+        best_bid = float(units[0].get("bid_price") or 0)
+        if best_ask <= 0 or best_bid <= 0:
+            return False, "최우선 호가를 확인하지 못했습니다."
+        spread = (best_ask - best_bid) / best_bid
+        bid_size = sum(float(row.get("bid_size") or 0) for row in units[:5])
+        ask_size = sum(float(row.get("ask_size") or 0) for row in units[:5])
+        bid_ask_ratio = bid_size / max(ask_size, 1e-9)
+        if spread > 0.006:
+            return False, f"호가 간격이 넓습니다({spread * 100:.2f}%)."
+        if bid_ask_ratio < 0.75:
+            return False, f"매수호가 방어가 약합니다({bid_ask_ratio:.2f}배)."
+        return True, f"호가 통과: 스프레드 {spread * 100:.2f}%, 매수/매도 잔량 {bid_ask_ratio:.2f}배"
+    except Exception as e:
+        return False, f"호가 확인 실패: {e}"
+
+async def confirm_entry_signal(ticker: str, signal_price: float):
+    current_price = await asyncio.to_thread(get_current_price, ticker)
+    if current_price <= 0:
+        return False, "현재가 확인 실패로 진입 보류"
+    if signal_price > 0 and current_price < signal_price * 0.998:
+        return False, f"선정 후 가격이 바로 밀렸습니다({signal_price:,.0f} -> {current_price:,.0f})."
+    ok, note = await asyncio.to_thread(orderbook_allows_entry, ticker)
+    if not ok:
+        return False, note
+    return True, note
+
+def get_real_balance(currency: str) -> float:
+    if not bot_state.upbit:
+        return 0.0
+    try:
+        return float(bot_state.upbit.get_balance(currency) or 0)
+    except Exception as e:
+        log_trade(f"[Exchange] {currency} 잔고 조회 실패: {e}")
+        return 0.0
+
+def krw_ticker_for_currency(currency: str) -> str:
+    return f"KRW-{currency}"
+
+async def liquidate_existing_holdings():
+    if not bot_state.upbit:
+        return
+    if not bot_state.rotate_existing_accepted:
+        log_trade("[Rotation Guard] 보유 코인 정리 동의가 없어 기존 보유 코인은 매도하지 않습니다.")
+        return
+    balances = await asyncio.to_thread(bot_state.upbit.get_balances)
+    markets = set(await asyncio.to_thread(pyupbit.get_tickers, fiat="KRW"))
+    if not isinstance(balances, list):
+        log_trade(f"[Rotation Error] 보유 코인 조회 실패: {balances}")
+        return
+    sell_count = 0
+    for row in balances:
+        currency = row.get("currency")
+        if not currency or currency == "KRW":
+            continue
+        ticker = krw_ticker_for_currency(currency)
+        if ticker not in markets:
+            log_trade(f"[Rotation Skip] {currency}는 KRW 마켓이 없어 자동 매도하지 않습니다.")
+            continue
+        qty = float(row.get("balance") or 0)
+        locked = float(row.get("locked") or 0)
+        if qty <= 0 or locked > 0:
+            log_trade(f"[Rotation Skip] {ticker} 매도 가능 수량이 없거나 미체결 잠금 수량이 있습니다.")
+            continue
+        price = get_current_price(ticker)
+        if qty * price < 5000:
+            log_trade(f"[Rotation Skip] {ticker} 평가금액이 5,000원 미만입니다.")
+            continue
+        avg_price = float(row.get("avg_buy_price") or 0)
+        pnl_pct = ((price / avg_price) - 1.0) if avg_price > 0 else 0
+        recent = pyupbit.get_ohlcv(ticker, interval="minute1", count=4)
+        recent_move = 0.0
+        if recent is not None and len(recent) >= 4:
+            recent_move = (float(recent["close"].iloc[-1]) / float(recent["close"].iloc[0])) - 1.0
+        if pnl_pct > -0.001 and recent_move >= 0:
+            log_trade(f"[Rotation Keep] {ticker} 손실/하락 흐름이 뚜렷하지 않아 보유 유지: 손익 {pnl_pct * 100:.2f}%, 3분 {recent_move * 100:.2f}%")
+            continue
+        log_trade(f"[Rotation Sell Request] 기존 보유 {ticker} {qty:.8f}개 시장가 매도 요청")
+        result = await asyncio.to_thread(bot_state.upbit.sell_market_order, ticker, qty)
+        if not result or (isinstance(result, dict) and result.get("error")):
+            log_trade(f"[Rotation Sell Error] {ticker} 매도 실패: {result}")
+            continue
+        remember_order(result, f"ROTATE SELL {ticker}")
+        sell_count += 1
+        await asyncio.sleep(0.7)
+    await refresh_real_balances()
+    bot_state.rotated_holdings = True
+    log_trade(f"[Rotation Complete] 기존 보유 코인 정리 완료: {sell_count}개 매도 요청, 사용 가능 KRW {bot_state.balance:,.0f}원")
+
+def scan_upbit_candidates(limit: int = 5):
+    """Scalping scanner. It filters 24h strength, then ranks 1/3/5m entry signals."""
+    try:
+        clear_expired_cooldowns()
+        markets = pyupbit.get_tickers(fiat="KRW")
+        pre_candidates = []
+        candidates = []
+        for ticker in markets:
+            try:
+                if is_ticker_in_cooldown(ticker):
+                    continue
+                hourly = pyupbit.get_ohlcv(ticker, interval="minute60", count=25)
+                if hourly is None:
+                    continue
+                if len(hourly) < 12:
+                    continue
+                closes = hourly["close"]
+                volumes = hourly["volume"]
+                first = float(closes.iloc[0])
+                last = float(closes.iloc[-1])
+                close_6h = float(closes.iloc[-7]) if len(closes) >= 7 else first
+                high_24h = float(hourly["high"].max())
+                low_24h = float(hourly["low"].min())
+                value_24h = float((closes * volumes).sum())
+                recent_volume = float(volumes.tail(3).mean())
+                previous_volume = float(volumes.iloc[-9:-3].mean() or 1)
+                ma12 = float(closes.tail(12).mean())
+                ma24 = float(closes.tail(24).mean()) if len(closes) >= 24 else ma12
+                if first <= 0 or close_6h <= 0 or low_24h <= 0 or high_24h <= 0:
+                    continue
+
+                change_24h = (last / first) - 1.0
+                momentum_6h = (last / close_6h) - 1.0
+                volume_surge = recent_volume / max(previous_volume, 1e-9)
+                volatility = (high_24h / low_24h) - 1.0
+                drawdown = (high_24h - last) / high_24h
+                trend_bonus = 1.0 if last > ma12 > ma24 else 0.0
+
+                if value_24h < 100_000_000:
+                    continue
+                if change_24h <= 0.004 or momentum_6h <= 0:
+                    continue
+                if volatility > 0.65 or drawdown > 0.28:
+                    continue
+                rough_score = (
+                    change_24h * 12
+                    + momentum_6h * 8
+                    + min(volume_surge, 4.0) * 0.04
+                    + trend_bonus * 0.08
+                    - volatility * 0.18
+                    - drawdown * 0.35
+                )
+                pre_candidates.append({
+                    "ticker": ticker,
+                    "momentum": change_24h,
+                    "momentum6h": momentum_6h,
+                    "volumeSurge": volume_surge,
+                    "value24h": value_24h,
+                    "high24h": high_24h,
+                    "volatility": volatility,
+                    "drawdown": drawdown,
+                    "price": last,
+                    "roughScore": rough_score,
+                })
+            except Exception:
+                continue
+
+        pre_candidates.sort(key=lambda item: item["roughScore"], reverse=True)
+        for base in pre_candidates[:12]:
+            ticker = base["ticker"]
+            try:
+                minute1 = pyupbit.get_ohlcv(ticker, interval="minute1", count=20)
+                minute3 = pyupbit.get_ohlcv(ticker, interval="minute3", count=20)
+                minute5 = pyupbit.get_ohlcv(ticker, interval="minute5", count=20)
+                if minute1 is None or minute3 is None or minute5 is None:
+                    continue
+                if len(minute1) < 10 or len(minute3) < 10 or len(minute5) < 10:
+                    continue
+                c1 = minute1["close"]
+                v1 = minute1["volume"]
+                c3 = minute3["close"]
+                c5 = minute5["close"]
+                last1 = float(c1.iloc[-1])
+                prev_high_5 = float(c1.iloc[-6:-1].max())
+                minute1_momentum = (last1 / float(c1.iloc[-4])) - 1.0
+                minute3_momentum = (float(c3.iloc[-1]) / float(c3.iloc[-4])) - 1.0
+                minute5_momentum = (float(c5.iloc[-1]) / float(c5.iloc[-4])) - 1.0
+                last_candle_move = (float(c1.iloc[-1]) / float(c1.iloc[-2])) - 1.0
+                minute3_last_move = (float(c3.iloc[-1]) / float(c3.iloc[-2])) - 1.0
+                bullish_1m_count = sum(1 for idx in [-1, -2, -3] if float(c1.iloc[idx]) > float(minute1["open"].iloc[idx]))
+                recent_tick_volume = float(v1.tail(3).mean())
+                previous_tick_volume = float(v1.iloc[-12:-3].mean() or 1)
+                tick_volume_surge = recent_tick_volume / max(previous_tick_volume, 1e-9)
+                ma5 = float(c1.tail(5).mean())
+                ma10 = float(c1.tail(10).mean())
+                ma20 = float(c1.tail(20).mean())
+                price_volume_aligned = tick_volume_surge >= 1.2 and minute1_momentum > 0 and minute3_momentum > 0 and minute5_momentum > 0
+                near_day_high = (base["price"] / max(base.get("high24h", base["price"]), 1e-9)) > 0.975
+                falling_with_volume = tick_volume_surge >= 1.2 and (last_candle_move <= 0 or minute3_last_move <= 0)
+                breakout = 1.0 if last1 > prev_high_5 else 0.0
+                short_trend = 1.0 if last1 > ma5 > ma10 > ma20 else 0.0
+
+                if minute1_momentum <= 0 or minute3_momentum <= 0 or minute5_momentum <= 0:
+                    continue
+                if last_candle_move <= 0 or minute3_last_move <= 0:
+                    continue
+                if bullish_1m_count < 2:
+                    continue
+                if falling_with_volume:
+                    continue
+                if near_day_high and not breakout:
+                    continue
+                if not price_volume_aligned:
+                    continue
+                if not short_trend and not breakout:
+                    continue
+
+                score = (
+                    base["roughScore"]
+                    + minute1_momentum * 40
+                    + minute3_momentum * 24
+                    + minute5_momentum * 14
+                    + min(tick_volume_surge, 5.0) * 0.12
+                    + breakout * 0.22
+                    + short_trend * 0.18
+                )
+                candidates.append({
+                    "ticker": ticker,
+                    "momentum": base["momentum"],
+                    "momentum6h": base["momentum6h"],
+                    "volumeSurge": base["volumeSurge"],
+                    "tickVolumeSurge": tick_volume_surge,
+                    "minute1Momentum": minute1_momentum,
+                    "minute3Momentum": minute3_momentum,
+                    "minute5Momentum": minute5_momentum,
+                    "lastCandleMove": last_candle_move,
+                    "bullish1mCount": bullish_1m_count,
+                    "priceVolumeAligned": price_volume_aligned,
+                    "nearDayHigh": near_day_high,
+                    "breakout": breakout,
+                    "shortTrend": short_trend,
+                    "value24h": base["value24h"],
+                    "volatility": base["volatility"],
+                    "drawdown": base["drawdown"],
+                    "price": base["price"],
+                    "score": score,
+                })
+            except Exception:
+                continue
+        candidates.sort(key=lambda item: item["score"], reverse=True)
+        if not candidates and pre_candidates:
+            log_trade("[Signal Guard] 상승 확인 조건을 통과한 코인이 없습니다. 떨어지는 코인은 사지 않기 위해 완화 진입 없이 대기합니다.")
+        return candidates[:limit]
+    except Exception as e:
+        log_trade(f"[Signal Guard] 전체 코인 스캔 실패. 신규 진입 없이 대기합니다: {e}")
+        return []
+
+async def refresh_real_balances():
+    if not bot_state.upbit:
+        return
+    try:
+        bot_state.balance = float(bot_state.upbit.get_balance("KRW") or 0)
+        # held_btc is engine-owned quantity, never the whole exchange account balance.
+    except Exception as e:
+        log_trade(f"[Exchange] 잔고 조회 실패: {e}")
+
+def calculate_total_investment_budget() -> float:
+    available = max(bot_state.balance, 0.0)
+    if bot_state.investment_mode in ["all_krw", "rotate_holdings"]:
+        return available * 0.99
+    if bot_state.investment_mode == "fixed":
+        return min(bot_state.investment_amount, available * 0.99)
+    return available * bot_state.investment_ratio * 0.99
+
+def calculate_next_entry_krw() -> float:
+    if bot_state.planned_total_krw <= 0:
+        bot_state.planned_total_krw = calculate_total_investment_budget()
+    max_entries = max(1, int(bot_state.entry_slices or 1))
+    if bot_state.entry_mode != "split":
+        max_entries = 1
+    if bot_state.entry_count >= max_entries:
+        return 0.0
+    per_entry = bot_state.planned_total_krw / max_entries
+    remaining_budget = max(bot_state.planned_total_krw - bot_state.entry_krw, 0.0)
+    available = max(bot_state.balance, 0.0) * 0.99
+    return min(per_entry, remaining_budget, available)
+
+def reset_position_tracking():
+    bot_state.held_btc = 0
+    bot_state.avg_buy_price = 0
+    bot_state.entry_krw = 0
+    bot_state.entry_cost_krw = 0
+    bot_state.peak_yield = 1.0
+    bot_state.entry_count = 0
+    bot_state.planned_total_krw = 0
+
+def position_net_value(price: float) -> float:
+    """지금 전량 매도하면 수수료를 빼고 손에 들어오는 원화."""
+    return max(bot_state.held_btc, 0.0) * max(price, 0.0) * (1.0 - bot_state.fee_rate)
+
+def net_yield(price: float) -> float:
+    """수수료(매수+매도)를 모두 뺀 실제 수익률. 1.004 = 실수익 +0.4%."""
+    if bot_state.entry_cost_krw <= 0 or bot_state.held_btc <= 0 or price <= 0:
+        return 1.0
+    return position_net_value(price) / bot_state.entry_cost_krw
+
+def price_for_net_yield(target_net_yield: float) -> float:
+    """실수익률 기준선을 코인 가격으로 환산 (목표가/보호가 표시용)."""
+    if bot_state.held_btc <= 0 or bot_state.entry_cost_krw <= 0:
+        return 0.0
+    return target_net_yield * bot_state.entry_cost_krw / (bot_state.held_btc * (1.0 - bot_state.fee_rate))
+
+def record_closed_trade(ticker: str, entry_cost_krw: float, exit_value_krw: float, reason: str, peak_yield: float):
+    if entry_cost_krw <= 0:
+        return None
+    pnl_krw = exit_value_krw - entry_cost_krw
+    trade = {
+        "ticker": ticker,
+        "mode": bot_state.trading_mode,
+        "exchange": bot_state.exchange,
+        "entry_cost_krw": entry_cost_krw,
+        "exit_value_krw": exit_value_krw,
+        "pnl_krw": pnl_krw,
+        "pnl_pct": pnl_krw / entry_cost_krw,
+        "peak_pct": peak_yield - 1.0,
+        "reason": reason,
+        "time": datetime.now(timezone(timedelta(hours=9))).strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    bot_state.closed_trades.append(trade)
+    if len(bot_state.closed_trades) > 500:
+        bot_state.closed_trades.pop(0)
+    db = None
+    try:
+        db = SessionLocal()
+        db.add(TradeRecord(
+            user_id=bot_state.owner_user_id,
+            mode=trade["mode"],
+            exchange=trade["exchange"],
+            ticker=ticker,
+            entry_cost_krw=entry_cost_krw,
+            exit_value_krw=exit_value_krw,
+            pnl_krw=pnl_krw,
+            pnl_pct=trade["pnl_pct"],
+            peak_pct=trade["peak_pct"],
+            reason=reason,
+        ))
+        db.commit()
+    except Exception as exc:
+        log_trade(f"[Performance] 거래 기록 저장 실패(매매에는 영향 없음): {exc}")
+    finally:
+        if db is not None:
+            db.close()
+    return trade
+
+def calculate_profit_protection_yield() -> float:
+    protection_yield = bot_state.stop_loss_yield
+    if bot_state.avg_buy_price <= 0:
+        return protection_yield
+    if bot_state.peak_yield >= bot_state.profit_protect_start_yield:
+        protection_yield = max(protection_yield, bot_state.breakeven_protect_yield)
+    if bot_state.exit_mode == "trailing" and bot_state.peak_yield >= bot_state.trailing_start_yield:
+        protection_yield = max(protection_yield, bot_state.peak_yield - bot_state.trailing_drop_pct)
+    return protection_yield
+
+def calculate_profit_protection_price() -> float:
+    if bot_state.avg_buy_price <= 0:
+        return 0.0
+    return price_for_net_yield(calculate_profit_protection_yield())
+
+def is_live_trading_mode() -> bool:
+    return bot_state.trading_mode in ["real", "bithumb_real"]
+
+def position_momentum_is_weak(ticker: str) -> tuple[bool, str]:
+    try:
+        frame = pyupbit.get_ohlcv(ticker, interval="minute1", count=6)
+        if frame is None or len(frame) < 6:
+            return False, "단기 흐름 데이터 부족"
+        closes = frame["close"]
+        volumes = frame["volume"]
+        last = float(closes.iloc[-1])
+        three_minute = (last / float(closes.iloc[-4])) - 1.0
+        last_candle = (last / float(closes.iloc[-2])) - 1.0
+        recent_volume = float(volumes.tail(2).mean())
+        previous_volume = float(volumes.iloc[-6:-2].mean() or 1)
+        volume_ratio = recent_volume / max(previous_volume, 1e-9)
+        if three_minute <= -0.0025:
+            return True, f"3분 흐름 {three_minute * 100:.2f}% 하락"
+        if last_candle <= -0.0012 and volume_ratio >= 1.25:
+            return True, f"마지막 1분봉 {last_candle * 100:.2f}% 하락 + 거래량 {volume_ratio:.1f}배"
+        return False, f"보유 유지: 3분 {three_minute * 100:.2f}%, 1분 {last_candle * 100:.2f}%"
+    except Exception as exc:
+        return False, f"단기 흐름 확인 실패: {exc}"
+
+async def sell_current_position(reason: str, tag: str = "SELL", price_hint: float = 0.0) -> tuple[bool, float]:
+    """현재 포지션 전량 매도. 수수료 차감 실손익을 계산해 성적표에 기록합니다. 반환: (성공, 실수익률 %)."""
+    price = get_current_price(bot_state.active_ticker) or price_hint or 0
+    if price <= 0 or bot_state.avg_buy_price <= 0:
+        log_trade(f"[{tag} Error] 현재가 또는 매수 정보를 확인하지 못해 매도하지 못했습니다. 거래소에서 보유 수량을 확인하세요.")
+        bot_state.state = TradingState.ERROR
+        return False, 0.0
+    ticker = bot_state.active_ticker
+    entry_cost = bot_state.entry_cost_krw
+    peak = bot_state.peak_yield
+    estimated_exit_value = position_net_value(price)
+    bot_state.state = TradingState.SELLING
+    if is_live_trading_mode():
+        sell_qty = bot_state.held_btc
+        if sell_qty <= 0:
+            log_trade(f"[{tag} Error] 매도 가능한 보유 수량이 없습니다.")
+            bot_state.state = TradingState.ERROR
+            return False, (net_yield(price) - 1.0) * 100
+        save_guard("sell_submitting", ticker=ticker, owner_user_id=bot_state.owner_user_id, quantity=sell_qty, entry_cost=entry_cost)
+        result = await asyncio.to_thread(bot_state.upbit.sell_market_order, ticker, sell_qty)
+        if not isinstance(result, dict) or result.get("error") or not result.get("uuid"):
+            raise RuntimeError("매도 접수 결과를 확정할 수 없습니다. 거래소 주문 내역을 확인하세요.")
+        remember_order(result, tag)
+        save_guard("sell_pending", ticker=ticker, owner_user_id=bot_state.owner_user_id, quantity=sell_qty, order_uuid=result["uuid"], entry_cost=entry_cost)
+        filled = await wait_for_fill(bot_state.upbit, result["uuid"])
+        bot_state.held_btc = max(sell_qty - filled["quantity"], 0)
+        if not math.isclose(filled["quantity"], sell_qty, rel_tol=1e-7, abs_tol=1e-12):
+            save_guard("sell_partial", ticker=ticker, owner_user_id=bot_state.owner_user_id, remaining_quantity=bot_state.held_btc, order_uuid=result["uuid"])
+            raise RuntimeError("전량 매도 체결이 확인되지 않았습니다. 잔여 수량을 수동으로 대조하세요.")
+        exit_value = filled["funds"] - filled["fee"]
+        await refresh_real_balances()
+        bot_state.last_order_status = filled["state"]
+        mode_note = "실매도 완료"
+    else:
+        exit_value = estimated_exit_value
+        bot_state.balance += exit_value
+        bot_state.held_btc = 0
+        mode_note = "체험 매도 완료"
+    exit_pct = ((exit_value / entry_cost) - 1.0) * 100 if entry_cost > 0 else 0.0
+    record_closed_trade(ticker, entry_cost, exit_value, reason, peak)
+    log_trade(f"[{tag}] {ticker} {reason}: 수수료 차감 실수익 {exit_pct:+.2f}% ({exit_value - entry_cost:+,.0f}원). {mode_note}.")
+    reset_position_tracking()
+    if is_live_trading_mode():
+        clear_guard()
+    return True, exit_pct
+
+async def execute_entry_order(invest_krw: float, price: float, reason: str) -> bool:
+    if admin_state.global_kill_switch or bot_state.state == TradingState.STOPPED:
+        return False
+    if invest_krw < 5000:
+        log_trade("[Risk Manager] 다음 진입 금액이 5,000원 미만이라 주문하지 않습니다.")
+        return False
+
+    previous_entry_krw = bot_state.entry_krw
+    previous_qty = bot_state.held_btc
+    if is_live_trading_mode():
+        save_guard("buy_submitting", ticker=bot_state.active_ticker, owner_user_id=bot_state.owner_user_id, amount=invest_krw, prior_quantity=previous_qty)
+        result = await asyncio.to_thread(bot_state.upbit.buy_market_order, bot_state.active_ticker, invest_krw)
+        if not isinstance(result, dict) or result.get("error") or not result.get("uuid"):
+            raise RuntimeError("매수 접수 결과를 확정할 수 없습니다. 자동 재주문하지 않습니다.")
+        remember_order(result, "BUY" if bot_state.entry_count == 0 else "ADD BUY")
+        save_guard("buy_pending", ticker=bot_state.active_ticker, owner_user_id=bot_state.owner_user_id, order_uuid=result["uuid"], prior_quantity=previous_qty)
+        filled = await wait_for_fill(bot_state.upbit, result["uuid"])
+        bot_state.held_btc = previous_qty + filled["quantity"]
+        bot_state.entry_cost_krw += filled["funds"] + filled["fee"]
+        invest_krw = filled["funds"]
+        save_guard("holding", ticker=bot_state.active_ticker, owner_user_id=bot_state.owner_user_id, quantity=bot_state.held_btc, entry_cost=bot_state.entry_cost_krw, order_uuid=result["uuid"])
+        bot_state.last_order_status = filled["state"]
+        await refresh_real_balances()
+    else:
+        buy_qty = (invest_krw / price) * (1.0 - bot_state.fee_rate)
+        bot_state.held_btc += buy_qty
+        bot_state.balance -= invest_krw
+        bot_state.entry_cost_krw += invest_krw
+
+    bot_state.entry_krw = previous_entry_krw + invest_krw
+    if bot_state.held_btc > 0:
+        bot_state.avg_buy_price = bot_state.entry_krw / bot_state.held_btc
+    else:
+        bot_state.avg_buy_price = price
+    bot_state.entry_count += 1
+    bot_state.peak_yield = 1.0
+    log_trade(
+        f"[Entry] {bot_state.active_ticker} {reason} 완료: {invest_krw:,.0f}원 / "
+        f"{bot_state.entry_count}/{max(1, bot_state.entry_slices)}회 / 평균가 {bot_state.avg_buy_price:,.0f}원"
+    )
+    return True
+
+async def scalping_loop():
+    mode_label = "실거래" if is_live_trading_mode() else "전략 체험"
+    log_trade(f"[Signal Guard] {mode_label} 엔진 시작: 코인 선택 -> 조건 검증 -> 목표 도달 시 자동 종료")
+    bot_state.decision_note = f"{mode_label} 엔진 시작. 상승 후보를 찾기 위해 전체 KRW 마켓을 확인합니다."
+    bot_state.current_score = 0.0
+    bot_state.state = TradingState.IDLE
+    if is_live_trading_mode():
+        await refresh_real_balances()
+    bot_state.initial_daily_balance = bot_state.balance
+
+    while bot_state.state not in [TradingState.ERROR, TradingState.STOPPED]:
+        try:
+            if admin_state.global_kill_switch and bot_state.held_btc <= 0:
+                bot_state.decision_note = "대표 긴급 정지가 켜져 있어 신규 매매를 차단하고 있습니다."
+                log_trade("[CEO Kill Switch] 전체 정지 활성화. 신규 매매를 차단합니다.")
+                await asyncio.sleep(5)
+                continue
+
+            live_price = get_current_price(bot_state.active_ticker)
+            if live_price <= 0 and bot_state.state == TradingState.HOLDING:
+                # 현재가를 못 받으면 가짜 가격으로 판단하지 않고 다음 주기까지 대기합니다.
+                bot_state.decision_note = f"{bot_state.active_ticker} 현재가 확인 실패. 잘못된 매도를 막기 위해 판단을 잠시 보류합니다."
+                await asyncio.sleep(2)
+                continue
+            price = live_price or 80000000
+            est_total = bot_state.balance + (bot_state.held_btc * (live_price or bot_state.avg_buy_price))
+            if est_total < bot_state.initial_daily_balance * (1.0 - bot_state.daily_max_loss_pct):
+                bot_state.decision_note = "일일 최대 손실 한도에 도달해 엔진을 정지합니다."
+                log_trade("[Risk Manager] 일일 최대 손실 한도 도달. 엔진을 정지합니다.")
+                send_push_notification("Zenthex Trading 정지", "일일 최대 손실 한도에 도달해 엔진을 정지했습니다.")
+                bot_state.state = TradingState.ERROR
+                break
+
+            if bot_state.consecutive_loss_count >= bot_state.max_consecutive_loss:
+                bot_state.decision_note = "연속 손절 제한에 도달해 엔진을 정지합니다."
+                log_trade("[Risk Manager] 연속 손절 제한 도달. 엔진을 정지합니다.")
+                send_push_notification("Zenthex Trading 정지", "연속 손절 제한에 도달했습니다.")
+                bot_state.state = TradingState.ERROR
+                break
+
+            if bot_state.state == TradingState.IDLE and bot_state.avg_buy_price == 0:
+                market_ok, market_note = await asyncio.to_thread(market_regime_allows_entry)
+                if bot_state.state == TradingState.STOPPED:
+                    break
+                if not market_ok:
+                    bot_state.decision_note = f"{market_note}. 무리한 매수 없이 20초 후 다시 확인합니다."
+                    log_trade(f"[Market Guard] {market_note}")
+                    await asyncio.sleep(20)
+                    continue
+
+                if bot_state.ticker_mode == "manual":
+                    bot_state.active_ticker = bot_state.selected_ticker or "KRW-BTC"
+                    price = get_current_price(bot_state.active_ticker) or price
+                    bot_state.signal_candidates = [{"ticker": bot_state.active_ticker, "momentum": 0, "price": price, "score": 0, "reason": "직접 선택"}]
+                    bot_state.decision_note = f"{bot_state.active_ticker} 직접 선택. 전체 스캔 없이 빠른 진입 조건을 확인합니다."
+                    bot_state.current_score = 0.0
+                    log_trade(f"[Quick Entry] 사용자 선택 코인 {bot_state.active_ticker}로 전체 스캔 없이 바로 진입 검증을 시작합니다.")
+                else:
+                    bot_state.state = TradingState.SCANNING
+                    bot_state.decision_note = "업비트 KRW 전체 마켓 스캔 중입니다. 24h/6h 상승, 1m/3m/5m 힘, 거래량 급증을 비교합니다."
+                    log_trade("[Signal Guard] 업비트 KRW 전체 마켓 스캔 중입니다. 실거래 주문 전 후보를 검증합니다.")
+                    candidates = await asyncio.to_thread(scan_upbit_candidates)
+                    if bot_state.state == TradingState.STOPPED:
+                        break
+                    bot_state.signal_candidates = candidates
+                    if not candidates:
+                        bot_state.decision_note = "조건을 통과한 코인이 없어 대기합니다. 무리한 진입 없이 10초 후 다시 스캔합니다."
+                        log_trade("[Signal Guard] 조건을 통과한 코인이 없습니다. 10초 후 다시 스캔합니다.")
+                        bot_state.state = TradingState.IDLE
+                        await asyncio.sleep(10)
+                        continue
+                    chosen = candidates[0]
+                    bot_state.active_ticker = chosen["ticker"]
+                    price = chosen["price"] or get_current_price(bot_state.active_ticker) or price
+                    bot_state.current_score = float(chosen.get("score", 0) or 0)
+                    bot_state.decision_note = (
+                        f"{bot_state.active_ticker} 선택: 1분 {chosen.get('minute1Momentum', 0) * 100:.2f}%, "
+                        f"3분 {chosen.get('minute3Momentum', 0) * 100:.2f}%, 거래량 {chosen.get('tickVolumeSurge', 0):.1f}x. "
+                        "목표가와 수익보호가를 잡고 진입합니다."
+                    )
+                    log_trade(
+                        f"[Scalping Signal] {bot_state.active_ticker} / "
+                        f"1m +{chosen.get('minute1Momentum', 0) * 100:.2f}% / "
+                        f"3m +{chosen.get('minute3Momentum', 0) * 100:.2f}% / "
+                        f"거래량 {chosen.get('tickVolumeSurge', 0):.1f}x / "
+                        f"24h +{chosen['momentum'] * 100:.2f}%"
+                    )
+
+                if bot_state.state == TradingState.STOPPED:
+                    break
+                confirm_ok, confirm_note = await confirm_entry_signal(bot_state.active_ticker, price)
+                if bot_state.state == TradingState.STOPPED:
+                    break
+                if not confirm_ok:
+                    bot_state.decision_note = f"{bot_state.active_ticker} 진입 보류: {confirm_note}"
+                    log_trade(f"[Entry Guard] {bot_state.active_ticker} 진입 보류: {confirm_note}")
+                    bot_state.state = TradingState.IDLE
+                    await asyncio.sleep(5)
+                    continue
+                if bot_state.state == TradingState.STOPPED:
+                    break
+                log_trade(f"[Entry Guard] {bot_state.active_ticker} 진입 전 확인 통과: {confirm_note}")
+
+                bot_state.state = TradingState.BUYING
+                bot_state.decision_note = f"{bot_state.active_ticker} 매수 준비 중입니다. 투자금과 리스크 한도를 확인합니다."
+                if is_live_trading_mode():
+                    if bot_state.investment_mode == "rotate_holdings" and not bot_state.rotated_holdings:
+                        await liquidate_existing_holdings()
+                    await refresh_real_balances()
+                    log_trade(f"[Real Balance] 사용 가능 KRW {bot_state.balance:,.0f}원")
+
+                bot_state.planned_total_krw = calculate_total_investment_budget()
+                invest_krw = calculate_next_entry_krw()
+
+                if invest_krw < 5000:
+                    bot_state.decision_note = "주문 가능 금액이 5,000원 미만이라 엔진을 정지합니다."
+                    log_trade("[Risk Manager] 주문 가능 금액이 부족합니다. 최소 5,000원 이상으로 설정하세요.")
+                    bot_state.state = TradingState.ERROR
+                    break
+
+                if not await execute_entry_order(invest_krw, price, "1차 진입"):
+                    bot_state.state = TradingState.ERROR
+                    break
+                split_note = " 분할 진입은 평균가 기준으로 추가 진입을 감시합니다." if bot_state.entry_mode == "split" else ""
+                bot_state.decision_note = f"{bot_state.active_ticker} 진입 완료. 목표가 도달 또는 손절선 이탈 여부를 2초마다 확인합니다.{split_note}"
+                bot_state.state = TradingState.HOLDING
+
+            elif bot_state.state == TradingState.HOLDING:
+                current_yield = net_yield(price)
+                if current_yield > bot_state.peak_yield:
+                    bot_state.peak_yield = current_yield
+                trailing_ready = bot_state.exit_mode == "trailing" and bot_state.peak_yield >= bot_state.trailing_start_yield
+                trailing_exit_yield = calculate_profit_protection_yield()
+                should_take_profit = current_yield >= bot_state.target_yield
+                should_profit_protect = (
+                    bot_state.peak_yield >= bot_state.profit_protect_start_yield
+                    and current_yield <= trailing_exit_yield
+                    and current_yield > bot_state.stop_loss_yield
+                )
+                if bot_state.exit_mode == "trailing":
+                    should_take_profit = trailing_ready and current_yield <= trailing_exit_yield
+                    should_profit_protect = should_take_profit
+                    bot_state.decision_note = (
+                        f"{bot_state.active_ticker} 추적 익절 감시 중(수수료 차감 실수익): 현재 {(current_yield - 1.0) * 100:.3f}%, "
+                        f"최고 {(bot_state.peak_yield - 1.0) * 100:.3f}%, 수익보호선 {(trailing_exit_yield - 1.0) * 100:.3f}%. "
+                        "계속 오르면 보유하고, 보호선 아래로 밀리면 매도합니다."
+                    )
+                else:
+                    protection_note = (
+                        f", 수익보호 {(trailing_exit_yield - 1.0) * 100:.2f}%"
+                        if bot_state.peak_yield >= bot_state.profit_protect_start_yield
+                        else ""
+                    )
+                    bot_state.decision_note = (
+                        f"{bot_state.active_ticker} 보유 감시 중(수수료 차감 실수익): 현재 {(current_yield - 1.0) * 100:.3f}%, "
+                        f"목표 {(bot_state.target_yield - 1.0) * 100:.2f}%, 손절 {(bot_state.stop_loss_yield - 1.0) * 100:.2f}%{protection_note}"
+                    )
+                if (
+                    not should_take_profit
+                    and
+                    bot_state.entry_mode == "split"
+                    and bot_state.entry_count < bot_state.entry_slices
+                    and current_yield >= 1.0 + (bot_state.add_entry_drop_pct * bot_state.entry_count)
+                ):
+                    add_krw = calculate_next_entry_krw()
+                    if add_krw >= 5000:
+                        confirm_ok, confirm_note = await confirm_entry_signal(bot_state.active_ticker, price)
+                        if bot_state.state == TradingState.STOPPED:
+                            break
+                        if not confirm_ok:
+                            bot_state.decision_note = f"추가 진입 보류: {confirm_note}"
+                            log_trade(f"[Pyramid Guard] 추가 진입 보류: {confirm_note}")
+                            await asyncio.sleep(2)
+                            continue
+                        bot_state.state = TradingState.BUYING
+                        log_trade(
+                            f"[Pyramid Entry] 평균가 대비 +{(current_yield - 1.0) * 100:.2f}% 수익 방향 확인. "
+                            f"{bot_state.entry_count + 1}/{bot_state.entry_slices}회 추가 진입을 시도합니다. {confirm_note}"
+                        )
+                        ok = await execute_entry_order(add_krw, price, "수익 방향 추가 진입")
+                        bot_state.state = TradingState.HOLDING if ok else TradingState.ERROR
+                        if not ok:
+                            break
+                        await asyncio.sleep(2)
+                        continue
+                if not should_take_profit and not should_profit_protect and current_yield < 1.0:
+                    weak_exit, weak_note = await asyncio.to_thread(position_momentum_is_weak, bot_state.active_ticker)
+                    if weak_exit:
+                        bot_state.decision_note = f"{bot_state.active_ticker} 보유 코인 힘 약화 감지: {weak_note}. 더 큰 손실 전 시장가 매도 후 재탐색합니다."
+                        log_trade(f"[Weak Momentum Exit] {bot_state.active_ticker} {weak_note}. 재탐색을 위해 매도합니다.")
+                        ok, exit_pct = await sell_current_position("힘 약화 방어 매도", "WEAK EXIT", price)
+                        if not ok:
+                            break
+                        if exit_pct < 0:
+                            bot_state.consecutive_loss_count += 1
+                            set_ticker_cooldown(bot_state.active_ticker, 60, "힘 약화 매도")
+                        bot_state.state = TradingState.IDLE if bot_state.consecutive_loss_count < bot_state.max_consecutive_loss else TradingState.STOPPED
+                        bot_state.decision_note = "힘 약화 매도 후 다음 상승 후보를 다시 찾습니다." if bot_state.state == TradingState.IDLE else "연속 방어 매도가 많아 엔진을 정지했습니다."
+                        await asyncio.sleep(3)
+                        continue
+                if not should_take_profit and not should_profit_protect and bot_state.trading_mode == "practice" and current_yield < 1.002:
+                    replacement = await asyncio.to_thread(scan_upbit_candidates, 1)
+                    if replacement and replacement[0]["ticker"] != bot_state.active_ticker and replacement[0]["score"] > 0.55:
+                        old_ticker = bot_state.active_ticker
+                        ok, _ = await sell_current_position("더 강한 후보로 교체", "ROTATE", price)
+                        if not ok:
+                            break
+                        bot_state.state = TradingState.IDLE
+                        bot_state.decision_note = f"{old_ticker}보다 강한 후보가 보여 교체 대기합니다."
+                        log_trade(f"[Rotation] {old_ticker} 힘이 약해 더 강한 후보 {replacement[0]['ticker']}로 교체 대기")
+                        await asyncio.sleep(1)
+                        continue
+                if should_take_profit or should_profit_protect:
+                    bot_state.state = TradingState.SELLING
+                    profit_pct = (current_yield - 1.0) * 100
+                    if bot_state.exit_mode == "trailing":
+                        peak_pct = (bot_state.peak_yield - 1.0) * 100
+                        bot_state.decision_note = f"추적 익절 발동. 최고 {peak_pct:+.2f}%에서 현재 {profit_pct:+.2f}%로 밀려 전량 매도 후 엔진을 종료합니다."
+                    elif should_profit_protect:
+                        peak_pct = (bot_state.peak_yield - 1.0) * 100
+                        bot_state.decision_note = f"수익보호가 발동. 최고 {peak_pct:+.2f}% 이후 현재 {profit_pct:+.2f}%로 내려와 전량 매도 후 엔진을 종료합니다."
+                        log_trade(f"[Profit Protection] {bot_state.active_ticker} 수익보호선 매도 조건 발동: 최고 {peak_pct:+.2f}% / 현재 {profit_pct:+.2f}%")
+                    else:
+                        bot_state.decision_note = f"목표 수익률 {profit_pct:+.2f}% 도달. 전량 매도 후 엔진을 종료합니다."
+                        log_trade(f"[Fixed Take Profit Guard] {bot_state.active_ticker} 고정 목표 수익률 우선 매도 조건 발동: {profit_pct:+.2f}%")
+                    exit_reason = "추적 익절" if bot_state.exit_mode == "trailing" else ("수익보호 매도" if should_profit_protect and not current_yield >= bot_state.target_yield else "목표 수익률 익절")
+                    ok, realized_pct = await sell_current_position(exit_reason, "TAKE PROFIT", price)
+                    if not ok:
+                        break
+                    profit_pct = realized_pct
+                    bot_state.consecutive_loss_count = bot_state.consecutive_loss_count + 1 if realized_pct < 0 else 0
+                    if bot_state.auto_restart_after_profit and not admin_state.global_kill_switch:
+                        bot_state.state = TradingState.IDLE
+                        bot_state.decision_note = f"익절 완료 후 자동 재탐색 모드입니다. 다음 상승 후보를 다시 찾습니다. 직전 수익률 {profit_pct:+.2f}%"
+                        log_trade("[Auto Restart] 익절 후 자동 재탐색을 시작합니다. 조건을 통과한 다음 상승 후보를 기다립니다.")
+                        send_push_notification("목표 수익률 도달", f"{bot_state.active_ticker} {profit_pct:+.2f}% 달성. 다음 상승 후보를 재탐색합니다.")
+                        await asyncio.sleep(3)
+                        continue
+                    bot_state.state = TradingState.STOPPED
+                    send_push_notification("목표 수익률 도달", f"{bot_state.active_ticker} {profit_pct:+.2f}% 달성. 엔진을 종료했습니다.")
+
+                elif current_yield <= bot_state.stop_loss_yield:
+                    bot_state.state = TradingState.SELLING
+                    loss_pct = (1.0 - current_yield) * 100
+                    bot_state.decision_note = f"손절선 -{loss_pct:.2f}% 도달. 전량 매도 후 다시 기회를 찾습니다."
+                    ok, realized_pct = await sell_current_position("손절", "STOP LOSS", price)
+                    if not ok:
+                        break
+                    loss_pct = abs(realized_pct)
+                    bot_state.consecutive_loss_count += 1
+                    set_ticker_cooldown(bot_state.active_ticker, 120, "손절")
+                    if is_live_trading_mode():
+                        bot_state.state = TradingState.STOPPED
+                        bot_state.decision_note = "손절 매도 후 실거래 엔진을 완전 정지했습니다. 다시 시작하려면 사용자가 직접 실거래 시작을 눌러야 합니다."
+                        send_push_notification("Zenthex Trading 손절 정지", f"{bot_state.active_ticker} -{loss_pct:.2f}% 손절 후 엔진을 정지했습니다.")
+                    else:
+                        bot_state.state = TradingState.IDLE
+
+        except Exception as e:
+            bot_state.decision_note = f"시스템 오류로 엔진이 멈췄습니다: {e}"
+            log_trade(f"[System Error] {e}")
+            bot_state.state = TradingState.ERROR
+
+        await asyncio.sleep(2)

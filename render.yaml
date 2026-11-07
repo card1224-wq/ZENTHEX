@@ -11,8 +11,8 @@ services:
         value: 3.11.9
       - key: ZENTHEX_OWNER_EMAILS
         value: 7foliath@naver.com
-      - key: ZENTHEX_SERVER_PUBLIC_IP
-        value: 74.220.52.254
+      - key: ZENTHEX_ENABLE_LIVE_TRADING
+        value: "false"
       - key: ZENTHEX_ENABLE_DEV_OUTBOX
         value: "false"
       - key: ZENTHEX_ENABLE_MOCK_PAYMENT

@@ -1,0 +1,111 @@
+{
+  "version": "2026-11-07-v2",
+  "baseCommit": "09dcabcacae9338dbc521c1aede8107dc0601b26",
+  "instructions": "Upload these files at the same repository paths. Preserve all other existing files. No secrets or databases included. GitHub/AWS have not been updated.",
+  "validation": {
+    "offlineTests": 27,
+    "httpSmokeChecks": 12,
+    "liveOrdersExecuted": false,
+    "realTossAccountTested": false,
+    "visualReviewCompleted": false,
+    "publicBinanceFetch": "failed in this environment; CSV supported"
+  },
+  "files": [
+    {
+      "path": "GITHUB_UPDATE_20261107.md",
+      "sha256": "7872730e1988fe8d7799df4f9953333de857e6732e5b9e9eb4a97eb87bbba7c4"
+    },
+    {
+      "path": "ZENTHEX_ALIGNMENT_2026_07_13.md",
+      "sha256": "69577f0e36037fc577eef061eb7831aabc451abc872a13c89ef75730c8e10a48"
+    },
+    {
+      "path": "ZENTHEX_MASTER_PLAN.md",
+      "sha256": "ff2cdf7e3c583e1849c7bbc08e64d8a9846ec224ca19ae554927a3b77e2aeecf"
+    },
+    {
+      "path": "deploy/configure_runtime.sh",
+      "sha256": "a701972f9ab8f77b739906d265c11f0833c115a3b06187193f45794481330702"
+    },
+    {
+      "path": "deploy/setup_vps.sh",
+      "sha256": "627ea5844eb9dd24bd21d6da77a05530e0de530ee16aa4bfc1907f2cfb837671"
+    },
+    {
+      "path": "deploy/update_vps.sh",
+      "sha256": "c87a18582c0cec6149eed73e4442c2752679e0216e26030f2bb6f2784078fd80"
+    },
+    {
+      "path": "deploy/zenthex.env.example",
+      "sha256": "22dc10543af326812ae852bd9b2839a3cc9ff60188717f854343843018508790"
+    },
+    {
+      "path": "main.py",
+      "sha256": "f4c8498f715f50628a1c83a857d1961934d2061ed6dfdc29e1ff9738758d3023"
+    },
+    {
+      "path": "render.yaml",
+      "sha256": "16b06745c7113a9f568f32b2e45d05888fe340671b56b37b85d58c6d33441e2a"
+    },
+    {
+      "path": "research/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "research/backtest.py",
+      "sha256": "eb6777fe325c5c59a8822b01ac0610cf68796c77cace93c67f009ce350a34049"
+    },
+    {
+      "path": "research/router.py",
+      "sha256": "9a0fa829cfdd4074f50f0a48a19573ab24e887c3639752e8a8b037729843ee33"
+    },
+    {
+      "path": "static/finance.html",
+      "sha256": "0395ac3bcbec64c73c13f1bdf6aa174a2c709c93f950c580c8e4e8cee064fbc4"
+    },
+    {
+      "path": "static/network-status.js",
+      "sha256": "a7d312b0f3626370a287db9f7a53cb327af07ebdc1573404d0c1bfc4383fa04a"
+    },
+    {
+      "path": "static/research.html",
+      "sha256": "873603d5eedb60c9fb492784c246b222b94fa088898a672828146d0f3a2003a3"
+    },
+    {
+      "path": "static/stock.html",
+      "sha256": "59de935258e066b1a05d7e925b1f87a2924d45b3185021cd9442475f7b0deff7"
+    },
+    {
+      "path": "stock/router.py",
+      "sha256": "d5d8ee825fa178c94daa92c63c2f367cd2a635665131e351a57a6abd752545ac"
+    },
+    {
+      "path": "stock/toss_client.py",
+      "sha256": "724246d88fbab65f9f8ea6c6fe7695aded4f4e24cc9c1bdccc0da72060fbdb92"
+    },
+    {
+      "path": "tests/test_research.py",
+      "sha256": "fd3abb8905f5e8b747543350e439ce8f5badc00d10cc87876b16a8f3b8d19048"
+    },
+    {
+      "path": "tests/test_trading_safety.py",
+      "sha256": "8f7dfc3b82e94e799b8a3245360d7ac2bf2a4ae807c19b0aac5dde15e3efe20e"
+    },
+    {
+      "path": "trading/engine.py",
+      "sha256": "4face15591d7923d55f76279c4aadd802bd53a0e8e2393430975b26d753e2670"
+    },
+    {
+      "path": "trading/network.py",
+      "sha256": "54fdaa90c02e078c89e7ad8fd7aa9eae6095d7a54c77f4969d8525f8884f1bca"
+    },
+    {
+      "path": "trading/orders.py",
+      "sha256": "691968d2891dc83b698b63c033ff9b406fb0a81be83c02b36f29cd30c84d769c"
+    },
+    {
+      "path": "trading/router.py",
+      "sha256": "a3ba84dd6c173f62827f5ae141ac82bed6c1d0aa2c372dded40270cfc2d67c37"
+    }
+  ]
+}

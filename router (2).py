@@ -1,245 +1,741 @@
-﻿import os
-import shutil
-import time
-import uuid
-
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Header, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, Header
+from pydantic import BaseModel, ConfigDict, Field
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
+import asyncio
+import os
+import math
+import pyupbit
 
 from auth.router import get_current_user
 from database.session import get_db
-from studio.providers.nanobanana import generate_preview_image, is_configured as google_ai_studio_is_configured
-try:
-    import cv2
-    import numpy as np
-    from studio.cv_engine import process_image_to_3d
-    STUDIO_WORKER_READY = True
-except Exception as exc:
-    cv2 = None
-    np = None
-    process_image_to_3d = None
-    STUDIO_WORKER_READY = False
-    STUDIO_WORKER_IMPORT_ERROR = str(exc)
+from trading.binance_client import build_binance_account_summary, check_binance_key, clean_key as clean_binance_key
+from trading.bithumb_client import BithumbClient, build_bithumb_account_summary, check_bithumb_key, clean_key as clean_bithumb_key
+from trading.engine import bot_state, TradingState, scalping_loop, log_trade, get_current_price, calculate_profit_protection_price, calculate_profit_protection_yield, net_yield, price_for_net_yield, position_net_value, sell_current_position, exchange_fee_rate
+from trading.performance import compute_performance
+from database.models import TradeRecord
+from trading.network import configured_server_ip, verify_server_ip
+from trading.orders import recovery_required
 
-router = APIRouter(prefix="/api/studio", tags=["studio"])
+router = APIRouter(prefix="/api/finance", tags=["finance"])
+ENGINE_CONTROL_LOCK = asyncio.Lock()
+ENGINE_TASK = None
 
-ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png"}
-MAX_FILE_SIZE = 10 * 1024 * 1024
-TRIAL_USAGE_BY_IP: dict[str, str] = {}
+class StartConfig(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
+    accessKey: str = ""
+    secretKey: str = ""
+    targetYield: float
+    stopLossYield: float = 0.994
+    exitMode: str = "fixed"
+    trailingStartYield: float = 1.005
+    trailingDropPct: float = 0.003
+    investmentMode: str = "fixed"
+    investmentAmount: float = Field(default=50000.0, gt=0)
+    investmentRatio: float = Field(default=0.5, gt=0, le=1)
+    entryMode: str = "single"
+    entrySlices: int = 1
+    addEntryDropPct: float = 0.005
+    autoRestartAfterProfit: bool = True
+    rotateExistingAccepted: bool = False
+    tickerMode: str = "auto"
+    selectedTicker: str = "KRW-BTC"
+    tradingMode: str = "practice"
+    realAccepted: bool = False
 
-def generate_3d_task(file_path: str, model_path: str, bg_path: str, style: str, wall_height: float):
-    if not STUDIO_WORKER_READY:
-        print(f"[Studio Worker] Worker unavailable: {STUDIO_WORKER_IMPORT_ERROR}")
-        return
+class ManualTrade(BaseModel):
+    type: str
+    amount: float
+
+class UpbitKeyCheck(BaseModel):
+    accessKey: str = ""
+    secretKey: str = ""
+
+class BinanceKeyCheck(BaseModel):
+    accessKey: str = ""
+    secretKey: str = ""
+    testnet: bool = True
+
+class BithumbKeyCheck(BaseModel):
+    accessKey: str = ""
+    secretKey: str = ""
+
+def clean_api_key(value: str) -> str:
+    return (value or "").strip().replace("\u200b", "").replace("\ufeff", "")
+
+def user_can_real_trade(user) -> bool:
+    return user.role == "owner" or user.plan in ["trading_pro", "ultimate"]
+
+@router.get("/server-ip")
+async def server_ip():
+    public_ip, source = configured_server_ip()
+    return {
+        "status": "success" if public_ip else "error",
+        "server_ip": public_ip,
+        "source": source,
+        "configured": bool(public_ip),
+        "is_fixed": False,
+        "message": "IP 설정만으로 고정 여부를 증명할 수 없습니다. 실제 발신 IP 비교와 AWS 고정 IP 연결을 확인하세요.",
+    }
+
+router.add_api_route("/server-ip/verify", verify_server_ip, methods=["GET"])
+
+def explain_upbit_auth_error(raw_error) -> str:
+    text = str(raw_error or "")
+    lowered = text.lower()
+    if "out_of_scope" in lowered or "permission" in lowered:
+        return "API 키 권한이 부족합니다. 업비트 Open API에서 자산조회와 주문하기 권한을 켜야 합니다."
+    if "invalid_access_key" in lowered or "no_authorization" in lowered:
+        return "Access Key가 맞지 않거나 만료된 키입니다. 업비트에서 새 키를 발급해 다시 입력하세요."
+    if "jwt" in lowered or "signature" in lowered or "secret" in lowered:
+        return "Secret Key가 맞지 않거나 복사 중 공백/누락이 있습니다. Secret Key는 재확인이 불가하므로 새 키 발급이 가장 안전합니다."
+    if "ip" in lowered or "blocked" in lowered or "not allowed" in lowered:
+        return "허용 IP가 맞지 않습니다. 업비트 Open API 키에 Zenthex 서버의 공인 IP를 등록해야 합니다."
+    return "업비트 인증에 실패했습니다. 자산조회/주문 권한, 허용 IP, Access/Secret 복사 상태를 확인하세요."
+
+def check_upbit_key(access_key: str, secret_key: str):
+    upbit = pyupbit.Upbit(access_key, secret_key)
+    balances = upbit.get_balances()
+    if balances is None:
+        return None, None, "업비트가 잔고 정보를 반환하지 않았습니다. 대부분 허용 IP 불일치, 권한 부족, 키 복사 오류입니다."
+    if isinstance(balances, dict):
+        return None, balances, explain_upbit_auth_error(balances)
+    if not isinstance(balances, list):
+        return None, balances, explain_upbit_auth_error(balances)
+    krw_balance = 0.0
+    for row in balances:
+        if row.get("currency") == "KRW":
+            krw_balance = float(row.get("balance") or 0)
+            break
+    return upbit, krw_balance, None
+
+def build_upbit_account_summary(upbit):
+    balances = upbit.get_balances()
+    if balances is None or isinstance(balances, dict) or not isinstance(balances, list):
+        return None, explain_upbit_auth_error(balances)
+
+    cash_balance = 0.0
+    coin_value = 0.0
+    invested_value = 0.0
+    positions = []
+    for row in balances:
+        currency = row.get("currency")
+        qty = float(row.get("balance") or 0)
+        locked = float(row.get("locked") or 0)
+        total_qty = qty + locked
+        if currency == "KRW":
+            cash_balance = qty
+            continue
+        if not currency or total_qty <= 0:
+            continue
+        ticker = f"KRW-{currency}"
+        price = pyupbit.get_current_price(ticker) or 0
+        if not price:
+            continue
+        avg_price = float(row.get("avg_buy_price") or 0)
+        valuation = total_qty * float(price)
+        if valuation < 1:
+            continue
+        entry_value = avg_price * total_qty if avg_price else 0
+        pnl = valuation - entry_value if entry_value else 0
+        pnl_pct = pnl / entry_value if entry_value else 0
+        invested_value += entry_value
+        coin_value += valuation
+        positions.append({
+            "ticker": ticker,
+            "qty": total_qty,
+            "availableQty": qty,
+            "lockedQty": locked,
+            "avgBuyPrice": avg_price,
+            "entryKrw": entry_value,
+            "currentPrice": float(price),
+            "valuation": valuation,
+            "pnl": pnl,
+            "pnlPct": pnl_pct,
+            "targetPrice": 0,
+            "stopPrice": 0,
+            "status": "UPBIT HOLDING",
+        })
+
+    positions.sort(key=lambda item: item["valuation"], reverse=True)
+    est_balance = cash_balance + coin_value
+    total_pnl = coin_value - invested_value if invested_value else 0
+    total_pnl_pct = total_pnl / invested_value if invested_value else 0
+    return {
+        "cashBalance": cash_balance,
+        "coinValue": coin_value,
+        "estBalance": est_balance,
+        "investedValue": invested_value,
+        "totalPnl": total_pnl,
+        "totalPnlPct": total_pnl_pct,
+        "positions": positions,
+    }, None
+
+def run_upbit_key_validation(config: UpbitKeyCheck, Authorization: str, db: Session, purpose: str):
+    if not Authorization:
+        return {"status": "error", "message": f"키 {purpose}은 로그인 후 사용할 수 있습니다.", "verified": False}
+    user = get_current_user(Authorization.replace("Bearer ", ""), db)
+    if not user_can_real_trade(user):
+        return {"status": "error", "message": f"키 {purpose}과 실거래는 Trading Pro 또는 Ultimate 구독 권한이 필요합니다.", "verified": False}
+
+    access_key = clean_api_key(config.accessKey)
+    secret_key = clean_api_key(config.secretKey)
+    if not access_key or not secret_key:
+        return {"status": "error", "message": "업비트 Access Key와 Secret Key를 모두 입력해야 합니다.", "verified": False}
+
     try:
-        process_image_to_3d(file_path, model_path, wall_height=wall_height, style=style, output_png_path=bg_path)
+        _, krw_balance, auth_error = check_upbit_key(access_key, secret_key)
+        if auth_error:
+            return {
+                "status": "error",
+                "message": auth_error,
+                "verified": False,
+                "checklist": [
+                    "업비트 Open API 권한에서 자산조회와 주문하기가 켜져 있는지 확인",
+                    "출금 권한은 꺼져 있어야 함",
+                    "키에 등록한 허용 IP가 Zenthex가 실행되는 서버의 공인 IP와 같은지 확인",
+                    "Secret Key는 발급 직후 한 번만 보이므로 복사 실수 시 새 키 발급",
+                ],
+            }
+        return {
+            "status": "success",
+            "message": f"업비트 키 {purpose} 성공. 조회 가능한 KRW 잔고는 약 {float(krw_balance or 0):,.0f}원입니다. 이제 실거래 시작을 누를 수 있습니다.",
+            "verified": True,
+        }
     except Exception as e:
-        print(f"[Studio Worker] Task failed: {e}")
+        return {
+            "status": "error",
+            "message": explain_upbit_auth_error(e),
+            "verified": False,
+            "checklist": [
+                "Access Key가 새로 발급한 키와 같은지 확인",
+                "Secret Key 앞뒤 공백과 줄바꿈이 없는지 확인",
+                "업비트 키의 허용 IP에 현재 배포 서버 공인 IP 등록",
+                "자산조회/주문하기 권한 확인",
+            ],
+        }
 
-def get_optional_user(authorization: str | None, db: Session):
-    if not authorization:
-        return None
-    token = authorization.replace("Bearer ", "").strip()
-    if not token:
-        return None
+@router.post("/check-key")
+async def check_key(config: UpbitKeyCheck, Authorization: str = Header(None), db: Session = Depends(get_db)):
+    return run_upbit_key_validation(config, Authorization, db, "진단")
+
+@router.post("/verify-key")
+async def verify_key(config: UpbitKeyCheck, Authorization: str = Header(None), db: Session = Depends(get_db)):
+    return run_upbit_key_validation(config, Authorization, db, "인증")
+
+@router.post("/account-summary")
+async def account_summary(config: UpbitKeyCheck, Authorization: str = Header(None), db: Session = Depends(get_db)):
+    if not Authorization:
+        return {"status": "error", "message": "업비트 잔고 조회는 로그인 후 사용할 수 있습니다."}
+    user = get_current_user(Authorization.replace("Bearer ", ""), db)
+    if not user_can_real_trade(user):
+        return {"status": "error", "message": "업비트 잔고 조회는 Trading Pro 또는 Ultimate 구독 권한이 필요합니다."}
+
+    access_key = clean_api_key(config.accessKey)
+    secret_key = clean_api_key(config.secretKey)
+    if not access_key or not secret_key:
+        return {"status": "error", "message": "업비트 Access Key와 Secret Key를 모두 입력해야 합니다."}
+
     try:
-        return get_current_user(token, db)
-    except HTTPException as exc:
-        if exc.status_code == 401:
-            return None
-        raise
+        upbit = pyupbit.Upbit(access_key, secret_key)
+        summary, error = await asyncio.to_thread(build_upbit_account_summary, upbit)
+        if error:
+            return {"status": "error", "message": error}
+        return {"status": "success", "message": "업비트 잔고와 수익률을 불러왔습니다.", **summary}
+    except Exception as e:
+        return {"status": "error", "message": explain_upbit_auth_error(e)}
 
-def get_client_ip(request: Request) -> str:
-    forwarded_for = request.headers.get("x-forwarded-for")
-    if forwarded_for:
-        return forwarded_for.split(",")[0].strip()
-    if request.client:
-        return request.client.host
-    return "unknown"
+def require_trading_permission(Authorization: str, db: Session):
+    if not Authorization:
+        raise HTTPException(status_code=401, detail="Trading 연결은 로그인 후 사용할 수 있습니다.")
+    user = get_current_user(Authorization.replace("Bearer ", ""), db)
+    if not user_can_real_trade(user):
+        raise HTTPException(status_code=403, detail="Trading 연결은 Trading Pro 또는 Ultimate 구독 권한이 필요합니다.")
+    return user
 
-def charge_studio_trial_or_quota(user, db: Session, request: Request):
-    if not user or not user_has_studio_access(user):
-        today = time.strftime("%Y-%m-%d")
-        client_ip = get_client_ip(request)
-        if TRIAL_USAGE_BY_IP.get(client_ip) == today:
-            raise HTTPException(
-                status_code=403,
-                detail="오늘의 무료 체험을 이미 사용했습니다. 내일 다시 체험하거나 Studio Pro 또는 Ultimate 구독 후 계속 사용할 수 있습니다.",
-            )
-        TRIAL_USAGE_BY_IP[client_ip] = today
-        return
+@router.post("/binance/check-key")
+async def binance_check_key(config: BinanceKeyCheck, Authorization: str = Header(None), db: Session = Depends(get_db)):
+    require_trading_permission(Authorization, db)
+    access_key = clean_binance_key(config.accessKey)
+    secret_key = clean_binance_key(config.secretKey)
+    if not access_key or not secret_key:
+        return {"status": "error", "message": "Binance API Key와 Secret Key를 모두 입력해야 합니다.", "verified": False}
+    return await asyncio.to_thread(check_binance_key, access_key, secret_key, config.testnet)
 
-    if user.role == "owner":
-        return
-    if user.studio_generations_left <= 0:
-        raise HTTPException(status_code=403, detail="무료 사용량을 모두 사용했습니다. Studio Pro 또는 Ultimate 구독이 필요합니다.")
-    user.studio_generations_left -= 1
-    db.commit()
+@router.post("/binance/verify-key")
+async def binance_verify_key(config: BinanceKeyCheck, Authorization: str = Header(None), db: Session = Depends(get_db)):
+    require_trading_permission(Authorization, db)
+    access_key = clean_binance_key(config.accessKey)
+    secret_key = clean_binance_key(config.secretKey)
+    if not access_key or not secret_key:
+        return {"status": "error", "message": "Binance API Key와 Secret Key를 모두 입력해야 합니다.", "verified": False}
+    return await asyncio.to_thread(check_binance_key, access_key, secret_key, config.testnet)
 
-def user_has_studio_access(user) -> bool:
-    if not user:
-        return False
-    return user.role == "owner" or user.plan in ["studio_pro", "ultimate"]
+@router.post("/binance/account-summary")
+async def binance_account_summary(config: BinanceKeyCheck, Authorization: str = Header(None), db: Session = Depends(get_db)):
+    require_trading_permission(Authorization, db)
+    access_key = clean_binance_key(config.accessKey)
+    secret_key = clean_binance_key(config.secretKey)
+    if not access_key or not secret_key:
+        return {"status": "error", "message": "Binance API Key와 Secret Key를 모두 입력해야 합니다."}
+    return await asyncio.to_thread(build_binance_account_summary, access_key, secret_key, config.testnet)
 
-def user_can_export(user) -> bool:
-    return user_has_studio_access(user)
+@router.post("/bithumb/check-key")
+async def bithumb_check_key(config: BithumbKeyCheck, Authorization: str = Header(None), db: Session = Depends(get_db)):
+    require_trading_permission(Authorization, db)
+    access_key = clean_bithumb_key(config.accessKey)
+    secret_key = clean_bithumb_key(config.secretKey)
+    if not access_key or not secret_key:
+        return {"status": "error", "message": "빗썸 API Key와 Secret Key를 모두 입력해야 합니다.", "verified": False}
+    return await asyncio.to_thread(check_bithumb_key, access_key, secret_key)
 
-def prompt_to_floorplan(prompt: str):
-    if not STUDIO_WORKER_READY:
-        return None
-    img = np.ones((1000, 1500), dtype=np.uint8) * 255
-    lower = prompt.lower()
-    margin = 90
+@router.post("/bithumb/verify-key")
+async def bithumb_verify_key(config: BithumbKeyCheck, Authorization: str = Header(None), db: Session = Depends(get_db)):
+    require_trading_permission(Authorization, db)
+    access_key = clean_bithumb_key(config.accessKey)
+    secret_key = clean_bithumb_key(config.secretKey)
+    if not access_key or not secret_key:
+        return {"status": "error", "message": "빗썸 API Key와 Secret Key를 모두 입력해야 합니다.", "verified": False}
+    return await asyncio.to_thread(check_bithumb_key, access_key, secret_key)
 
-    if "32평" in lower or "아파트" in lower:
-        cv2.rectangle(img, (margin, margin), (1410, 910), (0, 0, 0), 10)
-        cv2.line(img, (520, margin), (520, 910), (0, 0, 0), 7)
-        cv2.line(img, (960, margin), (960, 620), (0, 0, 0), 7)
-        cv2.line(img, (520, 430), (1410, 430), (0, 0, 0), 7)
-        cv2.line(img, (960, 620), (1410, 620), (0, 0, 0), 7)
-        cv2.putText(img, "Living", (150, 340), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 0, 0), 3)
-        cv2.putText(img, "Kitchen", (610, 310), cv2.FONT_HERSHEY_SIMPLEX, 1.1, (0, 0, 0), 3)
-        cv2.putText(img, "Room", (1080, 280), cv2.FONT_HERSHEY_SIMPLEX, 1.1, (0, 0, 0), 3)
-        cv2.putText(img, "Bath", (1080, 550), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 0), 3)
-        cv2.putText(img, "Room", (650, 700), cv2.FONT_HERSHEY_SIMPLEX, 1.1, (0, 0, 0), 3)
+@router.post("/bithumb/account-summary")
+async def bithumb_account_summary(config: BithumbKeyCheck, Authorization: str = Header(None), db: Session = Depends(get_db)):
+    require_trading_permission(Authorization, db)
+    access_key = clean_bithumb_key(config.accessKey)
+    secret_key = clean_bithumb_key(config.secretKey)
+    if not access_key or not secret_key:
+        return {"status": "error", "message": "빗썸 API Key와 Secret Key를 모두 입력해야 합니다."}
+    return await asyncio.to_thread(build_bithumb_account_summary, access_key, secret_key)
+
+@router.post("/start")
+async def start_bot(config: StartConfig, Authorization: str = Header(None), db: Session = Depends(get_db)):
+    async with ENGINE_CONTROL_LOCK:
+        return await _start_bot(config, Authorization, db)
+
+
+async def _start_bot(config: StartConfig, Authorization: str | None, db: Session):
+    global ENGINE_TASK
+    # This version has one engine. Never overwrite another running or paused position.
+    if ENGINE_TASK is not None and not ENGINE_TASK.done():
+        raise HTTPException(status_code=409, detail="기존 엔진이 종료 중이거나 실행 중입니다.")
+    if bot_state.held_btc > 0 or bot_state.avg_buy_price > 0:
+        raise HTTPException(status_code=409, detail="보유 상태를 초기화할 수 없습니다. 기존 엔진 보유 수량을 먼저 확인하세요.")
+    if config.tradingMode not in {"practice", "real", "bithumb_real"}:
+        raise HTTPException(status_code=400, detail="지원하지 않는 거래 모드입니다. Binance 자동주문/선물은 구현되지 않았습니다.")
+    if config.tradingMode == "bithumb_real":
+        raise HTTPException(status_code=409, detail="이번 수정본은 업비트 체결 확인만 지원합니다. 빗썸은 조회/키 확인만 가능합니다.")
+    if recovery_required():
+        raise HTTPException(status_code=409, detail="이전 실주문/보유 기록이 남아 있습니다. 거래소와 기록을 대조하기 전 새 엔진을 시작할 수 없습니다.")
+    if config.tradingMode in {"real", "bithumb_real"}:
+        user = require_trading_permission(Authorization, db)
+        if user.role != "owner":
+            raise HTTPException(status_code=403, detail="사용자별 독립 엔진 검증 전까지 실거래는 대표 개인 검증만 가능합니다.")
+        if os.getenv("ZENTHEX_ENABLE_LIVE_TRADING", "false").lower() != "true":
+            raise HTTPException(status_code=403, detail="실거래 검증 잠금 상태입니다. 모의매매와 주문 복구 검증을 먼저 완료하세요.")
+        if not config.realAccepted:
+            raise HTTPException(status_code=400, detail="실거래 위험 확인이 필요합니다.")
+        if config.investmentMode == "rotate_holdings":
+            raise HTTPException(status_code=400, detail="기존 보유 코인 정리는 주문 체결 검증 전까지 사용할 수 없습니다.")
+        ip_check = await verify_server_ip()
+        if not ip_check["matches"]:
+            raise HTTPException(status_code=409, detail=ip_check["message"])
+    if bot_state.state not in [TradingState.STOPPED, TradingState.ERROR]:
+        return {"status": "error", "message": "Bot is already running"}
+
+    # Risk Manager: 손익비 검증 (모든 수익률은 수수료 차감 실수익 기준)
+    requested_target = max(float(config.targetYield or 1.008), 1.003)
+    requested_stop = min(max(float(config.stopLossYield or 0.994), 0.95), 0.999)
+    requested_exit = config.exitMode if config.exitMode in ["fixed", "trailing"] else "fixed"
+    requested_drop = min(max(float(config.trailingDropPct or 0.003), 0.0015), 0.05)
+    if requested_exit == "fixed" and (requested_target - 1.0) < (1.0 - requested_stop):
+        return {
+            "status": "error",
+            "message": (
+                f"손익비 부족: 목표 +{(requested_target - 1.0) * 100:.1f}%보다 손절 -{(1.0 - requested_stop) * 100:.1f}%가 더 큽니다. "
+                "이 설정은 10번 중 절반 이상 이겨도 손실이 쌓일 수 있습니다. 목표를 손절폭 이상으로 올리거나 손절폭을 줄이세요."
+            ),
+        }
+    if requested_exit == "trailing" and requested_drop >= (max(config.trailingStartYield or requested_target, requested_target) - 1.0):
+        return {
+            "status": "error",
+            "message": "추적 익절 설정 오류: 고점 대비 하락폭이 추적 시작 수익률보다 커서 익절이 손실로 끝날 수 있습니다. 하락폭을 줄이거나 시작 수익률을 올리세요.",
+        }
+
+    bot_state.target_yield = requested_target
+    bot_state.stop_loss_yield = requested_stop
+    bot_state.daily_max_loss_pct = 0.015
+    bot_state.max_consecutive_loss = 2
+    bot_state.exit_mode = config.exitMode if config.exitMode in ["fixed", "trailing"] else "fixed"
+    bot_state.trailing_start_yield = max(config.trailingStartYield, 1.003)
+    bot_state.trailing_drop_pct = requested_drop
+    bot_state.profit_protect_start_yield = 1.003
+    bot_state.breakeven_protect_yield = 1.0005
+    bot_state.peak_yield = 1.0
+    bot_state.investment_mode = config.investmentMode if config.investmentMode in ["all_krw", "fixed", "ratio", "rotate_holdings"] else "fixed"
+    bot_state.investment_amount = config.investmentAmount
+    bot_state.investment_ratio = config.investmentRatio
+    bot_state.entry_mode = config.entryMode if config.entryMode in ["single", "split"] else "single"
+    bot_state.entry_slices = min(max(int(config.entrySlices or 1), 1), 10) if bot_state.entry_mode == "split" else 1
+    bot_state.add_entry_drop_pct = min(max(float(config.addEntryDropPct or 0.002), 0.001), 0.05)
+    bot_state.auto_restart_after_profit = bool(config.autoRestartAfterProfit)
+    bot_state.ticker_mode = config.tickerMode if config.tickerMode in ["auto", "manual"] else "auto"
+    bot_state.selected_ticker = config.selectedTicker if config.selectedTicker.startswith("KRW-") else "KRW-BTC"
+    bot_state.trading_mode = config.tradingMode if config.tradingMode in ["practice", "real", "bithumb_real"] else "practice"
+    bot_state.exchange = "bithumb" if bot_state.trading_mode == "bithumb_real" else "upbit"
+    bot_state.fee_rate = exchange_fee_rate(bot_state.exchange)
+    bot_state.entry_cost_krw = 0
+    bot_state.owner_user_id = None
+    if Authorization:
+        try:
+            bot_state.owner_user_id = get_current_user(Authorization.replace("Bearer ", ""), db).id
+        except Exception:
+            bot_state.owner_user_id = None
+    bot_state.consecutive_loss_count = 0
+    bot_state.held_btc = 0
+    bot_state.avg_buy_price = 0
+    bot_state.entry_krw = 0
+    bot_state.entry_count = 0
+    bot_state.planned_total_krw = 0
+    bot_state.upbit = None
+    bot_state.is_real_key = False
+    bot_state.last_order_uuid = ""
+    bot_state.last_order_side = ""
+    bot_state.last_order_status = "대기"
+    bot_state.rotate_existing_accepted = config.rotateExistingAccepted
+    bot_state.rotated_holdings = False
+    if bot_state.entry_mode == "split":
+        bot_state.risk_rule = f"리스크: 총 투자금을 {bot_state.entry_slices}회로 나누되 하락 추가매수 금지, 평균가 대비 +{bot_state.add_entry_drop_pct * 100:.1f}% 수익 방향 확인 시 추가 진입, 손절 {(bot_state.stop_loss_yield - 1.0) * 100:.2f}%, 일일 손실 1.5%, 연속 손절 2회 제한"
     else:
-        cv2.rectangle(img, (100, 100), (1400, 900), (0, 0, 0), 10)
-        cv2.line(img, (520, 100), (520, 900), (0, 0, 0), 6)
-        cv2.line(img, (950, 100), (950, 900), (0, 0, 0), 6)
-        cv2.line(img, (100, 470), (1400, 470), (0, 0, 0), 6)
-    return img
+        bot_state.risk_rule = f"리스크: 최소 주문 5,000원, 하락 추가매수 금지, 손절 {(bot_state.stop_loss_yield - 1.0) * 100:.2f}%, 일일 최대 손실 1.5%, 연속 손절 2회 제한"
+    if bot_state.exit_mode == "trailing":
+        restart_note = " 익절 후 자동 재탐색을 켜서 다음 상승 후보를 다시 찾습니다." if bot_state.auto_restart_after_profit else " 익절 후 엔진을 종료합니다."
+        bot_state.exit_rule = f"매도: 수수료 차감 실수익 +{(bot_state.trailing_start_yield - 1.0) * 100:.2f}% 이상부터 계속 오르면 보유하고, 최고 수익률에서 {(bot_state.trailing_drop_pct) * 100:.2f}%p 밀리면 수익보호 매도.{restart_note}"
+    else:
+        restart_note = " 이후 자동 재탐색을 켜서 다음 상승 후보를 다시 찾습니다." if bot_state.auto_restart_after_profit else " 이후 엔진을 종료합니다."
+        bot_state.exit_rule = f"매도: 수수료 차감 실수익 +{(bot_state.target_yield - 1.0) * 100:.2f}% 도달 시 전량 매도.{restart_note} 단, 실수익 +{(bot_state.profit_protect_start_yield - 1.0) * 100:.2f}% 이상을 찍으면 보호가를 수수료 포함 본전(+{(bot_state.breakeven_protect_yield - 1.0) * 100:.2f}%) 위로 올려 손실 전환을 방어"
 
-def describe_prompt_preview(prompt: str, source: str = "prompt"):
-    lower = prompt.lower()
-    if "32평" in lower or "아파트" in lower:
-        return {
-            "kind": "apartment_32",
-            "title": "대한민국 32평 아파트",
-            "summary": "거실, 주방, 침실 2개, 욕실, 현관 동선을 가진 아파트형 3D 미리보기입니다.",
-            "rooms": ["거실", "주방", "침실 1", "침실 2", "욕실", "현관"],
-        }
-    if any(word in lower for word in ["카페", "루프탑", "통유리"]):
-        return {
-            "kind": "cafe",
-            "title": "모던 루프탑 카페",
-            "summary": "통유리 전면, 2층 매스, 루프탑 정원을 가진 상업 공간 미리보기입니다.",
-            "rooms": ["라운지", "바", "계단", "루프탑"],
-        }
-    if any(word in lower for word in ["사무실", "오피스", "회의실"]):
-        return {
-            "kind": "office",
-            "title": "업무 공간",
-            "summary": "오픈 업무공간, 회의실, 라운지를 나눈 사무실형 3D 미리보기입니다.",
-            "rooms": ["오픈 오피스", "회의실", "라운지", "포커스룸"],
-        }
-    if source == "upload":
-        return {
-            "kind": "uploaded_plan",
-            "title": "업로드 도면 기반 공간",
-            "summary": "업로드한 2D 도면을 기준으로 벽체와 공간 볼륨을 구성한 미리보기입니다.",
-            "rooms": ["외벽", "내벽", "공간 볼륨"],
-        }
+    if bot_state.trading_mode in ["real", "bithumb_real"]:
+        if not Authorization:
+            return {"status": "error", "message": "실거래는 로그인 후 Trading Pro 또는 Ultimate 구독이 필요합니다."}
+        user = get_current_user(Authorization.replace("Bearer ", ""), db)
+        if not user_can_real_trade(user):
+            return {"status": "error", "message": "실거래는 Trading Pro 또는 Ultimate 구독 후 사용할 수 있습니다."}
+        if not config.realAccepted:
+            return {"status": "error", "message": "실거래 위험 확인 체크가 필요합니다."}
+        if bot_state.investment_mode == "rotate_holdings" and not config.rotateExistingAccepted:
+            return {"status": "error", "message": "보유 코인 정리 후 재진입은 별도 위험 확인 체크가 필요합니다."}
+        if bot_state.trading_mode == "bithumb_real":
+            access_key = clean_bithumb_key(config.accessKey)
+            secret_key = clean_bithumb_key(config.secretKey)
+        else:
+            access_key = clean_api_key(config.accessKey)
+            secret_key = clean_api_key(config.secretKey)
+        if not access_key or not secret_key:
+            exchange_name = "빗썸" if bot_state.exchange == "bithumb" else "업비트"
+            return {"status": "error", "message": f"{exchange_name} Access Key와 Secret Key가 필요합니다."}
+        try:
+            if bot_state.exchange == "bithumb":
+                result = await asyncio.to_thread(check_bithumb_key, access_key, secret_key)
+                if result.get("status") != "success":
+                    log_trade(f"[Bithumb Auth Error] {result.get('message')}")
+                    return {"status": "error", "message": result.get("message") or "빗썸 키 인증 실패"}
+                bot_state.upbit = BithumbClient(access_key, secret_key)
+                bot_state.balance = float(result.get("cashBalance") or 0)
+                log_trade("[Real Mode] 빗썸 실거래 모드가 활성화되었습니다. 출금 권한 없는 API 키만 사용하세요.")
+            else:
+                upbit, real_krw, auth_error = check_upbit_key(access_key, secret_key)
+                if auth_error:
+                    log_trade(f"[Real Auth Error] {auth_error}")
+                    return {"status": "error", "message": auth_error}
+                bot_state.upbit = upbit
+                bot_state.balance = float(real_krw or 0)
+                log_trade("[Real Mode] 업비트 실거래 모드가 활성화되었습니다. 출금 권한 없는 API 키만 사용하세요.")
+            bot_state.is_real_key = True
+        except Exception as e:
+            was_bithumb = bot_state.exchange == "bithumb"
+            bot_state.trading_mode = "practice"
+            bot_state.exchange = "upbit"
+            bot_state.is_real_key = False
+            message = str(e) if was_bithumb else explain_upbit_auth_error(e)
+            log_trade(f"[Real Auth Error] {message} / raw={e}")
+            return {"status": "error", "message": message}
+    else:
+        bot_state.balance = max(bot_state.balance, 1000000.0)
+        log_trade("[Practice Mode] 전략 체험 모드로 시작합니다.")
+
+    bot_state.state = TradingState.IDLE
+    ENGINE_TASK = asyncio.create_task(scalping_loop())
+    return {"status": "success", "message": "Signal Guard Started", "tradingMode": bot_state.trading_mode}
+
+@router.post("/manual_trade")
+async def manual_trade(trade: ManualTrade, Authorization: str = Header(None), db: Session = Depends(get_db)):
+    require_real_status_permission(Authorization, db)
+    if bot_state.trading_mode in {"real", "bithumb_real"} or bot_state.is_real_key:
+        raise HTTPException(status_code=409, detail="실거래 상태는 체험용 수동 주문으로 변경할 수 없습니다.")
+    if ENGINE_TASK is not None and not ENGINE_TASK.done():
+        raise HTTPException(status_code=409, detail="엔진 실행 중에는 체험 수동 주문을 사용할 수 없습니다.")
+    if trade.type not in {"buy", "sell"} or not math.isfinite(trade.amount) or trade.amount <= 0:
+        raise HTTPException(status_code=400, detail="양수 주문 금액과 buy/sell 구분이 필요합니다.")
+    current_price = get_current_price(bot_state.active_ticker)
+    if current_price <= 0:
+        raise HTTPException(status_code=503, detail="현재가 조회 실패로 주문하지 않았습니다.")
+    if trade.type == "buy" and bot_state.balance >= trade.amount:
+        bot_state.held_btc += (trade.amount / current_price) * (1.0 - bot_state.fee_rate)
+        bot_state.avg_buy_price = current_price
+        bot_state.entry_cost_krw += trade.amount
+        bot_state.balance -= trade.amount
+        log_trade(f"[Manual Buy] {bot_state.active_ticker} {trade.amount:,.0f}원 진입")
+    elif trade.type == "sell" and bot_state.held_btc > 0:
+        sell_amount = (bot_state.held_btc * current_price) * (1.0 - bot_state.fee_rate)
+        bot_state.balance += sell_amount
+        bot_state.held_btc = 0
+        bot_state.avg_buy_price = 0
+        bot_state.entry_cost_krw = 0
+        log_trade(f"[Manual Sell] {bot_state.active_ticker} 전량 매도")
+    else:
+        log_trade("[Manual Trade] 주문 조건이 맞지 않습니다.")
+    return {"status": "success"}
+
+def require_real_status_permission(Authorization: str | None, db: Session):
+    if bot_state.trading_mode not in {"real", "bithumb_real"} and not bot_state.is_real_key:
+        return None
+    if not Authorization:
+        raise HTTPException(status_code=401, detail="실거래 상태 조회는 로그인이 필요합니다.")
+    user = get_current_user(Authorization.replace("Bearer ", ""), db)
+    if not user_can_real_trade(user):
+        raise HTTPException(status_code=403, detail="실거래 상태 조회는 Trading Pro 또는 Ultimate 권한이 필요합니다.")
+    if user.id != bot_state.owner_user_id:
+        raise HTTPException(status_code=403, detail="본인이 시작한 거래 엔진만 조회하거나 제어할 수 있습니다.")
+    return user
+
+@router.post("/stop")
+async def stop_bot(Authorization: str = Header(None), db: Session = Depends(get_db)):
+    require_real_status_permission(Authorization, db)
+    if bot_state.state in {TradingState.BUYING, TradingState.SELLING}:
+        raise HTTPException(status_code=409, detail="주문 처리 중입니다. 체결 확인 후 다시 정지하세요.")
+    bot_state.state = TradingState.STOPPED
+    bot_state.decision_note = "사용자가 엔진을 일시정지했습니다. 보유 코인은 매도하지 않고 유지합니다."
+    log_trade("[User Pause] 사용자 요청으로 엔진을 일시정지합니다. 보유 코인은 매도하지 않습니다.")
+    return {"status": "success", "message": "Bot Engine Paused. Holdings were not sold."}
+
+@router.post("/sell-and-stop")
+async def sell_and_stop_bot(Authorization: str = Header(None), db: Session = Depends(get_db)):
+    require_real_status_permission(Authorization, db)
+    if ENGINE_TASK is not None and not ENGINE_TASK.done():
+        raise HTTPException(status_code=409, detail="먼저 일시정지하고 엔진 처리가 끝난 뒤 매도 후 종료를 실행하세요.")
+    if bot_state.state in {TradingState.BUYING, TradingState.SELLING}:
+        raise HTTPException(status_code=409, detail="주문 처리 중입니다. 중복 주문을 차단했습니다.")
+    current_price = get_current_price(bot_state.active_ticker) or 0
+    sell_qty = float(bot_state.held_btc or 0)
+
+    if sell_qty <= 0:
+        bot_state.state = TradingState.STOPPED
+        bot_state.decision_note = "매도할 Zenthex 보유 수량이 없어 엔진만 종료했습니다."
+        log_trade("[User Sell Exit] 매도할 Zenthex 보유 수량이 없어 엔진만 종료합니다.")
+        return {"status": "success", "message": "매도할 Zenthex 보유 수량이 없어 엔진만 종료했습니다."}
+
+    bot_state.state = TradingState.SELLING
+    bot_state.decision_note = "사용자 요청으로 현재 Zenthex 보유 수량을 시장가 매도한 뒤 엔진을 종료합니다."
+    try:
+        if bot_state.trading_mode in ["real", "bithumb_real"]:
+            if not bot_state.upbit:
+                bot_state.state = TradingState.ERROR
+                exchange_name = "빗썸" if bot_state.trading_mode == "bithumb_real" else "업비트"
+                return {"status": "error", "message": f"실거래 연결 정보가 없어 시장가 매도를 실행할 수 없습니다. {exchange_name}에서 직접 보유 수량을 확인하세요."}
+        ok, realized_pct = await sell_current_position("사용자 매도 후 종료", "USER SELL EXIT", current_price)
+        if not ok:
+            bot_state.state = TradingState.ERROR
+            return {"status": "error", "message": "매도 주문에 실패했습니다. 거래소에서 보유 수량을 직접 확인하세요."}
+        bot_state.state = TradingState.STOPPED
+        return {"status": "success", "message": f"현재 Zenthex 보유 수량을 시장가 매도하고 엔진을 종료했습니다. 수수료 차감 실수익 {realized_pct:+.2f}%"}
+    except Exception as exc:
+        bot_state.state = TradingState.ERROR
+        log_trade(f"[User Sell Exit Error] {exc}")
+        return {"status": "error", "message": f"전량 매도 후 종료 중 오류가 발생했습니다: {exc}"}
+
+@router.get("/status")
+async def status(Authorization: str = Header(None), db: Session = Depends(get_db)):
+    require_real_status_permission(Authorization, db)
+    current_price = get_current_price(bot_state.active_ticker) or 80000000
+    coin_value = bot_state.held_btc * current_price if bot_state.held_btc > 0 else 0
+    est_balance = bot_state.balance + coin_value
+    current_yield = (net_yield(current_price) - 1.0) if bot_state.avg_buy_price else 0
+    target_price = price_for_net_yield(bot_state.target_yield) if bot_state.avg_buy_price else 0
+    stop_price = calculate_profit_protection_price() if bot_state.avg_buy_price else 0
+    protection_yield = calculate_profit_protection_yield()
+    initial_balance = bot_state.initial_daily_balance or bot_state.balance or 0
+    total_pnl = est_balance - initial_balance if initial_balance else 0
+    total_pnl_pct = (total_pnl / initial_balance) if initial_balance else 0
+    position_pnl = position_net_value(current_price) - bot_state.entry_cost_krw if bot_state.entry_cost_krw and coin_value else 0
+    position_pnl_pct = (position_pnl / bot_state.entry_cost_krw) if bot_state.entry_cost_krw else current_yield
+    positions = []
+    if bot_state.trading_mode == "real" and bot_state.upbit:
+        try:
+            summary, _ = await asyncio.to_thread(build_upbit_account_summary, bot_state.upbit)
+            if summary:
+                positions = summary["positions"]
+                for item in positions:
+                    if item["ticker"] == bot_state.active_ticker:
+                        item["targetPrice"] = target_price
+                        item["stopPrice"] = stop_price
+                        item["status"] = bot_state.state
+                bot_state.balance = summary["cashBalance"]
+                coin_value = summary["coinValue"]
+                est_balance = summary["estBalance"]
+                total_pnl = summary["totalPnl"]
+                total_pnl_pct = summary["totalPnlPct"]
+        except Exception:
+            pass
+    elif bot_state.trading_mode == "bithumb_real" and bot_state.upbit:
+        try:
+            balances = await asyncio.to_thread(bot_state.upbit.get_balances)
+            if isinstance(balances, list):
+                positions = []
+                bot_state.balance = 0.0
+                coin_value = 0.0
+                invested_value = 0.0
+                for row in balances:
+                    currency = row.get("currency")
+                    qty = float(row.get("balance") or 0) + float(row.get("locked") or 0)
+                    if currency == "KRW":
+                        bot_state.balance = float(row.get("balance") or 0)
+                        continue
+                    if not currency or qty <= 0:
+                        continue
+                    ticker = f"KRW-{currency}"
+                    price_now = get_current_price(ticker)
+                    avg_price = float(row.get("avg_buy_price") or 0)
+                    valuation = qty * price_now if price_now else 0
+                    entry_value = avg_price * qty if avg_price else 0
+                    pnl = valuation - entry_value if entry_value else 0
+                    pnl_pct = pnl / entry_value if entry_value else 0
+                    coin_value += valuation
+                    invested_value += entry_value
+                    positions.append({
+                        "ticker": ticker,
+                        "qty": qty,
+                        "avgBuyPrice": avg_price,
+                        "entryKrw": entry_value,
+                        "currentPrice": price_now,
+                        "valuation": valuation,
+                        "pnl": pnl,
+                        "pnlPct": pnl_pct,
+                        "targetPrice": target_price if ticker == bot_state.active_ticker else 0,
+                        "stopPrice": stop_price if ticker == bot_state.active_ticker else 0,
+                        "status": bot_state.state if ticker == bot_state.active_ticker else "BITHUMB HOLDING",
+                    })
+                est_balance = bot_state.balance + coin_value
+                total_pnl = coin_value - invested_value if invested_value else 0
+                total_pnl_pct = total_pnl / invested_value if invested_value else 0
+        except Exception:
+            pass
+    if not positions and (bot_state.held_btc > 0 or bot_state.avg_buy_price > 0):
+        positions.append({
+            "ticker": bot_state.active_ticker,
+            "qty": bot_state.held_btc,
+            "avgBuyPrice": bot_state.avg_buy_price,
+            "entryKrw": bot_state.entry_krw,
+            "currentPrice": current_price,
+            "valuation": coin_value,
+            "pnl": position_pnl,
+            "pnlPct": position_pnl_pct,
+            "targetPrice": target_price,
+            "stopPrice": stop_price,
+            "peakYield": bot_state.peak_yield,
+            "status": bot_state.state,
+        })
     return {
-        "kind": "premium",
-        "title": "프리미엄 공간",
-        "summary": "프롬프트를 기준으로 구성한 프리미엄 3D 공간 미리보기입니다.",
-        "rooms": ["메인 공간", "보조 공간", "동선"],
+        "isRunning": bot_state.state not in [TradingState.STOPPED, TradingState.ERROR],
+        "recoveryRequired": recovery_required(),
+        "liveTradingEnabled": os.getenv("ZENTHEX_ENABLE_LIVE_TRADING", "false").lower() == "true",
+        "state": bot_state.state,
+        "isRealKey": bot_state.is_real_key,
+        "tradingMode": bot_state.trading_mode,
+        "activeTicker": bot_state.active_ticker,
+        "tickerMode": bot_state.ticker_mode,
+        "selectedTicker": bot_state.selected_ticker,
+        "signalCandidates": bot_state.signal_candidates,
+        "currentBtcPrice": current_price,
+        "currentPrice": current_price,
+        "balance": bot_state.balance,
+        "estBalance": est_balance,
+        "cashBalance": bot_state.balance,
+        "coinValue": coin_value,
+        "initialBalance": initial_balance,
+        "totalPnl": total_pnl,
+        "totalPnlPct": total_pnl_pct,
+        "heldBtc": bot_state.held_btc,
+        "avgBuyPrice": bot_state.avg_buy_price,
+        "entryKrw": bot_state.entry_krw,
+        "positionPnl": position_pnl,
+        "positionPnlPct": position_pnl_pct,
+        "positions": positions,
+        "currentYield": current_yield,
+        "yieldBasis": "net_after_fees",
+        "feeRate": bot_state.fee_rate,
+        "entryCostKrw": bot_state.entry_cost_krw,
+        "targetYield": bot_state.target_yield,
+        "exitMode": bot_state.exit_mode,
+        "trailingStartYield": bot_state.trailing_start_yield,
+        "trailingDropPct": bot_state.trailing_drop_pct,
+        "peakYield": bot_state.peak_yield,
+        "investmentMode": bot_state.investment_mode,
+        "entryMode": bot_state.entry_mode,
+        "entrySlices": bot_state.entry_slices,
+        "entryCount": bot_state.entry_count,
+        "plannedTotalKrw": bot_state.planned_total_krw,
+        "addEntryDropPct": bot_state.add_entry_drop_pct,
+        "autoRestartAfterProfit": bot_state.auto_restart_after_profit,
+        "rotateExistingAccepted": bot_state.rotate_existing_accepted,
+        "targetPrice": target_price,
+        "stopLossYield": bot_state.stop_loss_yield,
+        "profitProtectionYield": protection_yield,
+        "profitProtectStartYield": bot_state.profit_protect_start_yield,
+        "breakevenProtectYield": bot_state.breakeven_protect_yield,
+        "stopPrice": stop_price,
+        "lastOrderUuid": bot_state.last_order_uuid,
+        "lastOrderSide": bot_state.last_order_side,
+        "lastOrderStatus": bot_state.last_order_status,
+        "decisionNote": bot_state.decision_note,
+        "marketGuardNote": bot_state.market_guard_note,
+        "cooldownCount": len(bot_state.cooldowns),
+        "entryRule": bot_state.entry_rule,
+        "exitRule": bot_state.exit_rule,
+        "riskRule": bot_state.risk_rule,
+        "currentScore": bot_state.current_score,
+        "pollIntervalSeconds": 2,
+        "logs": bot_state.logs[-20:],
     }
 
-def build_google_ai_studio_result(prompt: str, reference_image_path: str | None = None):
-    if not google_ai_studio_is_configured():
-        return {"status": "skipped", "message": "GEMINI_API_KEY가 없어 Google AI Studio/Gemini 3D 이미지를 건너뛰고 Studio 기본 미리보기를 사용합니다."}
-    return generate_preview_image(prompt, reference_image_path=reference_image_path)
-
-@router.post("/upload")
-async def upload_floorplan(
-    background_tasks: BackgroundTasks,
-    request: Request,
-    file: UploadFile = File(...),
-    Authorization: str = Header(None),
-    db: Session = Depends(get_db),
-):
-    user = get_optional_user(Authorization, db)
-    charge_studio_trial_or_quota(user, db, request)
-
-    file_ext = os.path.splitext(file.filename)[1].lower()
-    if file_ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(status_code=400, detail=f"지원하지 않는 파일 형식입니다: {file_ext}. JPG, PNG만 가능합니다.")
-
-    safe_name = f"{int(time.time())}_{uuid.uuid4().hex}{file_ext}"
-    file_path = os.path.join("uploads", safe_name)
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    if os.path.getsize(file_path) > MAX_FILE_SIZE:
-        os.remove(file_path)
-        raise HTTPException(status_code=400, detail="파일이 너무 큽니다. 최대 10MB까지 가능합니다.")
-
-    model_filename = f"{int(time.time())}.glb"
-    model_path = f"static/models/{model_filename}"
-    bg_filename = model_filename.replace(".glb", "_bg.png")
-    bg_path = f"static/models/{bg_filename}"
-    if STUDIO_WORKER_READY:
-        background_tasks.add_task(generate_3d_task, file_path, model_path, bg_path, "premium", 25.0)
-
-    nano = build_google_ai_studio_result(
-        f"업로드한 도면을 기준으로 프리미엄 3D 건축 평면 이미지로 변환해줘. 파일명: {file.filename or 'uploaded floor plan'}",
-        reference_image_path=file_path,
-    )
-    can_export = user_can_export(user)
-    return {
-        "status": "success",
-        "message": "Google AI Studio/Gemini 3D 이미지를 준비했습니다." if nano.get("status") == "success" else ("3D 미리보기를 준비했습니다." if not STUDIO_WORKER_READY else "3D 생성 작업을 시작했습니다."),
-        "preview": describe_prompt_preview(file.filename or "업로드 도면", "upload"),
-        "image_url": nano.get("image_url"),
-        "image_provider": nano.get("provider"),
-        "provider_message": nano.get("message"),
-        "preview_only": not can_export,
-        "export_locked": not can_export,
-        "model_url": f"/static/models/{model_filename}" if can_export and STUDIO_WORKER_READY else None,
-        "bg_url": f"/static/models/{bg_filename}" if can_export and STUDIO_WORKER_READY else None,
-        "worker_ready": STUDIO_WORKER_READY,
-    }
-
-@router.post("/generate")
-async def generate_floorplan(
-    background_tasks: BackgroundTasks,
-    request: Request,
-    prompt: str = Form(...),
-    Authorization: str = Header(None),
-    db: Session = Depends(get_db),
-):
-    user = get_optional_user(Authorization, db)
-    charge_studio_trial_or_quota(user, db, request)
-
-    style = "gallery" if any(word in prompt.lower() for word in ["갤러리", "통유리", "카페"]) else "premium"
-    wall_height = 24.0 if "아파트" in prompt.lower() else 30.0
-    img = prompt_to_floorplan(prompt)
-
-    filename = f"gen_prompt_{int(time.time())}"
-    img_path = f"uploads/{filename}.jpg"
-    if img is not None:
-        cv2.imwrite(img_path, img)
-
-    model_path = f"static/models/{filename}.glb"
-    bg_path = f"static/models/{filename}_bg.png"
-    if STUDIO_WORKER_READY and img is not None:
-        background_tasks.add_task(generate_3d_task, img_path, model_path, bg_path, style, wall_height)
-
-    nano = build_google_ai_studio_result(prompt)
-    can_export = user_can_export(user)
-    return {
-        "status": "success",
-        "message": "Google AI Studio 이미지와 3D 미리보기를 준비했습니다." if nano.get("status") == "success" else ("프롬프트 기반 3D 미리보기를 준비했습니다." if not STUDIO_WORKER_READY else "프롬프트 기반 3D 생성 작업을 시작했습니다."),
-        "preview": describe_prompt_preview(prompt),
-        "image_url": nano.get("image_url"),
-        "image_provider": nano.get("provider"),
-        "provider_message": nano.get("message"),
-        "preview_only": not can_export,
-        "export_locked": not can_export,
-        "model_url": f"/static/models/{filename}.glb" if can_export and STUDIO_WORKER_READY else None,
-        "bg_url": f"/static/models/{filename}_bg.png" if can_export and STUDIO_WORKER_READY else None,
-        "worker_ready": STUDIO_WORKER_READY,
-    }
-
-
+@router.get("/performance")
+async def performance(mode: str = "all", Authorization: str = Header(None), db: Session = Depends(get_db)):
+    """전략 성적표: 수수료 차감 후 승률, 기대값, 손익비, 최대 낙폭."""
+    user_id = None
+    if Authorization and Authorization.replace("Bearer ", "").strip():
+        try:
+            user_id = get_current_user(Authorization.replace("Bearer ", ""), db).id
+        except Exception:
+            user_id = None
+    query = db.query(TradeRecord)
+    query = query.filter(TradeRecord.user_id == user_id) if user_id is not None else query.filter(TradeRecord.user_id.is_(None))
+    if mode == "practice":
+        query = query.filter(TradeRecord.mode == "practice")
+    elif mode == "real":
+        query = query.filter(TradeRecord.mode.in_(["real", "bithumb_real"]))
+    rows = query.order_by(TradeRecord.id.asc()).limit(5000).all()
+    trades = [{"pnl_krw": r.pnl_krw, "pnl_pct": r.pnl_pct} for r in rows]
+    result = compute_performance(trades)
+    result["mode"] = mode
+    result["feeRate"] = bot_state.fee_rate
+    result["recentTrades"] = [
+        {
+            "ticker": r.ticker,
+            "mode": r.mode,
+            "pnlKrw": r.pnl_krw,
+            "pnlPct": r.pnl_pct,
+            "reason": r.reason,
+            "time": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in rows[-10:][::-1]
+    ]
+    return result

@@ -14,6 +14,7 @@ from auth.router import router as auth_router
 from studio.router import router as studio_router
 from trading.router import router as trading_router
 from stock.router import router as stock_router
+from research.router import router as research_router
 from mobile.push import router as mobile_router
 from billing.router import router as billing_router
 from admin.router import router as admin_router
@@ -37,6 +38,7 @@ app.include_router(auth_router)
 app.include_router(studio_router)
 app.include_router(trading_router)
 app.include_router(stock_router)
+app.include_router(research_router)
 app.include_router(mobile_router)
 app.include_router(billing_router)
 app.include_router(admin_router)
@@ -71,6 +73,11 @@ async def serve_login():
 @app.get("/finance.html", response_class=HTMLResponse)
 async def serve_finance():
     with open("static/finance.html", "r", encoding="utf-8") as f:
+        return f.read()
+
+@app.get("/research.html", response_class=HTMLResponse)
+async def serve_research():
+    with open("static/research.html", "r", encoding="utf-8") as f:
         return f.read()
 
 @app.get("/stock.html", response_class=HTMLResponse)
