@@ -184,9 +184,16 @@ def promote(candidate, revision):
             raise RuntimeError('정지 직전 주문 복구 기록 발생: 배포 중단')
         backup = private_backup(config)
         RELEASES.mkdir(parents=True, exist_ok=True)
+        # The service has UMask=0027: a root-owned 0750 parent otherwise blocks
+        # the zenthex user from both the new release and the rollback baseline.
+        os.chown(RELEASES, 0, gid)
+        os.chmod(RELEASES, 0o750)
         final = RELEASES/revision
         if final.exists():
-            raise RuntimeError('이미 존재하는 릴리스 디렉터리')
+            if APP.resolve() == final.resolve():
+                raise RuntimeError('실행 경로와 같은 릴리스는 덮어쓰지 않습니다.')
+            # Preserve a failed inactive build; allow an explicit retry of that commit.
+            final.rename(RELEASES/('failed-'+revision+'-'+str(time.time_ns())))
         # venv Python links are copied as links; chown never follows them.
         shutil.copytree(candidate, final, symlinks=True)
         for item in [final, *final.rglob('*')]:

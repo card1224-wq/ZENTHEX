@@ -78,3 +78,19 @@ class PromoteTests(unittest.TestCase):
                 self.assertEqual((app/'old.txt').read_text(),'old')
                 self.assertEqual((root/'shared/uploads/keep.png').read_bytes(),b'keep')
                 self.assertEqual(command.call_args.args[0],['systemctl','restart','zenthex'])
+                agent.os.chown.assert_any_call(root/'releases',0,1000)
+                self.assertEqual((root/'releases').stat().st_mode & 0o777,0o750)
+
+    def test_retry_preserves_inactive_failed_release_and_installs_new_copy(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp);app=root/'app';app.mkdir();(app/'old.txt').write_text('old')
+            candidate=root/'candidate';candidate.mkdir();(candidate/'new.txt').write_text('new')
+            releases=root/'releases';releases.mkdir()
+            revision='a'*40;failed=releases/revision;failed.mkdir();(failed/'failure.txt').write_text('preserve')
+            guard=root/'guard'
+            with patch.object(agent,'APP',app),patch.object(agent,'RELEASES',releases),patch.object(agent,'SHARED_STUDIO',root/'shared'),patch.object(agent,'STATE',root/'state'),patch.object(agent,'idle_check',return_value=({},guard)),patch.object(agent,'private_backup',return_value=root/'backup'),patch.object(agent,'command'),patch.object(agent,'json_get',side_effect=[{'status':'ok','release':revision},{'trading':{'liveEnabled':False}}]),patch.object(agent.os,'chown'),patch.object(agent.pwd,'getpwnam',return_value=Mock(pw_uid=1000)),patch.object(agent.grp,'getgrnam',return_value=Mock(gr_gid=1000)):
+                agent.promote(candidate,revision)
+            self.assertEqual((app/'new.txt').read_text(),'new')
+            quarantined=list(releases.glob('failed-'+revision+'-*'))
+            self.assertEqual(len(quarantined),1)
+            self.assertEqual((quarantined[0]/'failure.txt').read_text(),'preserve')
