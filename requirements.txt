@@ -1,3 +1,4 @@
+-c requirements-runtime.lock
 fastapi
 uvicorn
 sqlalchemy
@@ -16,3 +17,5 @@ slowapi
 python-multipart
 aiofiles
 trimesh
+
+Pillow

@@ -1,5 +1,5 @@
 import os
-import time
+import uuid
 from pathlib import Path
 import base64
 
@@ -81,7 +81,7 @@ def generate_preview_image(prompt: str, output_dir: str = "static/models", refer
     except Exception as exc:
         return {
             "status": "unavailable",
-            "message": f"google-genai package is unavailable, so Google AI Studio/Gemini could not be called: {exc}",
+            "message": "이미지 생성 모듈이 설치되지 않았습니다. 서버 구성을 확인하세요.",
         }
 
     model = (
@@ -90,12 +90,13 @@ def generate_preview_image(prompt: str, output_dir: str = "static/models", refer
         or DEFAULT_MODEL
     ).strip()
     Path(output_dir).mkdir(parents=True, exist_ok=True)
-    filename = f"google_ai_studio_{int(time.time())}.png"
+    filename = f"google_ai_studio_{uuid.uuid4().hex}.png"
     output_path = Path(output_dir) / filename
     studio_prompt = _build_studio_prompt(prompt, bool(reference_image_path))
 
     try:
-        client = genai.Client(api_key=api_key)
+        from google.genai import types
+        client = genai.Client(api_key=api_key, http_options=types.HttpOptions(timeout=90000))
         contents = [studio_prompt]
         if reference_image_path:
             try:
@@ -108,33 +109,11 @@ def generate_preview_image(prompt: str, output_dir: str = "static/models", refer
             except Exception as exc:
                 return {
                     "status": "error",
-                    "message": f"Google AI Studio/Gemini reference image preparation failed: {exc}",
+                    "message": "참고 이미지를 읽지 못했습니다. JPG/PNG 파일을 확인하세요.",
                 }
 
-        try:
-            interaction_input = [{"type": "text", "text": studio_prompt}]
-            if reference_image_path:
-                path = Path(reference_image_path)
-                suffix = path.suffix.lower()
-                mime_type = "image/png" if suffix == ".png" else "image/jpeg"
-                interaction_input.append({
-                    "type": "image",
-                    "mime_type": mime_type,
-                    "data": base64.b64encode(path.read_bytes()).decode("utf-8"),
-                })
-            interaction = client.interactions.create(model=model, input=interaction_input)
-            if _save_output_image(getattr(interaction, "output_image", None), output_path):
-                return {
-                    "status": "success",
-                    "provider": "google_ai_studio",
-                    "model": model,
-                    "image_url": f"/static/models/{filename}",
-                    "message": "Google AI Studio/Nano Banana architectural image generated.",
-                }
-        except Exception:
-            pass
-
-        response = client.models.generate_content(model=model, contents=contents)
+        response = client.models.generate_content(model=model, contents=contents,
+            config=types.GenerateContentConfig(response_modalities=["TEXT", "IMAGE"]))
         for part in _iter_response_parts(response):
             if _save_inline_image(part, output_path):
                 return {
@@ -149,4 +128,4 @@ def generate_preview_image(prompt: str, output_dir: str = "static/models", refer
             "message": "Google AI Studio/Gemini returned no image data. Check API key, model name, and image-generation access.",
         }
     except Exception as exc:
-        return {"status": "error", "message": f"Google AI Studio/Gemini call failed: {exc}"}
+        return {"status": "error", "message": "AI 이미지 생성에 실패했습니다. 서버의 모델 설정·API 권한·결제 한도·통신 상태를 확인하세요. 사용량은 차감하지 않았습니다."}

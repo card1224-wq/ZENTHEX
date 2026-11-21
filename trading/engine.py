@@ -1,4 +1,5 @@
-﻿import os
+import os
+import math
 import time
 import asyncio
 from datetime import datetime, timezone, timedelta
@@ -8,6 +9,7 @@ from admin.router import admin_state
 from trading.bithumb_client import get_bithumb_current_price
 from database.session import SessionLocal
 from database.models import TradeRecord
+from trading.orders import save_guard, clear_guard, wait_for_fill
 
 # 거래소 수수료(한쪽 기준). 업비트 KRW 마켓 기본 0.05%. 빗썸은 계정/쿠폰에 따라 다르므로 실제 수수료를 확인해 환경변수로 맞추세요.
 DEFAULT_FEE_RATES = {"upbit": 0.0005, "bithumb": 0.0005}
@@ -409,16 +411,15 @@ def scan_upbit_candidates(limit: int = 5):
             log_trade("[Signal Guard] 상승 확인 조건을 통과한 코인이 없습니다. 떨어지는 코인은 사지 않기 위해 완화 진입 없이 대기합니다.")
         return candidates[:limit]
     except Exception as e:
-        log_trade(f"[Signal Guard] 전체 코인 스캔 실패, BTC 기준으로 전환합니다: {e}")
-        price = get_current_price("KRW-BTC") or 80000000
-        return [{"ticker": "KRW-BTC", "momentum": 0, "price": price, "score": 0}]
+        log_trade(f"[Signal Guard] 전체 코인 스캔 실패. 신규 진입 없이 대기합니다: {e}")
+        return []
 
 async def refresh_real_balances():
     if not bot_state.upbit:
         return
     try:
         bot_state.balance = float(bot_state.upbit.get_balance("KRW") or 0)
-        bot_state.held_btc = float(bot_state.upbit.get_balance(ticker_currency(bot_state.active_ticker)) or 0)
+        # held_btc is engine-owned quantity, never the whole exchange account balance.
     except Exception as e:
         log_trade(f"[Exchange] 잔고 조회 실패: {e}")
 
@@ -567,19 +568,20 @@ async def sell_current_position(reason: str, tag: str = "SELL", price_hint: floa
             log_trade(f"[{tag} Error] 매도 가능한 보유 수량이 없습니다.")
             bot_state.state = TradingState.ERROR
             return False, (net_yield(price) - 1.0) * 100
-        krw_before = bot_state.balance
+        save_guard("sell_submitting", ticker=ticker, owner_user_id=bot_state.owner_user_id, quantity=sell_qty, entry_cost=entry_cost)
         result = await asyncio.to_thread(bot_state.upbit.sell_market_order, ticker, sell_qty)
-        if not result or (isinstance(result, dict) and result.get("error")):
-            log_trade(f"[{tag} Error] 매도 주문 실패: {result}")
-            bot_state.state = TradingState.ERROR
-            return False, (net_yield(price) - 1.0) * 100
+        if not isinstance(result, dict) or result.get("error") or not result.get("uuid"):
+            raise RuntimeError("매도 접수 결과를 확정할 수 없습니다. 거래소 주문 내역을 확인하세요.")
         remember_order(result, tag)
-        await asyncio.sleep(1)
+        save_guard("sell_pending", ticker=ticker, owner_user_id=bot_state.owner_user_id, quantity=sell_qty, order_uuid=result["uuid"], entry_cost=entry_cost)
+        filled = await wait_for_fill(bot_state.upbit, result["uuid"])
+        bot_state.held_btc = max(sell_qty - filled["quantity"], 0)
+        if not math.isclose(filled["quantity"], sell_qty, rel_tol=1e-7, abs_tol=1e-12):
+            save_guard("sell_partial", ticker=ticker, owner_user_id=bot_state.owner_user_id, remaining_quantity=bot_state.held_btc, order_uuid=result["uuid"])
+            raise RuntimeError("전량 매도 체결이 확인되지 않았습니다. 잔여 수량을 수동으로 대조하세요.")
+        exit_value = filled["funds"] - filled["fee"]
         await refresh_real_balances()
-        received = bot_state.balance - krw_before
-        # 체결 직후 잔고 반영이 늦으면 추정값(현재가 x 수량 - 수수료)을 사용합니다.
-        exit_value = received if estimated_exit_value * 0.9 <= received <= estimated_exit_value * 1.1 else estimated_exit_value
-        bot_state.held_btc = 0
+        bot_state.last_order_status = filled["state"]
         mode_note = "실매도 완료"
     else:
         exit_value = estimated_exit_value
@@ -590,9 +592,13 @@ async def sell_current_position(reason: str, tag: str = "SELL", price_hint: floa
     record_closed_trade(ticker, entry_cost, exit_value, reason, peak)
     log_trade(f"[{tag}] {ticker} {reason}: 수수료 차감 실수익 {exit_pct:+.2f}% ({exit_value - entry_cost:+,.0f}원). {mode_note}.")
     reset_position_tracking()
+    if is_live_trading_mode():
+        clear_guard()
     return True, exit_pct
 
 async def execute_entry_order(invest_krw: float, price: float, reason: str) -> bool:
+    if admin_state.global_kill_switch or bot_state.state == TradingState.STOPPED:
+        return False
     if invest_krw < 5000:
         log_trade("[Risk Manager] 다음 진입 금액이 5,000원 미만이라 주문하지 않습니다.")
         return False
@@ -600,27 +606,19 @@ async def execute_entry_order(invest_krw: float, price: float, reason: str) -> b
     previous_entry_krw = bot_state.entry_krw
     previous_qty = bot_state.held_btc
     if is_live_trading_mode():
-        krw_before = bot_state.balance
-        before_qty = get_real_balance(ticker_currency(bot_state.active_ticker))
-        bot_state.decision_note = f"{bot_state.active_ticker} {reason} 실매수 요청 중입니다. 주문 결과를 확인합니다."
-        log_trade(f"[Real Buy Request] {bot_state.active_ticker} {reason}: {invest_krw:,.0f}원")
+        save_guard("buy_submitting", ticker=bot_state.active_ticker, owner_user_id=bot_state.owner_user_id, amount=invest_krw, prior_quantity=previous_qty)
         result = await asyncio.to_thread(bot_state.upbit.buy_market_order, bot_state.active_ticker, invest_krw)
-        if not result or (isinstance(result, dict) and result.get("error")):
-            log_trade(f"[Real Buy Error] 매수 주문 실패: {result}")
-            return False
+        if not isinstance(result, dict) or result.get("error") or not result.get("uuid"):
+            raise RuntimeError("매수 접수 결과를 확정할 수 없습니다. 자동 재주문하지 않습니다.")
         remember_order(result, "BUY" if bot_state.entry_count == 0 else "ADD BUY")
-        await asyncio.sleep(1)
+        save_guard("buy_pending", ticker=bot_state.active_ticker, owner_user_id=bot_state.owner_user_id, order_uuid=result["uuid"], prior_quantity=previous_qty)
+        filled = await wait_for_fill(bot_state.upbit, result["uuid"])
+        bot_state.held_btc = previous_qty + filled["quantity"]
+        bot_state.entry_cost_krw += filled["funds"] + filled["fee"]
+        invest_krw = filled["funds"]
+        save_guard("holding", ticker=bot_state.active_ticker, owner_user_id=bot_state.owner_user_id, quantity=bot_state.held_btc, entry_cost=bot_state.entry_cost_krw, order_uuid=result["uuid"])
+        bot_state.last_order_status = filled["state"]
         await refresh_real_balances()
-        after_qty = get_real_balance(ticker_currency(bot_state.active_ticker))
-        added_qty = max(after_qty - before_qty, 0)
-        if added_qty <= 0:
-            log_trade("[Real Buy Error] 매수 요청 후 체결 수량을 확인하지 못했습니다. 업비트 주문 내역을 확인하세요.")
-            return False
-        bot_state.held_btc = previous_qty + added_qty
-        # 매수 수수료는 주문금액과 별도로 빠지므로 실제 빠져나간 원화를 원가로 잡습니다.
-        expected_cost = invest_krw * (1.0 + bot_state.fee_rate)
-        spent = krw_before - bot_state.balance
-        bot_state.entry_cost_krw += spent if expected_cost * 0.97 <= spent <= expected_cost * 1.03 else expected_cost
     else:
         buy_qty = (invest_krw / price) * (1.0 - bot_state.fee_rate)
         bot_state.held_btc += buy_qty
@@ -652,7 +650,7 @@ async def scalping_loop():
 
     while bot_state.state not in [TradingState.ERROR, TradingState.STOPPED]:
         try:
-            if admin_state.global_kill_switch:
+            if admin_state.global_kill_switch and bot_state.held_btc <= 0:
                 bot_state.decision_note = "대표 긴급 정지가 켜져 있어 신규 매매를 차단하고 있습니다."
                 log_trade("[CEO Kill Switch] 전체 정지 활성화. 신규 매매를 차단합니다.")
                 await asyncio.sleep(5)
@@ -682,6 +680,8 @@ async def scalping_loop():
 
             if bot_state.state == TradingState.IDLE and bot_state.avg_buy_price == 0:
                 market_ok, market_note = await asyncio.to_thread(market_regime_allows_entry)
+                if bot_state.state == TradingState.STOPPED:
+                    break
                 if not market_ok:
                     bot_state.decision_note = f"{market_note}. 무리한 매수 없이 20초 후 다시 확인합니다."
                     log_trade(f"[Market Guard] {market_note}")
@@ -700,6 +700,8 @@ async def scalping_loop():
                     bot_state.decision_note = "업비트 KRW 전체 마켓 스캔 중입니다. 24h/6h 상승, 1m/3m/5m 힘, 거래량 급증을 비교합니다."
                     log_trade("[Signal Guard] 업비트 KRW 전체 마켓 스캔 중입니다. 실거래 주문 전 후보를 검증합니다.")
                     candidates = await asyncio.to_thread(scan_upbit_candidates)
+                    if bot_state.state == TradingState.STOPPED:
+                        break
                     bot_state.signal_candidates = candidates
                     if not candidates:
                         bot_state.decision_note = "조건을 통과한 코인이 없어 대기합니다. 무리한 진입 없이 10초 후 다시 스캔합니다."
@@ -724,13 +726,19 @@ async def scalping_loop():
                         f"24h +{chosen['momentum'] * 100:.2f}%"
                     )
 
+                if bot_state.state == TradingState.STOPPED:
+                    break
                 confirm_ok, confirm_note = await confirm_entry_signal(bot_state.active_ticker, price)
+                if bot_state.state == TradingState.STOPPED:
+                    break
                 if not confirm_ok:
                     bot_state.decision_note = f"{bot_state.active_ticker} 진입 보류: {confirm_note}"
                     log_trade(f"[Entry Guard] {bot_state.active_ticker} 진입 보류: {confirm_note}")
                     bot_state.state = TradingState.IDLE
                     await asyncio.sleep(5)
                     continue
+                if bot_state.state == TradingState.STOPPED:
+                    break
                 log_trade(f"[Entry Guard] {bot_state.active_ticker} 진입 전 확인 통과: {confirm_note}")
 
                 bot_state.state = TradingState.BUYING
@@ -797,6 +805,8 @@ async def scalping_loop():
                     add_krw = calculate_next_entry_krw()
                     if add_krw >= 5000:
                         confirm_ok, confirm_note = await confirm_entry_signal(bot_state.active_ticker, price)
+                        if bot_state.state == TradingState.STOPPED:
+                            break
                         if not confirm_ok:
                             bot_state.decision_note = f"추가 진입 보류: {confirm_note}"
                             log_trade(f"[Pyramid Guard] 추가 진입 보류: {confirm_note}")
@@ -858,8 +868,8 @@ async def scalping_loop():
                     if not ok:
                         break
                     profit_pct = realized_pct
-                    bot_state.consecutive_loss_count = 0
-                    if bot_state.auto_restart_after_profit:
+                    bot_state.consecutive_loss_count = bot_state.consecutive_loss_count + 1 if realized_pct < 0 else 0
+                    if bot_state.auto_restart_after_profit and not admin_state.global_kill_switch:
                         bot_state.state = TradingState.IDLE
                         bot_state.decision_note = f"익절 완료 후 자동 재탐색 모드입니다. 다음 상승 후보를 다시 찾습니다. 직전 수익률 {profit_pct:+.2f}%"
                         log_trade("[Auto Restart] 익절 후 자동 재탐색을 시작합니다. 조건을 통과한 다음 상승 후보를 기다립니다.")

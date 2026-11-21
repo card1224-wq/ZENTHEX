@@ -1,4 +1,4 @@
-﻿from fastapi import FastAPI, File, UploadFile, Form, Request
+from fastapi import FastAPI, File, UploadFile, Form, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -8,6 +8,7 @@ import time
 import uvicorn
 import os
 import shutil
+from pathlib import Path
 from database.session import engine, Base
 from database.migrations import ensure_sqlite_schema
 from auth.router import router as auth_router
@@ -19,6 +20,7 @@ from mobile.push import router as mobile_router
 from billing.router import router as billing_router
 from admin.router import router as admin_router
 from support.router import router as support_router
+from modules_status import router as modules_status_router
 
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -43,6 +45,7 @@ app.include_router(mobile_router)
 app.include_router(billing_router)
 app.include_router(admin_router)
 app.include_router(support_router)
+app.include_router(modules_status_router)
 
 # Mount static folders
 os.makedirs("uploads", exist_ok=True)
@@ -56,6 +59,7 @@ async def health_check():
         "service": "zenthex-saas",
         "owner": "7foliath@naver.com",
         "modules": ["studio", "trading", "stock"],
+        "release": Path('RELEASE').read_text().strip() if Path('RELEASE').is_file() else "manual",
     }
 
 # Serve frontend pages

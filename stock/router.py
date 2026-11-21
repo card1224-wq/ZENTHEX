@@ -1,4 +1,9 @@
-from fastapi import APIRouter
+import asyncio
+from fastapi import APIRouter, Depends, Header, HTTPException
+from sqlalchemy.orm import Session
+from auth.router import require_current_user
+from database.session import get_db
+from stock import toss_client
 
 router = APIRouter(prefix="/api/stock", tags=["stock"])
 
@@ -6,20 +11,27 @@ router = APIRouter(prefix="/api/stock", tags=["stock"])
 @router.get("/status")
 async def stock_status():
     return {
-        "status": "planned",
+        "status": "research",
         "service": "Zenthex Stock",
-        "phase": "blueprint",
-        "message": "Zenthex Stock is designed as a separate long-term stock strategy service line. Live brokerage orders are not enabled in this build.",
+        "phase": "historical-research-and-owner-readonly",
+        "message": "과거 데이터 전략 연구와 대표 계좌 조회 단계입니다. 주식 자동주문과 실시간 모의투자 엔진은 아직 구현되지 않았습니다.",
+        "toss": {"configured": toss_client.configured(), "ordersEnabled": False},
+        "researchUrl": "/research.html",
         "supported_brokers_plan": [
+            {
+                "name": "Toss Securities",
+                "priority": 0,
+                "reason": "Owner-only accounts and holdings adapter added; real credentials have not been tested. No order adapter.",
+            },
             {
                 "name": "Korea Investment Securities",
                 "priority": 1,
-                "reason": "REST and WebSocket Open API are suitable for Korean and overseas stock SaaS execution.",
+                "reason": "REST and WebSocket APIs exist. Customer-facing execution requires a separate scope and terms review.",
             },
             {
                 "name": "Kiwoom Securities",
                 "priority": 2,
-                "reason": "Popular domestic stock automation API, but Windows/PC dependency must be reviewed before SaaS use.",
+                "reason": "A Linux-compatible REST API exists. No Kiwoom connector is implemented in this build.",
             },
         ],
         "strategy_lines": [
@@ -55,10 +67,25 @@ async def stock_launch_check():
     return {
         "status": "review_required",
         "checks": [
-            {"item": "Broker API selected", "ready": False, "note": "KIS is the recommended first target."},
-            {"item": "Paper trading simulator", "ready": False, "note": "Must be built before live stock orders."},
+            {"item": "Broker API selected", "ready": False, "note": "Toss owner read-only adapter exists; no live order broker is enabled."},
+            {"item": "Paper trading simulator", "ready": False, "note": "Historical CSV research is available; forward paper trading is not yet implemented."},
             {"item": "Market-hours scheduler", "ready": False, "note": "Domestic stocks require session-aware execution."},
             {"item": "Risk disclosure", "ready": False, "note": "Stock-specific risk wording must be added."},
             {"item": "Subscription gate", "ready": False, "note": "Stock Pro or Ultimate permission should unlock this line."},
         ],
     }
+
+
+@router.get('/toss/account-summary')
+async def toss_account_summary(Authorization: str = Header(None), db: Session = Depends(get_db)):
+    user = require_current_user(Authorization, db)
+    if user.role != 'owner':
+        raise HTTPException(403, '대표 본인의 서버 설정 계좌만 조회할 수 있습니다.')
+    if not toss_client.configured():
+        raise HTTPException(503, '서버에 토스증권 API 설정이 없습니다.')
+    try:
+        return await asyncio.to_thread(toss_client.account_summary)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
+    except Exception:
+        raise HTTPException(502, '토스 조회 실패. 허용 IP·키·권한·선택 계좌를 확인하세요. 비밀키를 화면이나 GitHub에 올리지 마세요.')

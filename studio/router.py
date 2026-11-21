@@ -1,4 +1,6 @@
-﻿import os
+import os
+import asyncio
+from pathlib import Path
 import shutil
 import time
 import uuid
@@ -57,7 +59,7 @@ def get_client_ip(request: Request) -> str:
         return request.client.host
     return "unknown"
 
-def charge_studio_trial_or_quota(user, db: Session, request: Request):
+def charge_studio_trial_or_quota(user, db: Session, request: Request, *, commit=True):
     if not user or not user_has_studio_access(user):
         today = time.strftime("%Y-%m-%d")
         client_ip = get_client_ip(request)
@@ -66,15 +68,17 @@ def charge_studio_trial_or_quota(user, db: Session, request: Request):
                 status_code=403,
                 detail="오늘의 무료 체험을 이미 사용했습니다. 내일 다시 체험하거나 Studio Pro 또는 Ultimate 구독 후 계속 사용할 수 있습니다.",
             )
-        TRIAL_USAGE_BY_IP[client_ip] = today
+        if commit:
+            TRIAL_USAGE_BY_IP[client_ip] = today
         return
 
     if user.role == "owner":
         return
     if user.studio_generations_left <= 0:
         raise HTTPException(status_code=403, detail="무료 사용량을 모두 사용했습니다. Studio Pro 또는 Ultimate 구독이 필요합니다.")
-    user.studio_generations_left -= 1
-    db.commit()
+    if commit:
+        user.studio_generations_left -= 1
+        db.commit()
 
 def user_has_studio_access(user) -> bool:
     if not user:
@@ -151,95 +155,82 @@ def build_google_ai_studio_result(prompt: str, reference_image_path: str | None 
         return {"status": "skipped", "message": "GEMINI_API_KEY가 없어 Google AI Studio/Gemini 3D 이미지를 건너뛰고 Studio 기본 미리보기를 사용합니다."}
     return generate_preview_image(prompt, reference_image_path=reference_image_path)
 
-@router.post("/upload")
-async def upload_floorplan(
-    background_tasks: BackgroundTasks,
-    request: Request,
-    file: UploadFile = File(...),
-    Authorization: str = Header(None),
-    db: Session = Depends(get_db),
-):
-    user = get_optional_user(Authorization, db)
-    charge_studio_trial_or_quota(user, db, request)
+# One expensive request per worker; do not block the trading event loop.
+GENERATION_LOCK = asyncio.Lock()
 
-    file_ext = os.path.splitext(file.filename)[1].lower()
-    if file_ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(status_code=400, detail=f"지원하지 않는 파일 형식입니다: {file_ext}. JPG, PNG만 가능합니다.")
 
-    safe_name = f"{int(time.time())}_{uuid.uuid4().hex}{file_ext}"
-    file_path = os.path.join("uploads", safe_name)
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    if os.path.getsize(file_path) > MAX_FILE_SIZE:
-        os.remove(file_path)
-        raise HTTPException(status_code=400, detail="파일이 너무 큽니다. 최대 10MB까지 가능합니다.")
-
-    model_filename = f"{int(time.time())}.glb"
-    model_path = f"static/models/{model_filename}"
-    bg_filename = model_filename.replace(".glb", "_bg.png")
-    bg_path = f"static/models/{bg_filename}"
-    if STUDIO_WORKER_READY:
-        background_tasks.add_task(generate_3d_task, file_path, model_path, bg_path, "premium", 25.0)
-
-    nano = build_google_ai_studio_result(
-        f"업로드한 도면을 기준으로 프리미엄 3D 건축 평면 이미지로 변환해줘. 파일명: {file.filename or 'uploaded floor plan'}",
-        reference_image_path=file_path,
-    )
+async def create_image_result(prompt, user, db, request, reference=None):
+    if not google_ai_studio_is_configured():
+        raise HTTPException(503, "AI 이미지 생성 연결이 아직 설정되지 않았습니다. 샘플 보기는 생성 결과가 아닙니다.")
+    if GENERATION_LOCK.locked():
+        raise HTTPException(429, "다른 이미지 생성 작업을 처리 중입니다. 완료 후 다시 요청하세요.")
+    async with GENERATION_LOCK:
+        charge_studio_trial_or_quota(user, db, request, commit=False)
+        result = await asyncio.to_thread(build_google_ai_studio_result, prompt, reference)
+        image_url = result.get("image_url") or ""
+        # Never advertise an absent file or a fabricated floor plan as a generated result.
+        image_path = Path(image_url.lstrip("/"))
+        if (result.get("status") != "success" or not image_url.startswith("/static/models/")
+                or not image_path.is_file() or image_path.stat().st_size == 0):
+            raise HTTPException(502, result.get("message") or "이미지 생성에 실패했습니다. 사용량은 차감하지 않았습니다.")
+        try:
+            from PIL import Image
+            with Image.open(image_path) as image:
+                if image.format not in {"PNG", "JPEG"}:
+                    raise ValueError("unsupported image")
+                image.verify()
+        except Exception:
+            raise HTTPException(502, "생성된 이미지를 읽을 수 없습니다. 사용량은 차감하지 않았습니다.")
+        charge_studio_trial_or_quota(user, db, request)
     can_export = user_can_export(user)
     return {
-        "status": "success",
-        "message": "Google AI Studio/Gemini 3D 이미지를 준비했습니다." if nano.get("status") == "success" else ("3D 미리보기를 준비했습니다." if not STUDIO_WORKER_READY else "3D 생성 작업을 시작했습니다."),
-        "preview": describe_prompt_preview(file.filename or "업로드 도면", "upload"),
-        "image_url": nano.get("image_url"),
-        "image_provider": nano.get("provider"),
-        "provider_message": nano.get("message"),
-        "preview_only": not can_export,
-        "export_locked": not can_export,
-        "model_url": f"/static/models/{model_filename}" if can_export and STUDIO_WORKER_READY else None,
-        "bg_url": f"/static/models/{bg_filename}" if can_export and STUDIO_WORKER_READY else None,
-        "worker_ready": STUDIO_WORKER_READY,
+        "status": "success", "message": "AI 건축 콘셉트 이미지가 생성되었습니다. 치수가 보증된 3D 모델은 아닙니다.",
+        "preview": describe_prompt_preview(prompt, "upload" if reference else "prompt"),
+        "image_url": image_url, "image_provider": result.get("provider"),
+        "provider_message": "AI 이미지 생성 완료. GLB/OBJ 변환은 별도 검증이 필요합니다.",
+        "preview_only": not can_export, "export_locked": not can_export,
+        "model_url": None, "bg_url": None, "worker_ready": False,
+        "result_type": "ai_concept_image", "dimension_accurate": False,
     }
+
+
+@router.post("/upload")
+async def upload_floorplan(
+    background_tasks: BackgroundTasks, request: Request, file: UploadFile = File(...),
+    Authorization: str = Header(None), db: Session = Depends(get_db),
+):
+    user = get_optional_user(Authorization, db)
+    ext = Path(file.filename or "").suffix.lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(400, "JPG 또는 PNG 도면을 선택하세요.")
+    content = await file.read(MAX_FILE_SIZE + 1)
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(413, "최대 10MB까지 업로드할 수 있습니다.")
+    try:
+        import io
+        from PIL import Image
+        with Image.open(io.BytesIO(content)) as image:
+            if image.format not in {"PNG", "JPEG"} or image.width * image.height > 25_000_000:
+                raise ValueError("invalid image")
+            image.verify()
+    except Exception:
+        raise HTTPException(400, "읽을 수 있는 JPG/PNG 이미지가 아닙니다.")
+    Path("uploads").mkdir(exist_ok=True)
+    path = Path("uploads") / (uuid.uuid4().hex + ext)
+    path.write_bytes(content)
+    try:
+        return await create_image_result("첨부한 평면도의 배치를 참고해 건축 콘셉트 조감 이미지를 생성해주세요.", user, db, request, str(path))
+    finally:
+        path.unlink(missing_ok=True)
+
 
 @router.post("/generate")
 async def generate_floorplan(
-    background_tasks: BackgroundTasks,
-    request: Request,
-    prompt: str = Form(...),
-    Authorization: str = Header(None),
-    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks, request: Request, prompt: str = Form(...),
+    Authorization: str = Header(None), db: Session = Depends(get_db),
 ):
+    prompt = prompt.strip()
+    if not 3 <= len(prompt) <= 4000:
+        raise HTTPException(422, "프롬프트는 3~4,000자로 입력하세요.")
     user = get_optional_user(Authorization, db)
-    charge_studio_trial_or_quota(user, db, request)
-
-    style = "gallery" if any(word in prompt.lower() for word in ["갤러리", "통유리", "카페"]) else "premium"
-    wall_height = 24.0 if "아파트" in prompt.lower() else 30.0
-    img = prompt_to_floorplan(prompt)
-
-    filename = f"gen_prompt_{int(time.time())}"
-    img_path = f"uploads/{filename}.jpg"
-    if img is not None:
-        cv2.imwrite(img_path, img)
-
-    model_path = f"static/models/{filename}.glb"
-    bg_path = f"static/models/{filename}_bg.png"
-    if STUDIO_WORKER_READY and img is not None:
-        background_tasks.add_task(generate_3d_task, img_path, model_path, bg_path, style, wall_height)
-
-    nano = build_google_ai_studio_result(prompt)
-    can_export = user_can_export(user)
-    return {
-        "status": "success",
-        "message": "Google AI Studio 이미지와 3D 미리보기를 준비했습니다." if nano.get("status") == "success" else ("프롬프트 기반 3D 미리보기를 준비했습니다." if not STUDIO_WORKER_READY else "프롬프트 기반 3D 생성 작업을 시작했습니다."),
-        "preview": describe_prompt_preview(prompt),
-        "image_url": nano.get("image_url"),
-        "image_provider": nano.get("provider"),
-        "provider_message": nano.get("message"),
-        "preview_only": not can_export,
-        "export_locked": not can_export,
-        "model_url": f"/static/models/{filename}.glb" if can_export and STUDIO_WORKER_READY else None,
-        "bg_url": f"/static/models/{filename}_bg.png" if can_export and STUDIO_WORKER_READY else None,
-        "worker_ready": STUDIO_WORKER_READY,
-    }
-
-
+    return await create_image_result(prompt, user, db, request)

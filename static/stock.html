@@ -33,12 +33,17 @@
     </div>
   </nav>
   <main class="shell">
-    <section class="hero">
+    <section style="border:1px solid #334155;border-radius:10px;padding:18px;margin-bottom:20px" aria-label="서버 IP 및 전략 연구">
+<div data-network-status></div>
+<p><a href="/research.html" style="color:#00e6c3;text-decoration:underline">전략 연구실 열기 · 업비트 / 바이낸스 롱·숏 / 주식</a></p>
+<p style="color:#cbd5e1">현재 수익성은 검증되지 않았습니다. 연구 결과는 실시간 매매 수익을 보장하지 않습니다.</p>
+</section>
+<section class="hero">
       <div class="panel">
         <span class="eyebrow">Korea + US Stock Strategy</span>
         <h1>Zenthex Stock</h1>
-        <p>Zenthex Stock is the third Zenthex service line. It is separate from crypto trading and is designed for Korean and US stock markets with market-hours, fees, tax, currency, and broker rules in mind.</p>
-        <p>&#45800;&#53440; and &#51109;&#53440; are separated. Day Stock focuses on intraday opportunities, while Long Stock focuses on future-oriented growth, earnings improvement, valuation, and one-month-or-longer trend strength.</p>
+        <p>Zenthex Stock은 국내외 주식 전략을 검증하는 서비스입니다. 현재는 과거 데이터 연구와 대표 계좌 조회를 지원하며, 실시간 주식 자동주문은 아직 구현되지 않았습니다.</p>
+        <p>단기와 장기 전략을 분리해 개발합니다. 장기 전략은 성장성·실적·가치평가·추세를 함께 검토하며, 현재 연구 기능의 이동평균 전략이 최종 설계 전체를 구현한 것은 아닙니다.</p>
         <div class="actions">
           <button class="btn primary" type="button" onclick="loadStockStatus()">&#49884;&#49828;&#53596; &#49345;&#53468; &#54869;&#51064;</button>
           <a class="btn" href="customer.html">&#46020;&#51077; &#47928;&#51032;</a>
@@ -85,19 +90,36 @@
       <p id="stock-status" class="status">&#49345;&#53468; &#54869;&#51064; &#48260;&#53948;&#51012; &#45580;&#47084; Stock module status.</p>
     </section>
   </main>
+  <section class="shell panel">
+    <h2>대표 계좌 · 토스증권 조회</h2>
+    <p>서버에 키를 설정한 대표 계정만 조회합니다. 자동주문 기능은 없습니다. KIS·키움은 아직 연동되지 않았습니다.</p>
+    <button class="btn" id="toss-read" type="button">계좌·보유자산 조회</button>
+    <pre id="toss-result" style="white-space:pre-wrap;overflow-wrap:anywhere" aria-live="polite"></pre>
+  </section>
   <script>
+    document.getElementById('toss-read').onclick=async()=>{
+      const box=document.getElementById('toss-result');
+      if(location.protocol!=='https:' && !['localhost','127.0.0.1'].includes(location.hostname)){box.textContent='계좌 조회는 HTTPS 설정 후 사용하세요.';return;}
+      box.textContent='조회 중…';
+      try {const res=await fetch('/api/stock/toss/account-summary',{headers:{Authorization:'Bearer '+(localStorage.getItem('zx_token')||'')}});const data=await res.json();box.textContent=res.ok?JSON.stringify(data,null,2):(data.detail||'조회 실패');}
+      catch(_){box.textContent='서버 연결 실패';}
+    };
     async function loadStockStatus(){
       const box=document.getElementById('stock-status');
-      box.innerText='Checking Zenthex Stock status.';
+      box.innerText='Stock 서버 상태를 확인하는 중입니다.';
       try{
         const res=await fetch('/api/stock/status');
         const data=await res.json();
+        if(!res.ok)throw new Error();
         const lines=(data.strategy_lines||[]).map(item=>`- ${item.name}: ${item.goal}`).join('\n');
         box.innerText=`${data.service}: ${data.phase}\n${data.message}\n${lines}`;
       }catch(e){
-        box.innerText='Stock API connection failed. Check the FastAPI server.';
+        box.innerText='Stock 서버 상태를 확인하지 못했습니다. 연결을 확인하세요.';
       }
     }
+    loadStockStatus();
   </script>
+<script src="/static/network-status.js"></script>
+<script src="/static/module-status.js" defer></script>
 </body>
 </html>

@@ -1,10 +1,10 @@
-﻿from fastapi import APIRouter, Depends, Header
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, Header
+from pydantic import BaseModel, ConfigDict, Field
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 import asyncio
 import os
-import urllib.request
+import math
 import pyupbit
 
 from auth.router import get_current_user
@@ -14,11 +14,15 @@ from trading.bithumb_client import BithumbClient, build_bithumb_account_summary,
 from trading.engine import bot_state, TradingState, scalping_loop, log_trade, get_current_price, calculate_profit_protection_price, calculate_profit_protection_yield, net_yield, price_for_net_yield, position_net_value, sell_current_position, exchange_fee_rate
 from trading.performance import compute_performance
 from database.models import TradeRecord
+from trading.network import configured_server_ip, verify_server_ip
+from trading.orders import recovery_required
 
 router = APIRouter(prefix="/api/finance", tags=["finance"])
-DEFAULT_ZENTHEX_SERVER_PUBLIC_IP = "74.220.52.254"
+ENGINE_CONTROL_LOCK = asyncio.Lock()
+ENGINE_TASK = None
 
 class StartConfig(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
     accessKey: str = ""
     secretKey: str = ""
     targetYield: float
@@ -27,8 +31,8 @@ class StartConfig(BaseModel):
     trailingStartYield: float = 1.005
     trailingDropPct: float = 0.003
     investmentMode: str = "fixed"
-    investmentAmount: float = 50000.0
-    investmentRatio: float = 0.5
+    investmentAmount: float = Field(default=50000.0, gt=0)
+    investmentRatio: float = Field(default=0.5, gt=0, le=1)
     entryMode: str = "single"
     entrySlices: int = 1
     addEntryDropPct: float = 0.005
@@ -62,100 +66,25 @@ def clean_api_key(value: str) -> str:
 def user_can_real_trade(user) -> bool:
     return user.role == "owner" or user.plan in ["trading_pro", "ultimate"]
 
-OUTBOUND_IP_SOURCES = [
-    "https://api.ipify.org",
-    "https://checkip.amazonaws.com",
-    "https://ifconfig.me/ip",
-]
-
-def configured_server_ip() -> tuple[str, str]:
-    env_ip = (os.getenv("ZENTHEX_SERVER_PUBLIC_IP") or "").strip()
-    if env_ip:
-        return env_ip, "env"
-    return DEFAULT_ZENTHEX_SERVER_PUBLIC_IP, "default_fixed"
-
-def detect_outbound_ip() -> str:
-    """Return the real public IP that exchanges (Upbit/Bithumb/Binance) see from this server."""
-    last_error = None
-    for url in OUTBOUND_IP_SOURCES:
-        try:
-            request = urllib.request.Request(url, headers={"User-Agent": "zenthex-ip-check"})
-            with urllib.request.urlopen(request, timeout=4) as response:
-                value = response.read().decode("utf-8").strip()
-                if value:
-                    return value
-        except Exception as exc:
-            last_error = exc
-    raise RuntimeError(f"outbound IP detection failed: {last_error}")
-
 @router.get("/server-ip")
 async def server_ip():
     public_ip, source = configured_server_ip()
     return {
-        "status": "success",
+        "status": "success" if public_ip else "error",
         "server_ip": public_ip,
         "source": source,
-        "is_fixed": source == "env",
-        "message": (
-            f"거래소 API 허용 IP에 등록할 Zenthex 서버 IP는 {public_ip}입니다. "
-            "등록 전 'Zenthex 고정 IP 확인' 버튼으로 실제 서버 IP와 일치하는지 확인하세요."
-        ),
+        "configured": bool(public_ip),
+        "is_fixed": False,
+        "message": "IP 설정만으로 고정 여부를 증명할 수 없습니다. 실제 발신 IP 비교와 AWS 고정 IP 연결을 확인하세요.",
     }
 
-@router.get("/server-ip/verify")
-async def verify_server_ip():
-    """Compare the configured IP with the server's REAL outbound IP (checked 3 times to detect rotating IPs)."""
-    configured_ip, configured_source = configured_server_ip()
-    observed = []
-    for _ in range(3):
-        try:
-            observed.append(await asyncio.to_thread(detect_outbound_ip))
-        except Exception:
-            pass
-        await asyncio.sleep(0.3)
-    if not observed:
-        return {
-            "status": "error",
-            "configured_ip": configured_ip,
-            "configured_source": configured_source,
-            "outbound_ip": None,
-            "observed_ips": [],
-            "matches": False,
-            "is_stable": False,
-            "message": "서버의 실제 공인 IP를 확인하지 못했습니다. 서버 인터넷 연결을 확인하세요. 확인 전에는 실거래를 시작하지 마세요.",
-        }
-    unique_ips = sorted(set(observed))
-    outbound_ip = observed[-1]
-    is_stable = len(unique_ips) == 1
-    matches = is_stable and outbound_ip == configured_ip
-    if matches:
-        message = f"정상: 서버의 실제 공인 IP {outbound_ip}가 등록 기준 IP와 일치합니다. 거래소 허용 IP에 이 IP를 등록하면 됩니다."
-    elif not is_stable:
-        message = (
-            f"주의: 서버 공인 IP가 계속 바뀌고 있습니다({', '.join(unique_ips)}). "
-            "이 서버(Render 무료/공용 IP)에서는 거래소 허용 IP를 고정할 수 없습니다. 고정 IP 서버(VPS)로 이전해야 실거래가 안정적으로 됩니다."
-        )
-    else:
-        message = (
-            f"불일치: 설정된 IP는 {configured_ip}이지만 실제 서버 IP는 {outbound_ip}입니다. "
-            "거래소는 실제 IP를 기준으로 막기 때문에 인증이 실패합니다. 서버 환경변수 ZENTHEX_SERVER_PUBLIC_IP를 실제 고정 IP로 맞추세요."
-        )
-    return {
-        "status": "success",
-        "configured_ip": configured_ip,
-        "configured_source": configured_source,
-        "outbound_ip": outbound_ip,
-        "observed_ips": unique_ips,
-        "matches": matches,
-        "is_stable": is_stable,
-        "message": message,
-    }
+router.add_api_route("/server-ip/verify", verify_server_ip, methods=["GET"])
 
 def explain_upbit_auth_error(raw_error) -> str:
     text = str(raw_error or "")
     lowered = text.lower()
     if "out_of_scope" in lowered or "permission" in lowered:
-        return "API 키 권한이 부족합니다. 업비트 Open API에서 자산조회와 주문하기 권한을 켜야 합니다."
+        return "API 키 권한이 부족합니다. 업비트 Open API에서 자산조회·주문조회·주문하기 권한을 켜야 합니다."
     if "invalid_access_key" in lowered or "no_authorization" in lowered:
         return "Access Key가 맞지 않거나 만료된 키입니다. 업비트에서 새 키를 발급해 다시 입력하세요."
     if "jwt" in lowered or "signature" in lowered or "secret" in lowered:
@@ -380,6 +309,36 @@ async def bithumb_account_summary(config: BithumbKeyCheck, Authorization: str = 
 
 @router.post("/start")
 async def start_bot(config: StartConfig, Authorization: str = Header(None), db: Session = Depends(get_db)):
+    async with ENGINE_CONTROL_LOCK:
+        return await _start_bot(config, Authorization, db)
+
+
+async def _start_bot(config: StartConfig, Authorization: str | None, db: Session):
+    global ENGINE_TASK
+    # This version has one engine. Never overwrite another running or paused position.
+    if ENGINE_TASK is not None and not ENGINE_TASK.done():
+        raise HTTPException(status_code=409, detail="기존 엔진이 종료 중이거나 실행 중입니다.")
+    if bot_state.held_btc > 0 or bot_state.avg_buy_price > 0:
+        raise HTTPException(status_code=409, detail="보유 상태를 초기화할 수 없습니다. 기존 엔진 보유 수량을 먼저 확인하세요.")
+    if config.tradingMode not in {"practice", "real", "bithumb_real"}:
+        raise HTTPException(status_code=400, detail="지원하지 않는 거래 모드입니다. Binance 자동주문/선물은 구현되지 않았습니다.")
+    if config.tradingMode == "bithumb_real":
+        raise HTTPException(status_code=409, detail="이번 수정본은 업비트 체결 확인만 지원합니다. 빗썸은 조회/키 확인만 가능합니다.")
+    if recovery_required():
+        raise HTTPException(status_code=409, detail="이전 실주문/보유 기록이 남아 있습니다. 거래소와 기록을 대조하기 전 새 엔진을 시작할 수 없습니다.")
+    if config.tradingMode in {"real", "bithumb_real"}:
+        user = require_trading_permission(Authorization, db)
+        if user.role != "owner":
+            raise HTTPException(status_code=403, detail="사용자별 독립 엔진 검증 전까지 실거래는 대표 개인 검증만 가능합니다.")
+        if os.getenv("ZENTHEX_ENABLE_LIVE_TRADING", "false").lower() != "true":
+            raise HTTPException(status_code=403, detail="실거래 검증 잠금 상태입니다. 서버에서 실거래 시작이 비활성화되어 있습니다. 대표의 주문 처리 검증 후 활성화가 필요합니다.")
+        if not config.realAccepted:
+            raise HTTPException(status_code=400, detail="실거래 위험 확인이 필요합니다.")
+        if config.investmentMode == "rotate_holdings":
+            raise HTTPException(status_code=400, detail="기존 보유 코인 정리는 주문 체결 검증 전까지 사용할 수 없습니다.")
+        ip_check = await verify_server_ip()
+        if not ip_check["matches"]:
+            raise HTTPException(status_code=409, detail=ip_check["message"])
     if bot_state.state not in [TradingState.STOPPED, TradingState.ERROR]:
         return {"status": "error", "message": "Bot is already running"}
 
@@ -504,12 +463,22 @@ async def start_bot(config: StartConfig, Authorization: str = Header(None), db: 
         bot_state.balance = max(bot_state.balance, 1000000.0)
         log_trade("[Practice Mode] 전략 체험 모드로 시작합니다.")
 
-    asyncio.create_task(scalping_loop())
+    bot_state.state = TradingState.IDLE
+    ENGINE_TASK = asyncio.create_task(scalping_loop())
     return {"status": "success", "message": "Signal Guard Started", "tradingMode": bot_state.trading_mode}
 
 @router.post("/manual_trade")
-async def manual_trade(trade: ManualTrade):
-    current_price = get_current_price(bot_state.active_ticker) or 80000000
+async def manual_trade(trade: ManualTrade, Authorization: str = Header(None), db: Session = Depends(get_db)):
+    require_real_status_permission(Authorization, db)
+    if bot_state.trading_mode in {"real", "bithumb_real"} or bot_state.is_real_key:
+        raise HTTPException(status_code=409, detail="실거래 상태는 체험용 수동 주문으로 변경할 수 없습니다.")
+    if ENGINE_TASK is not None and not ENGINE_TASK.done():
+        raise HTTPException(status_code=409, detail="엔진 실행 중에는 체험 수동 주문을 사용할 수 없습니다.")
+    if trade.type not in {"buy", "sell"} or not math.isfinite(trade.amount) or trade.amount <= 0:
+        raise HTTPException(status_code=400, detail="양수 주문 금액과 buy/sell 구분이 필요합니다.")
+    current_price = get_current_price(bot_state.active_ticker)
+    if current_price <= 0:
+        raise HTTPException(status_code=503, detail="현재가 조회 실패로 주문하지 않았습니다.")
     if trade.type == "buy" and bot_state.balance >= trade.amount:
         bot_state.held_btc += (trade.amount / current_price) * (1.0 - bot_state.fee_rate)
         bot_state.avg_buy_price = current_price
@@ -528,18 +497,22 @@ async def manual_trade(trade: ManualTrade):
     return {"status": "success"}
 
 def require_real_status_permission(Authorization: str | None, db: Session):
-    if bot_state.trading_mode != "real" and not bot_state.is_real_key:
+    if bot_state.trading_mode not in {"real", "bithumb_real"} and not bot_state.is_real_key:
         return None
     if not Authorization:
         raise HTTPException(status_code=401, detail="실거래 상태 조회는 로그인이 필요합니다.")
     user = get_current_user(Authorization.replace("Bearer ", ""), db)
     if not user_can_real_trade(user):
         raise HTTPException(status_code=403, detail="실거래 상태 조회는 Trading Pro 또는 Ultimate 권한이 필요합니다.")
+    if user.id != bot_state.owner_user_id:
+        raise HTTPException(status_code=403, detail="본인이 시작한 거래 엔진만 조회하거나 제어할 수 있습니다.")
     return user
 
 @router.post("/stop")
 async def stop_bot(Authorization: str = Header(None), db: Session = Depends(get_db)):
     require_real_status_permission(Authorization, db)
+    if bot_state.state in {TradingState.BUYING, TradingState.SELLING}:
+        raise HTTPException(status_code=409, detail="주문 처리 중입니다. 체결 확인 후 다시 정지하세요.")
     bot_state.state = TradingState.STOPPED
     bot_state.decision_note = "사용자가 엔진을 일시정지했습니다. 보유 코인은 매도하지 않고 유지합니다."
     log_trade("[User Pause] 사용자 요청으로 엔진을 일시정지합니다. 보유 코인은 매도하지 않습니다.")
@@ -548,6 +521,10 @@ async def stop_bot(Authorization: str = Header(None), db: Session = Depends(get_
 @router.post("/sell-and-stop")
 async def sell_and_stop_bot(Authorization: str = Header(None), db: Session = Depends(get_db)):
     require_real_status_permission(Authorization, db)
+    if ENGINE_TASK is not None and not ENGINE_TASK.done():
+        raise HTTPException(status_code=409, detail="먼저 일시정지하고 엔진 처리가 끝난 뒤 매도 후 종료를 실행하세요.")
+    if bot_state.state in {TradingState.BUYING, TradingState.SELLING}:
+        raise HTTPException(status_code=409, detail="주문 처리 중입니다. 중복 주문을 차단했습니다.")
     current_price = get_current_price(bot_state.active_ticker) or 0
     sell_qty = float(bot_state.held_btc or 0)
 
@@ -579,7 +556,9 @@ async def sell_and_stop_bot(Authorization: str = Header(None), db: Session = Dep
 @router.get("/status")
 async def status(Authorization: str = Header(None), db: Session = Depends(get_db)):
     require_real_status_permission(Authorization, db)
-    current_price = get_current_price(bot_state.active_ticker) or 80000000
+    current_price = await asyncio.to_thread(get_current_price, bot_state.active_ticker) or 0
+    if not current_price and bot_state.held_btc > 0:
+        raise HTTPException(503, "현재 시세 조회 실패. 수익률을 계산할 수 없습니다. 거래소에서 주문·보유 상태를 확인하세요.")
     coin_value = bot_state.held_btc * current_price if bot_state.held_btc > 0 else 0
     est_balance = bot_state.balance + coin_value
     current_yield = (net_yield(current_price) - 1.0) if bot_state.avg_buy_price else 0
@@ -669,6 +648,9 @@ async def status(Authorization: str = Header(None), db: Session = Depends(get_db
         })
     return {
         "isRunning": bot_state.state not in [TradingState.STOPPED, TradingState.ERROR],
+        "recoveryRequired": recovery_required(),
+        "priceAvailable": bool(current_price),
+        "liveTradingEnabled": os.getenv("ZENTHEX_ENABLE_LIVE_TRADING", "false").lower() == "true",
         "state": bot_state.state,
         "isRealKey": bot_state.is_real_key,
         "tradingMode": bot_state.trading_mode,

@@ -30,7 +30,7 @@ python3 -m venv "$APP_DIR/.venv"
 "$APP_DIR/.venv/bin/pip" install -r "$APP_DIR/requirements.txt"
 
 echo "[5/7] 환경변수 파일 준비"
-PUBLIC_IP="$(curl -fsS https://api.ipify.org || curl -fsS https://checkip.amazonaws.com || true)"
+PUBLIC_IP="$(curl -4 -fsS --max-time 8 https://api4.ipify.org || curl -4 -fsS --max-time 8 https://checkip.amazonaws.com || true)"
 PUBLIC_IP="$(echo "$PUBLIC_IP" | tr -d '[:space:]')"
 if [ ! -f "$ENV_FILE" ]; then
   cp "$APP_DIR/deploy/zenthex.env.example" "$ENV_FILE"

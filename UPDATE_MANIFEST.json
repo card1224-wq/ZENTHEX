@@ -1,14 +1,15 @@
 {
-  "version": "2026-11-07-v2",
+  "version": "2026-11-21-verified-modules",
   "baseCommit": "09dcabcacae9338dbc521c1aede8107dc0601b26",
-  "instructions": "Upload these files at the same repository paths. Preserve all other existing files. No secrets or databases included. GitHub/AWS have not been updated.",
+  "instructions": "Files now use their actual package paths. Never flatten folders. Runtime data/keys are excluded. New code has not yet been deployed.",
   "validation": {
-    "offlineTests": 27,
-    "httpSmokeChecks": 12,
+    "offlineTests": 49,
+    "httpSmokeChecks": 9,
+    "javascriptSyntaxChecks": 5,
     "liveOrdersExecuted": false,
-    "realTossAccountTested": false,
-    "visualReviewCompleted": false,
-    "publicBinanceFetch": "failed in this environment; CSV supported"
+    "realAIImageGenerated": false,
+    "awsUpdated": false,
+    "githubUpdated": false
   },
   "files": [
     {
@@ -33,7 +34,7 @@
     },
     {
       "path": "deploy/update_vps.sh",
-      "sha256": "c87a18582c0cec6149eed73e4442c2752679e0216e26030f2bb6f2784078fd80"
+      "sha256": "7034620f846411bc122940f8a512bc8a6aa5d332bfd681c1d7a889fe1507772c"
     },
     {
       "path": "deploy/zenthex.env.example",
@@ -41,7 +42,7 @@
     },
     {
       "path": "main.py",
-      "sha256": "f4c8498f715f50628a1c83a857d1961934d2061ed6dfdc29e1ff9738758d3023"
+      "sha256": "570bf563a1304717aea1c26320787b25b0a1d46acce1a08194b6d07ca397a066"
     },
     {
       "path": "render.yaml",
@@ -61,7 +62,7 @@
     },
     {
       "path": "static/finance.html",
-      "sha256": "0395ac3bcbec64c73c13f1bdf6aa174a2c709c93f950c580c8e4e8cee064fbc4"
+      "sha256": "29776859336ddebe01925834c1b255cc326391a9d2b1cf3f79aceb99bc3d65d0"
     },
     {
       "path": "static/network-status.js",
@@ -73,11 +74,11 @@
     },
     {
       "path": "static/stock.html",
-      "sha256": "59de935258e066b1a05d7e925b1f87a2924d45b3185021cd9442475f7b0deff7"
+      "sha256": "3ef71cbabc1986039ac90edc3ba99dd8e6656bcbec5275226bfdd4ad50471775"
     },
     {
       "path": "stock/router.py",
-      "sha256": "d5d8ee825fa178c94daa92c63c2f367cd2a635665131e351a57a6abd752545ac"
+      "sha256": "d49379328d071f8d8a5575bae1784d2188f2b4d2a0ee48b02fa0e9f95fa13773"
     },
     {
       "path": "stock/toss_client.py",
@@ -105,7 +106,67 @@
     },
     {
       "path": "trading/router.py",
-      "sha256": "a3ba84dd6c173f62827f5ae141ac82bed6c1d0aa2c372dded40270cfc2d67c37"
+      "sha256": "328dfdd76ddc7224f680427a92103f9e947a6f5aa17e65a913ad85555c4cda45"
+    },
+    {
+      "path": "auth/hash.py",
+      "sha256": "d5e5cc05062466be61cf854da29208b23ee3d1b4593ecc9218c6ed4fbd067159"
+    },
+    {
+      "path": "modules_status.py",
+      "sha256": "87b97b92d9ddae990a8baa7ae89817c1097f477c3b1c569084571409a3f15d66"
+    },
+    {
+      "path": "static/module-status.js",
+      "sha256": "f9df839f7a0b383aaa12dea079634740bfcb56333422ba232793be06cfb4469b"
+    },
+    {
+      "path": "studio/router.py",
+      "sha256": "f20ec3ea192046d7c128c2f0fef0711f44d5764c71a4aa3673d43394fd0469b3"
+    },
+    {
+      "path": "studio/providers/nanobanana.py",
+      "sha256": "f5486b542f5058f2ed6a66ef5110f55390c95332af1057a351c3c19a5d096fe9"
+    },
+    {
+      "path": "static/studio.html",
+      "sha256": "ca1d998fbd067cc696b091d8060a0b96d5277e007bf79870ea8f765dee3cfe35"
+    },
+    {
+      "path": "deploy/auto_update.py",
+      "sha256": "8ff0c8de422ee3568dc7390cc6acadcd32676c129e2bd953b240e0d70fb208f1"
+    },
+    {
+      "path": "deploy/install_auto_update.py",
+      "sha256": "911167ab5079bd1296ae8b051ae3b458295afd31bacde5ed814516856c447768"
+    },
+    {
+      "path": "zenthex_enable_live.py",
+      "sha256": "eccec1cf627c18a118d5a76ce22e1a2eebc18f1a7c279924361cd9fa3b9b262b"
+    },
+    {
+      "path": "zenthex_configure_studio.py",
+      "sha256": "7fef94ca91d3472e29102b045f8b449abae8fb47068f4c47d905f963f0bb9920"
+    },
+    {
+      "path": "requirements.txt",
+      "sha256": "8af05d85bc6e7326996f784e08899c4c377ed95ede04d688ca71f96094f6ba2c"
+    },
+    {
+      "path": "requirements-runtime.lock",
+      "sha256": "1ca289358071857a1799571a8ad44f9eb6e1b9b9d4255964313f758275414ff8"
+    },
+    {
+      "path": "deploy/verify_app.py",
+      "sha256": "1c96042e950b84e9894d54005ad3ea839c56a2d82fc5b03c5500481c39c0df94"
+    },
+    {
+      "path": "PRODUCT_REQUIREMENTS_20261121.md",
+      "sha256": "3e48c69d4880e8c8a171605f748994ed46b0064da146788a87b39cb26eda7a99"
+    },
+    {
+      "path": "UPDATE_GUIDE_20261121.md",
+      "sha256": "6342a6d96ad9574e9597d160ddddc1a403f0b83b8554c4732f4cbde1ad0012a3"
     }
   ]
 }
