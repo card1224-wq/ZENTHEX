@@ -148,6 +148,60 @@ class SafetyTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(record.call_args.args[2], 10994.5)
         self.assertFalse(orders.recovery_required())
 
+    async def test_protection_sell_loss_is_not_reported_as_take_profit(self):
+        bot = engine.bot_state
+        bot.trading_mode = "real"
+        bot.held_btc = 0.1
+        bot.avg_buy_price = 100000
+        bot.entry_cost_krw = 10005
+        bot.upbit = Mock()
+        bot.upbit.sell_market_order.return_value = {"uuid": "sold"}
+        bot.upbit.get_order.return_value = fill(funds=9955, fee=5)
+        bot.upbit.get_balance.return_value = 99950
+        with patch.object(engine, "get_current_price", return_value=101000), patch.object(engine, "record_closed_trade") as record:
+            ok, pnl = await engine.sell_current_position("수익보호 매도", "TAKE PROFIT")
+        self.assertTrue(ok)
+        self.assertLess(pnl, 0)
+        self.assertIn("손실 체결", record.call_args.args[3])
+        self.assertIn("[EXIT LOSS]", bot.logs[-1])
+        self.assertNotIn("[TAKE PROFIT]", bot.logs[-1])
+        with patch.object(engine, "send_push_notification"):
+            self.assertFalse(engine.finish_profit_signal_exit(pnl))
+        self.assertEqual(bot.state, engine.TradingState.STOPPED)
+        self.assertEqual(bot.consecutive_loss_count, 1)
+        self.assertFalse(orders.recovery_required())
+
+    async def test_breakeven_exit_cannot_use_profit_restart(self):
+        with patch.object(engine, "send_push_notification"):
+            self.assertFalse(engine.finish_profit_signal_exit(0))
+        self.assertEqual(engine.bot_state.state, engine.TradingState.STOPPED)
+        self.assertEqual(engine.bot_state.consecutive_loss_count, 0)
+
+    async def test_positive_exit_restart_requires_user_option_and_no_kill_switch(self):
+        for enabled, killed, expected in [(False, False, False), (True, True, False), (True, False, True)]:
+            engine.bot_state.auto_restart_after_profit = enabled
+            engine.admin_state.global_kill_switch = killed
+            with patch.object(engine, "send_push_notification"):
+                self.assertEqual(engine.finish_profit_signal_exit(0.25), expected)
+            self.assertEqual(engine.bot_state.state, engine.TradingState.IDLE if expected else engine.TradingState.STOPPED)
+
+    async def test_exit_valuation_uses_depth_not_last_trade_or_best_ask(self):
+        book = {"orderbook_units": [
+            {"bid_price": 100, "bid_size": 1, "ask_price": 105},
+            {"bid_price": 99, "bid_size": 2, "ask_price": 106},
+        ]}
+        with patch.object(engine.pyupbit, "get_orderbook", return_value=book), patch.object(engine, "get_current_price") as last:
+            self.assertAlmostEqual(engine.executable_exit_price("KRW-LSK", 2), 99.5)
+        last.assert_not_called()
+
+    async def test_missing_or_invalid_exit_depth_never_creates_profit_signal(self):
+        for units in [[], [{"bid_price": 100, "bid_size": 0.1}],
+                      [{"bid_price": float("nan"), "bid_size": 10}],
+                      [{"bid_price": 100, "bid_size": -1}],
+                      [{"bid_price": 99, "bid_size": 1}, {"bid_price": 100, "bid_size": 1}]]:
+            with patch.object(engine.pyupbit, "get_orderbook", return_value={"orderbook_units": units}):
+                self.assertEqual(engine.executable_exit_price("KRW-LSK", 2), 0)
+
     async def test_recovery_guard_blocks_new_engine_even_after_memory_reset(self):
         orders.save_guard("buy_pending", order_uuid="unknown-order")
         with self.assertRaises(HTTPException) as error:

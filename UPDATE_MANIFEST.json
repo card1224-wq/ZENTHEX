@@ -1,9 +1,9 @@
 {
-  "version": "2026-11-23-deployment-status-contract-fix",
+  "version": "2026-11-23-confirmed-exit-result-fix",
   "baseCommit": "09dcabcacae9338dbc521c1aede8107dc0601b26",
-  "instructions": "Files now use their actual package paths. Never flatten folders. Runtime data/keys are excluded. New code has not yet been deployed.",
+  "instructions": "Patch prepared locally. Upload preserving paths. Do not restart or deploy while an engine holds assets or orders are unresolved. New patch is not on GitHub or AWS yet.",
   "validation": {
-    "offlineTests": 55,
+    "offlineTests": 60,
     "httpSmokeChecks": 9,
     "javascriptSyntaxChecks": 5,
     "liveOrdersExecuted": false,
@@ -22,7 +22,7 @@
     },
     {
       "path": "ZENTHEX_MASTER_PLAN.md",
-      "sha256": "ff2cdf7e3c583e1849c7bbc08e64d8a9846ec224ca19ae554927a3b77e2aeecf"
+      "sha256": "08f9e52b991b7fd98401b35bdf1e8cae4bed8d873e950bc48be6cad5903eb10f"
     },
     {
       "path": "deploy/configure_runtime.sh",
@@ -90,11 +90,11 @@
     },
     {
       "path": "tests/test_trading_safety.py",
-      "sha256": "8f7dfc3b82e94e799b8a3245360d7ac2bf2a4ae807c19b0aac5dde15e3efe20e"
+      "sha256": "04144607b1b1429b9c81aab175a4ec19ae7513a019bd83425928eb0fefb16cb7"
     },
     {
       "path": "trading/engine.py",
-      "sha256": "4face15591d7923d55f76279c4aadd802bd53a0e8e2393430975b26d753e2670"
+      "sha256": "178cd8bc8a0f63fdb35a1b9e2d1ef322b225b95de99ecf372d5d6dde829a11ca"
     },
     {
       "path": "trading/network.py",
@@ -162,7 +162,7 @@
     },
     {
       "path": "PRODUCT_REQUIREMENTS_20261121.md",
-      "sha256": "3e48c69d4880e8c8a171605f748994ed46b0064da146788a87b39cb26eda7a99"
+      "sha256": "abb7e75e5b6d3e9fd8af0f716edad4a226116daca79b567b43e3f08916be637e"
     },
     {
       "path": "UPDATE_GUIDE_20261121.md",

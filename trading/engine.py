@@ -457,6 +457,53 @@ def position_net_value(price: float) -> float:
     """지금 전량 매도하면 수수료를 빼고 손에 들어오는 원화."""
     return max(bot_state.held_btc, 0.0) * max(price, 0.0) * (1.0 - bot_state.fee_rate)
 
+def executable_exit_price(ticker: str, quantity: float) -> float:
+    """Estimate a full liquidation from current bid depth, never from last trade price.
+
+    This is an estimate, not a fill guarantee. Insufficient/invalid depth means
+    no valid valuation; it must not create a peak or an exit signal.
+    """
+    try:
+        if not math.isfinite(quantity) or quantity <= 0:
+            return 0.0
+        book = pyupbit.get_orderbook(ticker)
+        if isinstance(book, list):
+            book = book[0] if book else None
+        remaining, gross, previous = quantity, 0.0, math.inf
+        for row in (book or {}).get("orderbook_units", []):
+            bid, size = float(row["bid_price"]), float(row["bid_size"])
+            if not math.isfinite(bid) or not math.isfinite(size) or bid <= 0 or size < 0 or bid > previous:
+                return 0.0
+            previous = bid
+            used = min(remaining, size)
+            gross += used * bid
+            remaining -= used
+            if remaining <= quantity * 1e-12:
+                return gross / quantity
+        return 0.0
+    except (OSError, ValueError, TypeError, KeyError, IndexError):
+        return 0.0
+
+def finish_profit_signal_exit(realized_pct: float) -> bool:
+    """Only a confirmed positive exit may use the opt-in profit restart path."""
+    if realized_pct <= 0:
+        bot_state.consecutive_loss_count += int(realized_pct < 0)
+        bot_state.state = TradingState.STOPPED
+        bot_state.decision_note = f"수익 청산 신호 후 실제 체결 손익은 {realized_pct:+.2f}%입니다. 자동 재진입을 중단했습니다."
+        log_trade(f"[Exit Review] {bot_state.active_ticker} 실제 손익 {realized_pct:+.2f}%. 익절로 처리하지 않고 정지합니다.")
+        if realized_pct < 0:
+            set_ticker_cooldown(bot_state.active_ticker, 60, "청산 손실")
+        send_push_notification("청산 결과 확인 필요", bot_state.decision_note)
+        return False
+    bot_state.consecutive_loss_count = 0
+    restart = bot_state.auto_restart_after_profit and not admin_state.global_kill_switch
+    bot_state.state = TradingState.IDLE if restart else TradingState.STOPPED
+    bot_state.decision_note = f"실제 체결 순수익 {realized_pct:+.2f}%. " + ("다음 후보를 탐색합니다." if restart else "엔진을 종료했습니다.")
+    if restart:
+        log_trade(f"[Auto Restart] 실제 체결 순수익 {realized_pct:+.2f}% 확인 후 다음 후보를 탐색합니다.")
+    send_push_notification("수익 청산 완료", bot_state.decision_note)
+    return restart
+
 def net_yield(price: float) -> float:
     """수수료(매수+매도)를 모두 뺀 실제 수익률. 1.004 = 실수익 +0.4%."""
     if bot_state.entry_cost_krw <= 0 or bot_state.held_btc <= 0 or price <= 0:
@@ -589,6 +636,9 @@ async def sell_current_position(reason: str, tag: str = "SELL", price_hint: floa
         bot_state.held_btc = 0
         mode_note = "체험 매도 완료"
     exit_pct = ((exit_value / entry_cost) - 1.0) * 100 if entry_cost > 0 else 0.0
+    if tag == "TAKE PROFIT" and exit_pct <= 0:
+        tag = "EXIT LOSS" if exit_pct < 0 else "EXIT BREAKEVEN"
+        reason = f"{reason} 신호 후 " + ("손실 체결" if exit_pct < 0 else "본전 체결")
     record_closed_trade(ticker, entry_cost, exit_value, reason, peak)
     log_trade(f"[{tag}] {ticker} {reason}: 수수료 차감 실수익 {exit_pct:+.2f}% ({exit_value - entry_cost:+,.0f}원). {mode_note}.")
     reset_position_tracking()
@@ -656,10 +706,13 @@ async def scalping_loop():
                 await asyncio.sleep(5)
                 continue
 
-            live_price = get_current_price(bot_state.active_ticker)
+            if bot_state.state == TradingState.HOLDING:
+                live_price = await asyncio.to_thread(executable_exit_price, bot_state.active_ticker, bot_state.held_btc)
+            else:
+                live_price = get_current_price(bot_state.active_ticker)
             if live_price <= 0 and bot_state.state == TradingState.HOLDING:
                 # 현재가를 못 받으면 가짜 가격으로 판단하지 않고 다음 주기까지 대기합니다.
-                bot_state.decision_note = f"{bot_state.active_ticker} 현재가 확인 실패. 잘못된 매도를 막기 위해 판단을 잠시 보류합니다."
+                bot_state.decision_note = f"{bot_state.active_ticker} 매도 호가·잔량 확인 실패. 체결 가능 금액을 추정할 수 없어 청산 판단을 보류합니다."
                 await asyncio.sleep(2)
                 continue
             price = live_price or 80000000
@@ -867,17 +920,9 @@ async def scalping_loop():
                     ok, realized_pct = await sell_current_position(exit_reason, "TAKE PROFIT", price)
                     if not ok:
                         break
-                    profit_pct = realized_pct
-                    bot_state.consecutive_loss_count = bot_state.consecutive_loss_count + 1 if realized_pct < 0 else 0
-                    if bot_state.auto_restart_after_profit and not admin_state.global_kill_switch:
-                        bot_state.state = TradingState.IDLE
-                        bot_state.decision_note = f"익절 완료 후 자동 재탐색 모드입니다. 다음 상승 후보를 다시 찾습니다. 직전 수익률 {profit_pct:+.2f}%"
-                        log_trade("[Auto Restart] 익절 후 자동 재탐색을 시작합니다. 조건을 통과한 다음 상승 후보를 기다립니다.")
-                        send_push_notification("목표 수익률 도달", f"{bot_state.active_ticker} {profit_pct:+.2f}% 달성. 다음 상승 후보를 재탐색합니다.")
+                    if finish_profit_signal_exit(realized_pct):
                         await asyncio.sleep(3)
                         continue
-                    bot_state.state = TradingState.STOPPED
-                    send_push_notification("목표 수익률 도달", f"{bot_state.active_ticker} {profit_pct:+.2f}% 달성. 엔진을 종료했습니다.")
 
                 elif current_yield <= bot_state.stop_loss_yield:
                     bot_state.state = TradingState.SELLING
