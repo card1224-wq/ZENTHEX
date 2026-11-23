@@ -16,12 +16,6 @@ def studio_capability():
     except (ImportError, ModuleNotFoundError, ValueError):
         sdk = False
     return {
-        "deployment": {
-            "engineState": trading_routes.bot_state.state,
-            "engineTaskActive": trading_routes.ENGINE_TASK is not None and not trading_routes.ENGINE_TASK.done(),
-            "hasPosition": bool(trading_routes.bot_state.held_btc or trading_routes.bot_state.avg_buy_price),
-            "studioBusy": studio_routes.GENERATION_LOCK.locked(),
-        },
         "configured": configured, "sdkAvailable": sdk,
         "state": "unverified" if configured and sdk else "configuration_required",
         "message": "생성 요청으로 API 연결을 확인하세요." if configured and sdk else "AI 이미지 생성 연결 설정이 필요합니다. 대표에게 문의하세요.",
@@ -34,6 +28,12 @@ def module_status():
     enabled = os.getenv("ZENTHEX_ENABLE_LIVE_TRADING", "false").lower() == "true"
     recovery = recovery_required()
     return {
+        "deployment": {
+            "engineState": trading_routes.bot_state.state,
+            "engineTaskActive": trading_routes.ENGINE_TASK is not None and not trading_routes.ENGINE_TASK.done(),
+            "hasPosition": bool(trading_routes.bot_state.held_btc or trading_routes.bot_state.avg_buy_price),
+            "studioBusy": studio_routes.GENERATION_LOCK.locked(),
+        },
         "studio": studio_capability(),
         "trading": {
             "liveEnabled": enabled, "recoveryRequired": recovery,

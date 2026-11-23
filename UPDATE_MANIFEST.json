@@ -1,9 +1,9 @@
 {
-  "version": "2026-11-21-deploy-permissions-fix",
+  "version": "2026-11-23-deployment-status-contract-fix",
   "baseCommit": "09dcabcacae9338dbc521c1aede8107dc0601b26",
   "instructions": "Files now use their actual package paths. Never flatten folders. Runtime data/keys are excluded. New code has not yet been deployed.",
   "validation": {
-    "offlineTests": 50,
+    "offlineTests": 55,
     "httpSmokeChecks": 9,
     "javascriptSyntaxChecks": 5,
     "liveOrdersExecuted": false,
@@ -114,7 +114,7 @@
     },
     {
       "path": "modules_status.py",
-      "sha256": "87b97b92d9ddae990a8baa7ae89817c1097f477c3b1c569084571409a3f15d66"
+      "sha256": "010a1b6f028f1d2ef86e32ffbefe4bf3b191c763b58efc351877b8482eb398d6"
     },
     {
       "path": "static/module-status.js",
@@ -134,7 +134,7 @@
     },
     {
       "path": "deploy/auto_update.py",
-      "sha256": "bb4efe9cffe5763bcc8726cac77b9b4a96db6b8407c89c2418e7b0d436950758"
+      "sha256": "cafddcb154dd444d429b9df5bf3107fa9159b5d45152a8891836a107179c3b47"
     },
     {
       "path": "deploy/install_auto_update.py",
@@ -170,7 +170,7 @@
     },
     {
       "path": "tests/test_deployment.py",
-      "sha256": "d460109568855f62d6a94e62bf5c5bd6c813a1ed130de69d624129692b19c8d6"
+      "sha256": "f71a1a3f7c426376119b4eff03f5e5c9ae8e02ca3c93c75ac73d13d0e7ce4d1b"
     }
   ]
 }

@@ -31,6 +31,47 @@ class ArchiveTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):agent.prepare(Path('/unused'),'a'*40,Path('/unused'))
 
 
+class StatusContractTests(unittest.TestCase):
+    def status(self):
+        from modules_status import module_status
+        from trading import router as routes
+        with patch.dict(agent.os.environ, {'ZENTHEX_ENABLE_LIVE_TRADING':'false'}), patch.object(routes, 'ENGINE_TASK', None), patch.object(routes.bot_state, 'state', 'STOPPED'), patch.object(routes.bot_state, 'held_btc', 0), patch.object(routes.bot_state, 'avg_buy_price', 0):
+            return module_status()
+
+    def test_actual_server_response_matches_deployment_reader(self):
+        payload=self.status()
+        self.assertIn('deployment',payload)
+        self.assertNotIn('deployment',payload['studio'])
+        self.assertFalse(agent.deployment_blocked(payload))
+
+    def test_previously_shipped_nested_response_is_supported(self):
+        payload=self.status()
+        payload['studio']['deployment']=payload.pop('deployment')
+        self.assertFalse(agent.deployment_blocked(payload))
+        payload['studio']['deployment']['studioBusy']=True
+        self.assertTrue(agent.deployment_blocked(payload))
+
+    def test_unknown_or_incomplete_response_never_means_idle(self):
+        for payload in [None,{}, {'deployment':{}}, {'studio':{'deployment':{}}},
+                        {'deployment':{'engineState':'STOPPED','engineTaskActive':False,'hasPosition':False},'trading':{'liveEnabled':False}}]:
+            with self.subTest(payload=payload),self.assertRaises(agent.DeployDeferred):
+                agent.deployment_blocked(payload)
+        payload=self.status();payload['deployment']['hasPosition']='false'
+        with self.assertRaises(agent.DeployDeferred):agent.deployment_blocked(payload)
+
+    def test_each_activity_prevents_deployment_in_real_response(self):
+        for key,value in [('engineState','SCANNING'),('engineTaskActive',True),('hasPosition',True),('studioBusy',True)]:
+            payload=self.status();payload['deployment'][key]=value
+            self.assertTrue(agent.deployment_blocked(payload))
+
+    def test_legacy_status_requires_explicit_stop_and_zero_holdings(self):
+        payload={'state':'STOPPED','isRunning':False,'heldBtc':0,'avgBuyPrice':0}
+        self.assertFalse(agent.legacy_blocked(payload))
+        self.assertTrue(agent.legacy_blocked({**payload,'heldBtc':0.1}))
+        for value in [None, {}, {'state':'STOPPED'}, {**payload,'heldBtc':float('nan')}]:
+            with self.assertRaises(agent.DeployDeferred):agent.legacy_blocked(value)
+
+
 class DeferTests(unittest.TestCase):
     def test_armed_server_never_fetches_or_restarts(self):
         with patch.object(agent,'read_env',return_value={'ZENTHEX_ENABLE_LIVE_TRADING':'true'}),patch.object(agent,'command') as command:

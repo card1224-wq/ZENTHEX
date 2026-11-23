@@ -8,6 +8,7 @@ import argparse
 import fcntl
 import grp
 import json
+import math
 import os
 from pathlib import Path, PurePosixPath
 import pwd
@@ -57,6 +58,34 @@ def read_env():
             for k, v in [line.split('=', 1)]}
 
 
+def deployment_blocked(modules):
+    if not isinstance(modules, dict):
+        raise DeployDeferred('서버 상태 응답 형식을 확인할 수 없어 배포 보류')
+    # Support the previously shipped studio.deployment response during upgrade.
+    # Missing or malformed fields are never interpreted as an idle engine.
+    studio = modules.get('studio')
+    state = modules.get('deployment') if 'deployment' in modules else studio.get('deployment') if isinstance(studio, dict) else None
+    trading = modules.get('trading')
+    if not isinstance(state, dict) or not isinstance(trading, dict):
+        raise DeployDeferred('배포 상태 정보가 없습니다. 앱을 중지하거나 교체하지 않습니다.')
+    flags = ['engineTaskActive', 'hasPosition', 'studioBusy']
+    if (not isinstance(state.get('engineState'), str)
+            or any(type(state.get(k)) is not bool for k in flags)
+            or type(trading.get('liveEnabled')) is not bool):
+        raise DeployDeferred('배포 상태 정보가 불완전하여 배포 보류')
+    return state['engineState'] != 'STOPPED' or any(state[k] for k in flags) or trading['liveEnabled']
+
+
+def legacy_blocked(state):
+    if not isinstance(state, dict) or not isinstance(state.get('state'), str) or type(state.get('isRunning')) is not bool:
+        raise DeployDeferred('이전 서버의 엔진 정지 상태를 확인할 수 없습니다.')
+    for key in ['heldBtc', 'avgBuyPrice']:
+        value = state.get(key)
+        if type(value) not in (int, float) or not math.isfinite(value) or value < 0:
+            raise DeployDeferred('이전 서버의 보유 상태를 확인할 수 없습니다.')
+    return state['state'] != 'STOPPED' or state['isRunning'] or state['heldBtc'] != 0 or state['avgBuyPrice'] != 0
+
+
 def idle_check():
     config = read_env()
     if config.get('ZENTHEX_ENABLE_LIVE_TRADING', '').lower() != 'false':
@@ -70,15 +99,13 @@ def idle_check():
         raise DeployDeferred('주문/보유 복구 기록이 있어 배포 보류')
     try:
         modules = json_get('/api/modules/status')
-        state = modules['deployment']
-        blocked = (state['engineState'] != 'STOPPED' or state['engineTaskActive']
-                   or state['hasPosition'] or state['studioBusy'] or modules['trading']['liveEnabled'])
+        blocked = deployment_blocked(modules)
     except urllib.error.HTTPError as error:
         if error.code != 404:
             raise
         # Bootstrap the already installed, pre-capabilities build only when it is stopped.
         state = json_get('/api/finance/status')
-        blocked = state.get('state') != 'STOPPED' or state.get('heldBtc', 0) or state.get('avgBuyPrice', 0)
+        blocked = legacy_blocked(state)
     if blocked:
         raise DeployDeferred('엔진 또는 Studio 작업 중: 자동 배포 보류')
     return config, guard
