@@ -1,9 +1,9 @@
 {
-  "version": "2026-11-23-confirmed-exit-result-fix",
+  "version": "2026-11-23-studio-key-input-fix",
   "baseCommit": "09dcabcacae9338dbc521c1aede8107dc0601b26",
   "instructions": "Patch prepared locally. Upload preserving paths. Do not restart or deploy while an engine holds assets or orders are unresolved. New patch is not on GitHub or AWS yet.",
   "validation": {
-    "offlineTests": 60,
+    "offlineTests": 64,
     "httpSmokeChecks": 9,
     "javascriptSyntaxChecks": 5,
     "liveOrdersExecuted": false,
@@ -146,7 +146,7 @@
     },
     {
       "path": "zenthex_configure_studio.py",
-      "sha256": "7fef94ca91d3472e29102b045f8b449abae8fb47068f4c47d905f963f0bb9920"
+      "sha256": "6250a14c320eafbfb92ab20cbebfa661e354449f453f02a3b85dbb1315aaafae"
     },
     {
       "path": "requirements.txt",
@@ -162,7 +162,7 @@
     },
     {
       "path": "PRODUCT_REQUIREMENTS_20261121.md",
-      "sha256": "abb7e75e5b6d3e9fd8af0f716edad4a226116daca79b567b43e3f08916be637e"
+      "sha256": "3f8682f1463dfa75778bc14b68619dfa7242d6a6129fd66cbed4e3118404e45d"
     },
     {
       "path": "UPDATE_GUIDE_20261121.md",
@@ -171,6 +171,10 @@
     {
       "path": "tests/test_deployment.py",
       "sha256": "f71a1a3f7c426376119b4eff03f5e5c9ae8e02ca3c93c75ac73d13d0e7ce4d1b"
+    },
+    {
+      "path": "tests/test_studio_configuration.py",
+      "sha256": "3a65eadb671e8057e797b0140b8f2d515d3f845aa51c3a444f63e4cf84103715"
     }
   ]
 }
