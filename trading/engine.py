@@ -2,6 +2,7 @@ import os
 import math
 import time
 import asyncio
+import uuid
 from datetime import datetime, timezone, timedelta
 import pyupbit
 from mobile.push import send_push_notification
@@ -10,6 +11,7 @@ from trading.bithumb_client import get_bithumb_current_price
 from database.session import SessionLocal
 from database.models import TradeRecord
 from trading.orders import save_guard, clear_guard, wait_for_fill
+from trading.diagnostics import record_decision
 
 # 거래소 수수료(한쪽 기준). 업비트 KRW 마켓 기본 0.05%. 빗썸은 계정/쿠폰에 따라 다르므로 실제 수수료를 확인해 환경변수로 맞추세요.
 DEFAULT_FEE_RATES = {"upbit": 0.0005, "bithumb": 0.0005}
@@ -84,6 +86,10 @@ class BotState:
         self.exit_rule = "매도: 목표 수익률 도달 시 전량 매도, 추적 익절은 계속 오르면 보유하고 최고점 대비 되밀림 시 매도, 실수익 +0.3% 이상 발생 후에는 보호가를 수수료 포함 본전(+0.05%) 위로 올림, 익절 후 자동 재탐색 선택 가능"
         self.risk_rule = "리스크: 최소 주문 5,000원, 떨어지는 기존 보유 코인은 정리 가능, 하락 추가매수 금지, 일일 최대 손실 1.5%, 연속 손절 2회 제한"
         self.current_score = 0.0
+        self.diagnostic_trade_id = None
+        self.diagnostic_entry_time = None
+        self.diagnostic_peak = None
+        self.diagnostic_min = None
         self.logs = ["[System] Zenthex Signal Guard 대기 중: 업비트 전체 KRW 마켓을 스캔합니다. 로그 시간은 한국시간(KST)입니다."]
 
 bot_state = BotState()
@@ -167,28 +173,39 @@ def orderbook_allows_entry(ticker: str):
             orderbook = orderbook[0] if orderbook else None
         units = (orderbook or {}).get("orderbook_units") or []
         if len(units) < 3:
+            record_decision('entry_check', ticker=ticker, mode=bot_state.trading_mode, passed=False, code='book_missing')
             return False, "호가 데이터가 부족합니다."
         best_ask = float(units[0].get("ask_price") or 0)
         best_bid = float(units[0].get("bid_price") or 0)
         if best_ask <= 0 or best_bid <= 0:
+            record_decision('entry_check', ticker=ticker, mode=bot_state.trading_mode, passed=False, code='book_price_invalid')
             return False, "최우선 호가를 확인하지 못했습니다."
         spread = (best_ask - best_bid) / best_bid
         bid_size = sum(float(row.get("bid_size") or 0) for row in units[:5])
         ask_size = sum(float(row.get("ask_size") or 0) for row in units[:5])
         bid_ask_ratio = bid_size / max(ask_size, 1e-9)
+        record_decision('entry_check', ticker=ticker, mode=bot_state.trading_mode,
+                        exchange=bot_state.exchange, spread_pct=spread * 100,
+                        bid_ask_ratio=bid_ask_ratio,
+                        passed=spread <= 0.006 and bid_ask_ratio >= 0.75,
+                        code='spread' if spread > 0.006 else 'bid_depth' if bid_ask_ratio < 0.75 else 'passed')
         if spread > 0.006:
             return False, f"호가 간격이 넓습니다({spread * 100:.2f}%)."
         if bid_ask_ratio < 0.75:
             return False, f"매수호가 방어가 약합니다({bid_ask_ratio:.2f}배)."
         return True, f"호가 통과: 스프레드 {spread * 100:.2f}%, 매수/매도 잔량 {bid_ask_ratio:.2f}배"
     except Exception as e:
+        record_decision('entry_check', ticker=ticker, mode=bot_state.trading_mode, passed=False, code='book_error')
         return False, f"호가 확인 실패: {e}"
 
 async def confirm_entry_signal(ticker: str, signal_price: float):
     current_price = await asyncio.to_thread(get_current_price, ticker)
     if current_price <= 0:
+        record_decision('entry_check', ticker=ticker, mode=bot_state.trading_mode, passed=False, code='price_missing')
         return False, "현재가 확인 실패로 진입 보류"
     if signal_price > 0 and current_price < signal_price * 0.998:
+        record_decision('entry_check', ticker=ticker, mode=bot_state.trading_mode, passed=False,
+                        code='price_fell_after_signal', signal_price=signal_price, price=current_price)
         return False, f"선정 후 가격이 바로 밀렸습니다({signal_price:,.0f} -> {current_price:,.0f})."
     ok, note = await asyncio.to_thread(orderbook_allows_entry, ticker)
     if not ok:
@@ -445,6 +462,10 @@ def calculate_next_entry_krw() -> float:
     return min(per_entry, remaining_budget, available)
 
 def reset_position_tracking():
+    bot_state.diagnostic_trade_id = None
+    bot_state.diagnostic_entry_time = None
+    bot_state.diagnostic_peak = None
+    bot_state.diagnostic_min = None
     bot_state.held_btc = 0
     bot_state.avg_buy_price = 0
     bot_state.entry_krw = 0
@@ -589,6 +610,11 @@ def position_momentum_is_weak(ticker: str) -> tuple[bool, str]:
         recent_volume = float(volumes.tail(2).mean())
         previous_volume = float(volumes.iloc[-6:-2].mean() or 1)
         volume_ratio = recent_volume / max(previous_volume, 1e-9)
+        record_decision('weak_check', ticker=ticker, mode=bot_state.trading_mode,
+                        trade_id=bot_state.diagnostic_trade_id,
+                        minute1_pct=last_candle * 100, minute3_pct=three_minute * 100,
+                        volume_ratio=volume_ratio, candle_time=str(frame.index[-1]),
+                        passed=three_minute <= -0.0025 or (last_candle <= -0.0012 and volume_ratio >= 1.25))
         if three_minute <= -0.0025:
             return True, f"3분 흐름 {three_minute * 100:.2f}% 하락"
         if last_candle <= -0.0012 and volume_ratio >= 1.25:
@@ -636,6 +662,17 @@ async def sell_current_position(reason: str, tag: str = "SELL", price_hint: floa
         bot_state.held_btc = 0
         mode_note = "체험 매도 완료"
     exit_pct = ((exit_value / entry_cost) - 1.0) * 100 if entry_cost > 0 else 0.0
+    record_decision('exit_fill', ticker=ticker, mode=bot_state.trading_mode,
+                    exchange=bot_state.exchange, trade_id=bot_state.diagnostic_trade_id,
+                    entry_cost_krw=entry_cost, exit_net_krw=exit_value,
+                    pnl_krw=exit_value-entry_cost, pnl_pct=exit_pct,
+                    exit_tag=('EXIT LOSS' if exit_pct < 0 else 'EXIT BREAKEVEN') if tag == 'TAKE PROFIT' and exit_pct <= 0 else tag,
+                    hold_seconds=max(time.monotonic()-bot_state.diagnostic_entry_time, 0)
+                    if bot_state.diagnostic_entry_time is not None else None,
+                    observed_peak_pct=(bot_state.diagnostic_peak-1)*100 if bot_state.diagnostic_peak is not None else None,
+                    observed_min_pct=(bot_state.diagnostic_min-1)*100 if bot_state.diagnostic_min is not None else None,
+                    funds_krw=filled['funds'] if is_live_trading_mode() else None,
+                    fee_krw=filled['fee'] if is_live_trading_mode() else None)
     if tag == "TAKE PROFIT" and exit_pct <= 0:
         tag = "EXIT LOSS" if exit_pct < 0 else "EXIT BREAKEVEN"
         reason = f"{reason} 신호 후 " + ("손실 체결" if exit_pct < 0 else "본전 체결")
@@ -681,6 +718,17 @@ async def execute_entry_order(invest_krw: float, price: float, reason: str) -> b
     else:
         bot_state.avg_buy_price = price
     bot_state.entry_count += 1
+    if bot_state.diagnostic_trade_id is None:
+        bot_state.diagnostic_trade_id = uuid.uuid4().hex
+        bot_state.diagnostic_entry_time = time.monotonic()
+    record_decision('entry_fill', ticker=bot_state.active_ticker, mode=bot_state.trading_mode,
+                    exchange=bot_state.exchange, trade_id=bot_state.diagnostic_trade_id,
+                    entry_count=bot_state.entry_count, quantity=bot_state.held_btc,
+                    price=bot_state.avg_buy_price, entry_cost_krw=bot_state.entry_cost_krw,
+                    target_pct=(bot_state.target_yield-1)*100,
+                    stop_pct=(bot_state.stop_loss_yield-1)*100,
+                    funds_krw=filled['funds'] if is_live_trading_mode() else None,
+                    fee_krw=filled['fee'] if is_live_trading_mode() else None)
     bot_state.peak_yield = 1.0
     log_trade(
         f"[Entry] {bot_state.active_ticker} {reason} 완료: {invest_krw:,.0f}원 / "
@@ -763,6 +811,12 @@ async def scalping_loop():
                         await asyncio.sleep(10)
                         continue
                     chosen = candidates[0]
+                    record_decision('signal', ticker=chosen['ticker'], mode=bot_state.trading_mode,
+                                    exchange=bot_state.exchange, signal_price=chosen.get('price'),
+                                    minute1_pct=chosen.get('minute1Momentum', 0)*100,
+                                    minute3_pct=chosen.get('minute3Momentum', 0)*100,
+                                    minute5_pct=chosen.get('minute5Momentum', 0)*100,
+                                    volume_ratio=chosen.get('tickVolumeSurge'), score=chosen.get('score'))
                     bot_state.active_ticker = chosen["ticker"]
                     price = chosen["price"] or get_current_price(bot_state.active_ticker) or price
                     bot_state.current_score = float(chosen.get("score", 0) or 0)
@@ -820,6 +874,8 @@ async def scalping_loop():
 
             elif bot_state.state == TradingState.HOLDING:
                 current_yield = net_yield(price)
+                bot_state.diagnostic_peak = max(bot_state.diagnostic_peak, current_yield) if bot_state.diagnostic_peak is not None else current_yield
+                bot_state.diagnostic_min = min(bot_state.diagnostic_min, current_yield) if bot_state.diagnostic_min is not None else current_yield
                 if current_yield > bot_state.peak_yield:
                     bot_state.peak_yield = current_yield
                 trailing_ready = bot_state.exit_mode == "trailing" and bot_state.peak_yield >= bot_state.trailing_start_yield

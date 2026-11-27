@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Header
 from pydantic import BaseModel, ConfigDict, Field
 from fastapi import HTTPException
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 import asyncio
 import os
@@ -715,10 +716,7 @@ async def performance(mode: str = "all", Authorization: str = Header(None), db: 
     """전략 성적표: 수수료 차감 후 승률, 기대값, 손익비, 최대 낙폭."""
     user_id = None
     if Authorization and Authorization.replace("Bearer ", "").strip():
-        try:
-            user_id = get_current_user(Authorization.replace("Bearer ", ""), db).id
-        except Exception:
-            user_id = None
+        user_id = get_current_user(Authorization.replace("Bearer ", ""), db).id
     query = db.query(TradeRecord)
     query = query.filter(TradeRecord.user_id == user_id) if user_id is not None else query.filter(TradeRecord.user_id.is_(None))
     if mode == "practice":
@@ -742,3 +740,22 @@ async def performance(mode: str = "all", Authorization: str = Header(None), db: 
         for r in rows[-10:][::-1]
     ]
     return result
+
+
+@router.get('/analysis-report')
+async def analysis_report(Authorization: str = Header(None), db: Session = Depends(get_db)):
+    """Explicit user-owned export. Never includes keys, sessions, raw logs or other accounts."""
+    if not Authorization or not Authorization.startswith('Bearer '):
+        raise HTTPException(401, '분석 자료를 받으려면 로그인하세요.')
+    user = get_current_user(Authorization[7:], db)
+    # performance applies this authenticated user's ID to every database query.
+    report = await performance(mode='real', Authorization=Authorization, db=db)
+    return JSONResponse({
+        'schemaVersion': 1,
+        'scope': '본인 계정의 완료된 실거래, 최대 5000건 및 최근 10건 상세',
+        'performance': report,
+        'limitations': ['미실현 손익과 미체결 주문은 포함하지 않습니다.',
+                         '현재 화면의 추정 수수료율과 과거 체결 수수료는 다를 수 있습니다.',
+                         '이 자료만으로 전략 변경 후 수익을 보장하거나 비교할 수 없습니다.'],
+    }, headers={'Cache-Control': 'no-store',
+                'Content-Disposition': 'attachment; filename="zenthex-trading-report.json"'})

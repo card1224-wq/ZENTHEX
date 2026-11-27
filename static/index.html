@@ -95,6 +95,7 @@
         <h1>Zenthex</h1>
         <p class="lead">Zenthex는 AI 건축/3D 스튜디오, 코인 자동매매, 주식 장기·전략 투자를 하나의 계정과 구독 구조로 연결하는 SaaS 플랫폼입니다.</p>
         <div class="actions">
+          <a class="cta sub" href="/app.html">휴대폰 앱 열기</a>
           <a class="cta main" href="studio.html">Studio 열기</a>
           <a class="cta trade" href="finance.html">Trading 열기</a>
           <a class="cta stock" href="stock.html">Stock 열기</a>
@@ -183,7 +184,10 @@
 
   <script>
     if('serviceWorker' in navigator){
-      navigator.serviceWorker.getRegistrations().then(list=>list.forEach(reg=>reg.unregister())).catch(()=>{});
+      navigator.serviceWorker.getRegistrations().then(list=>list.forEach(reg=>{
+        const script=reg.active?.scriptURL||reg.waiting?.scriptURL||reg.installing?.scriptURL||'';
+        if(!script.endsWith('/app-sw.js')) reg.unregister();
+      })).catch(()=>{});
     }
 
     function openModal(id){document.getElementById(id).classList.add('open')}

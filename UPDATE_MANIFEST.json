@@ -1,11 +1,11 @@
 {
-  "version": "2026-11-23-studio-key-input-fix",
-  "baseCommit": "09dcabcacae9338dbc521c1aede8107dc0601b26",
+  "version": "2026-11-26-mobile-app-and-owned-report",
+  "baseCommit": "7ed9adf9473c7aeab882c9151da3fc54ef460c4d",
   "instructions": "Patch prepared locally. Upload preserving paths. Do not restart or deploy while an engine holds assets or orders are unresolved. New patch is not on GitHub or AWS yet.",
   "validation": {
-    "offlineTests": 64,
-    "httpSmokeChecks": 9,
-    "javascriptSyntaxChecks": 5,
+    "offlineTests": 74,
+    "httpSmokeChecks": 8,
+    "javascriptSyntaxChecks": 2,
     "liveOrdersExecuted": false,
     "realAIImageGenerated": false,
     "awsUpdated": false,
@@ -42,7 +42,7 @@
     },
     {
       "path": "main.py",
-      "sha256": "570bf563a1304717aea1c26320787b25b0a1d46acce1a08194b6d07ca397a066"
+      "sha256": "d3cb7c1b23fb70c50087e74718a723d4c37fde590d9f97dd211329b1ccfd199f"
     },
     {
       "path": "render.yaml",
@@ -94,7 +94,7 @@
     },
     {
       "path": "trading/engine.py",
-      "sha256": "178cd8bc8a0f63fdb35a1b9e2d1ef322b225b95de99ecf372d5d6dde829a11ca"
+      "sha256": "8e92efafdb0661c7d53d7c3d8400e9d51a5fbec97d095a7bbe2f50a1a6aa893e"
     },
     {
       "path": "trading/network.py",
@@ -106,7 +106,7 @@
     },
     {
       "path": "trading/router.py",
-      "sha256": "328dfdd76ddc7224f680427a92103f9e947a6f5aa17e65a913ad85555c4cda45"
+      "sha256": "915487bce51a8bc7f03991ac22f5bc581d9e87bc33c1e7cd128d23362eaddbca"
     },
     {
       "path": "auth/hash.py",
@@ -162,7 +162,7 @@
     },
     {
       "path": "PRODUCT_REQUIREMENTS_20261121.md",
-      "sha256": "3f8682f1463dfa75778bc14b68619dfa7242d6a6129fd66cbed4e3118404e45d"
+      "sha256": "b45bcd3876bcb11bdc37b2cfec09dad507d248648e96d0001253aec489b5cab1"
     },
     {
       "path": "UPDATE_GUIDE_20261121.md",
@@ -175,6 +175,62 @@
     {
       "path": "tests/test_studio_configuration.py",
       "sha256": "3a65eadb671e8057e797b0140b8f2d515d3f845aa51c3a444f63e4cf84103715"
+    },
+    {
+      "path": "trading/diagnostics.py",
+      "sha256": "d7cba179668fabcaa56915cb6a79b29b4d5354d2b3446bce3b8410af8aad7544"
+    },
+    {
+      "path": "zenthex_trade_report.py",
+      "sha256": "3abf9d3959df944a0b70fb9e622aa261d6b696a0ee160f1c01836b6e73bb67cc"
+    },
+    {
+      "path": "tests/test_trade_diagnostics.py",
+      "sha256": "634a215acf0953f454578edde7d94716948257ac4f187ed4af819ddbc8a59723"
+    },
+    {
+      "path": "static/index.html",
+      "sha256": "ebfdc22b068ac2d6f2ff76412bc448373cedc9c7ddc195ff5c2e55deb2c0f434"
+    },
+    {
+      "path": "static/login.html",
+      "sha256": "5d514e23b61646380c172826711a1395694a5c680fa6917c8c1ed29f85b2cff8"
+    },
+    {
+      "path": "static/app.html",
+      "sha256": "09effae55af2839a394cf8e75f2cb99d767ccc7d273e6c6088f885025aa6628f"
+    },
+    {
+      "path": "static/app.js",
+      "sha256": "79ea7d566b13f798e3f0367251069dff4d0876d2f5cbeba9f12f9c91b93077f4"
+    },
+    {
+      "path": "static/app-sw.js",
+      "sha256": "3da2a2ebd023431e7257346e2bd428bf8256919f88fb665c8cbaa56679e90cea"
+    },
+    {
+      "path": "static/app.webmanifest",
+      "sha256": "41a242bcc2e59f835af76ed1ecf73c02016cb748a553868d4c637df4bbd2f0fe"
+    },
+    {
+      "path": "static/app-icon-192.png",
+      "sha256": "a937778cb7cfc205a4b75efdc4ad216ad7e50f2badce080d232e2f01f6e87bf8"
+    },
+    {
+      "path": "static/app-icon-512.png",
+      "sha256": "e2189add29c65ac7bddbf200e2e905bd84a31da3566154115b6b95484b195238"
+    },
+    {
+      "path": "tests/test_mobile_report.py",
+      "sha256": "a9521cea60d10ca8562cf7c1e0a7b9dba09272d1fca67853b9f4a24beff8d4db"
+    },
+    {
+      "path": "tests/mobile_app_check.cjs",
+      "sha256": "f4a5701f785adfdaba7188da7483ab973009d6ccdbd023d0705467115227897d"
+    },
+    {
+      "path": "MOBILE_APP_20261126.md",
+      "sha256": "07e8a29ce8c6d80a9303cb5b91c67f21972523b16cd91eb6537621bfb07e403d"
     }
   ]
 }

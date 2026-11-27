@@ -1,5 +1,5 @@
 from fastapi import FastAPI, File, UploadFile, Form, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import pyupbit
@@ -63,6 +63,17 @@ async def health_check():
     }
 
 # Serve frontend pages
+@app.get('/app.html', response_class=HTMLResponse)
+async def serve_mobile_app():
+    return HTMLResponse(Path('static/app.html').read_text(encoding='utf-8'), headers={'Cache-Control': 'no-store'})
+
+
+@app.get('/app-sw.js')
+async def mobile_service_worker():
+    return FileResponse('static/app-sw.js', media_type='application/javascript',
+                        headers={'Cache-Control': 'no-cache', 'Service-Worker-Allowed': '/'})
+
+
 @app.get("/", response_class=HTMLResponse)
 @app.get("/index.html", response_class=HTMLResponse)
 async def serve_index():
