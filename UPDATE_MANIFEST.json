@@ -1,7 +1,7 @@
 {
-  "version": "2026-11-27-fixed-strategy-comparison",
-  "baseCommit": "ce6efdb22b622e1e30444c5c34b6c53dbd958231",
-  "instructions": "Locally tested research-only patch. Upload preserving paths. Keep live engine/orders/Studio idle and live permission locked for deployment. No live strategy promotion.",
+  "version": "2026-11-27-comparison-result-display",
+  "baseCommit": "59095866c5f804be4c233d807bfa68ba59a8ee1f",
+  "instructions": "Local display fix only. Preserve paths. Deploy only with live trading locked and engine/positions/orders/Studio idle. No live strategy change.",
   "validation": {
     "offlineTests": 105,
     "httpSmokeChecks": 10,
@@ -72,7 +72,7 @@
     },
     {
       "path": "static/research.html",
-      "sha256": "82f3afd2972f848b025330c2724b95ef232aa837d137f567cba2ba1eec1e6714"
+      "sha256": "11f0c2771e9ae6bb38f1e38278a6eeecf6f167e7364ddd57a444070e5364ea7c"
     },
     {
       "path": "static/stock.html",
@@ -164,7 +164,7 @@
     },
     {
       "path": "PRODUCT_REQUIREMENTS_20261121.md",
-      "sha256": "ba493b3db349fe185983f34d4c450d4de460178c3e29b498c49fb8cf3b67cfea"
+      "sha256": "e3d0f459015a2bd195b57a26c4b8e1f9ade0acdf020006d9baa4229937cc9d72"
     },
     {
       "path": "UPDATE_GUIDE_20261121.md",
@@ -280,7 +280,7 @@
     },
     {
       "path": "static/strategy-comparison.js",
-      "sha256": "0ca07a1772206155663b08c4d6f49d8a5e227e3ce340d68d3d2f5ac468b2375d"
+      "sha256": "cd2b25fed12708049f258e484ab8b9deb8dc2ffd757942cabaf208c2e5544651"
     },
     {
       "path": "tests/test_strategy_comparison.py",
@@ -288,23 +288,22 @@
     },
     {
       "path": "tests/strategy_comparison_check.cjs",
-      "sha256": "a0312dbd7abc19fd5c472a837e4f60c0007250687c8c879b9842eb28e6cabe7b"
+      "sha256": "e630d13a5d98d3d1525965dd2636b4681c364b64225d96c874e50b9e5fe2ac62"
     },
     {
       "path": "STRATEGY_COMPARISON_20261127.md",
       "sha256": "e1f09efba0cddcf708439f54b39fe7eb55d1271ee6664767e496b915b56fedcd"
+    },
+    {
+      "path": "RESEARCH_DISPLAY_FIX_20261127.md",
+      "sha256": "88f90b4a7f7c00258a813e93ce8fc450582ecbc757c347b5dd4ed7b3ba6adc0a"
     }
   ],
   "patchFiles": [
-    "research/comparison.py",
-    "research/market_data.py",
-    "research/router.py",
     "static/research.html",
     "static/strategy-comparison.js",
-    "tests/test_strategy_comparison.py",
     "tests/strategy_comparison_check.cjs",
-    "STRATEGY_COMPARISON_20261127.md",
     "PRODUCT_REQUIREMENTS_20261121.md",
-    "ZENTHEX_MASTER_PLAN.md"
+    "RESEARCH_DISPLAY_FIX_20261127.md"
   ]
 }

@@ -1,7 +1,7 @@
 <!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ZENTHEX 전략 연구실</title>
 <style>body{margin:0;background:#080c14;color:#edf3fa;font:16px/1.6 system-ui,sans-serif}main{max-width:1050px;margin:auto;padding:24px}nav{display:flex;gap:24px}a{color:#45e5ca}h1{font-size:36px;margin-bottom:8px}section{background:#111a29;border:1px solid #334155;padding:22px;margin:20px 0;border-radius:12px}label{display:inline-block;margin:8px 18px 8px 0}select,input,button{font:inherit;color:inherit;background:#18263c;border:1px solid #63758d;padding:9px;border-radius:6px}button{cursor:pointer}button:disabled{opacity:.5;cursor:wait}p,small{color:#c4cfdc}table{width:100%;border-collapse:collapse}td,th{padding:9px;text-align:left;border-bottom:1px solid #334155}pre{white-space:pre-wrap;overflow-wrap:anywhere}.result{overflow:auto}.badge{color:#facc72}input[type=number]{width:80px}@media(max-width:600px){main{padding:14px}h1{font-size:28px}section{padding:15px}}</style></head><body><main>
 <nav><a href="/index.html">ZENTHEX</a><a href="/finance.html">Trading</a><a href="/stock.html">Stock</a></nav>
-<h1>전략 연구실</h1><p>실험 → 별도 기간 검증 → 전진 모의매매 → 본인 소액 체결 검증. 이 화면은 과거 자료 연구이며 주문을 전송하지 않습니다.</p>
+<h1>전략 연구실</h1><p>실험 → 별도 기간 검증 → 전진 모의매매 → 본인 소액 체결 검증. 이 화면은 과거 자료 연구이며 주문을 전송하지 않습니다.</p><p><a href="#strategy-comparison">단타 세 방식 비교로 바로 이동 ↓</a></p>
 <section data-network-status></section>
 <section><h2>고정 전략 · MA20 / MA60</h2><p>추세 방향과 직전 종가를 보고 다음 봉 시가에 진입합니다. 종목마다 유리한 설정을 자동 탐색하지 않습니다. 기존 업비트 자동매매 엔진과 별개의 연구 전략입니다.</p>
 <label>시장 <select id="market"><option value="upbit">업비트 · 롱만</option><option value="binance_futures">바이낸스 · 1배 롱/숏 연구</option><option value="stock">주식 · 롱만</option></select></label>
@@ -17,7 +17,7 @@
 <h3>연구 기준</h3><pre id="checks"></pre><h3>모형의 범위</h3><ul id="assumptions"></ul>
 <p>실거래 승인 상태: 미승인. 기준 통과는 수익 보장이나 판매 준비 완료를 뜻하지 않습니다.</p>
 <button id="download" type="button">결과 JSON 저장</button></section>
-<section><h2>단타 진입 방식 비교 · 업비트 연구</h2>
+<section id="strategy-comparison"><h2>단타 진입 방식 비교 · 업비트 연구</h2>
 <p>돌파 즉시 진입, 같은 신호에 비용 제한 적용, 눌림 후 재상승 진입을 같은 구간·청산 규칙으로 비교합니다. 기존 실시간 자동매매를 그대로 재현하는 기능은 아닙니다. 실행해도 주문하거나 전략을 교체하지 않습니다.</p>
 <p>고정 연구값: 가격 목표 +1.2%, 손절 −0.6%, 최대 보유 30분, 청산 후 5분 대기. 비용 제한은 목표 폭−가정 왕복 비용이 0.3% 이상일 때만 진입합니다. 이 값은 수익성이 검증된 추천 설정이 아닙니다.</p>
 <label>편도 수수료 (bp) <input id="compare-fee" type="number" min="0" max="1000" step="0.1" value="5" required></label>
@@ -30,6 +30,7 @@
 <p><code>time,open,high,low,close,volume</code> · time은 봉 시작 Unix 밀리초. 연속된 완료 1분봉 500~20,000개가 필요합니다. 거래량·누락 봉은 임의 생성하지 않습니다. 여러 종목·기간으로 따로 비교하세요.</p>
 <button id="compare-run" type="button" disabled>세 방식 비교</button><button id="compare-download" type="button" disabled>비교 결과 저장</button>
 <p id="compare-status" role="status" aria-live="polite">실제 시세 CSV를 올리면 실행할 수 있습니다. 가상 결과를 성적으로 표시하지 않습니다.</p>
+<p id="compare-coverage" role="status"></p><button id="compare-contiguous" type="button" hidden>연속 구간만 선택</button>
 <div id="compare-output" hidden><div id="compare-results"></div><h3>모형의 범위</h3><ul id="compare-assumptions"></ul><p>세 모형은 연구 후보이며 실거래 미승인입니다. 단일 기간 통과로 실거래를 활성화하지 않습니다.</p></div></section>
 </main><script src="/static/network-status.js"></script><script>
 let bars=[],report=null;
@@ -40,4 +41,4 @@ el('load').onclick=async()=>{el('load').disabled=true;el('status').textContent='
 el('market').onchange=()=>{el('output').hidden=true;el('status').textContent='선택 시장과 업로드 자료가 일치하는지 확인하고 다시 실행하세요.';};
 el('run').onclick=async()=>{el('run').disabled=true;el('output').hidden=true;el('status').textContent='연구 실행 중…';try{const r=await fetch('/api/research/replay',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({market:el('market').value,feeBps:Number(el('fee').value),slippageBps:Number(el('slip').value),bars})});const d=await r.json();if(!r.ok)throw Error(typeof d.detail==='string'?d.detail:'입력값을 확인하세요.');report=d;el('decision').textContent=d.decision;el('metrics').replaceChildren();for(const [key,title] of [['returnPct','비용 반영 수익률 (%)'],['maxDrawdownPct','최대 손실폭 (%)'],['buyHoldReturnPct','단순 보유 수익률 (%)'],['tradeCount','청산 거래 수'],['winRatePct','승률 (%)'],['profitFactor','손익비 (수익 합/손실 합)']]){const tr=document.createElement('tr');for(const value of [title,d.training[key],d.validation[key],d.doubleCostValidation[key]]){const td=document.createElement('td');td.textContent=value===null?'계산 불가':String(value);tr.append(td);}el('metrics').append(tr);}const labels={positiveValidation:'검증 수익률 양수',beatsBuyHold:'단순 보유 초과',drawdownUnder10Pct:'손실폭 10% 이하',atLeast50ValidationTrades:'검증 거래 50회 이상',profitFactorAtLeast1_2:'손익비 1.2 이상',positiveDoubleCosts:'비용 2배에서도 양수'};el('checks').textContent=Object.entries(d.checks).map(([k,v])=>(v?'통과':'미달')+' · '+labels[k]).join('\n');el('assumptions').replaceChildren();for(const text of d.assumptions){const li=document.createElement('li');li.textContent=text;el('assumptions').append(li);}el('output').hidden=false;el('status').textContent='과거 자료 연구 완료. 실제 체결이나 수익성이 입증된 것은 아닙니다.';}catch(e){el('status').textContent=e.message;}finally{el('run').disabled=false;}};
 el('download').onclick=()=>{if(!report)return;const url=URL.createObjectURL(new Blob([JSON.stringify(report,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='zenthex-research.json';a.click();URL.revokeObjectURL(url);};
-</script><script src="/static/strategy-comparison.js" defer></script></body></html>
+</script><script src="/static/strategy-comparison.js?v=20261127-2" defer></script></body></html>
