@@ -44,7 +44,7 @@ const settle=async()=>{for(let i=0;i<5;i++)await new Promise(resolve=>setImmedia
     self:{addEventListener:(name,fn)=>{listeners[name]=fn;},location:{origin:'https://example.test'}},URL
   });
   let intercepted=false;
-  for(const url of ['https://example.test/api/finance/status','https://example.test/api/finance/analysis-report','https://other.test/app.html']){
+  for(const url of ['https://example.test/api/finance/status','https://example.test/api/finance/analysis-report','https://example.test/api/household/summary','https://example.test/api/household/export','https://other.test/app.html']){
     listeners.fetch({request:{url,method:'GET'},respondWith(){intercepted=true;}});
   }
   assert.equal(intercepted,false,'Account APIs and external requests must bypass app cache');

@@ -1,5 +1,6 @@
 ﻿from sqlalchemy import Boolean, Column, Integer, String, DateTime, Float
 from sqlalchemy.sql import func
+from sqlalchemy import Date, BigInteger
 from .session import Base
 
 class User(Base):
@@ -86,4 +87,29 @@ class TradeRecord(Base):
     pnl_pct = Column(Float, default=0.0)          # fraction, e.g. 0.004 = +0.4%
     peak_pct = Column(Float, default=0.0)
     reason = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class HouseholdSettings(Base):
+    __tablename__ = 'household_settings'
+    user_id = Column(Integer, primary_key=True)
+    as_of = Column(Date, nullable=False)
+    cash_krw = Column(BigInteger, nullable=False)
+    reserve_krw = Column(BigInteger, nullable=True)
+
+
+class HouseholdEntry(Base):
+    __tablename__ = 'household_entries'
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    date = Column(Date, nullable=False, index=True)
+    activity = Column(String(24), nullable=False, default='household')
+    kind = Column(String(24), nullable=False)
+    category = Column(String(40), nullable=False)
+    description = Column(String(160), nullable=False)
+    method = Column(String(40), nullable=False, default='계좌')
+    amount_krw = Column(BigInteger, nullable=True)
+    status = Column(String(16), nullable=False, default='planned')
+    confirmed = Column(Boolean, nullable=False, default=True)
+    deleted = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

@@ -21,6 +21,7 @@ from billing.router import router as billing_router
 from admin.router import router as admin_router
 from support.router import router as support_router
 from modules_status import router as modules_status_router
+from household.router import router as household_router
 
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -46,6 +47,7 @@ app.include_router(billing_router)
 app.include_router(admin_router)
 app.include_router(support_router)
 app.include_router(modules_status_router)
+app.include_router(household_router)
 
 # Mount static folders
 os.makedirs("uploads", exist_ok=True)
@@ -66,6 +68,11 @@ async def health_check():
 @app.get('/app.html', response_class=HTMLResponse)
 async def serve_mobile_app():
     return HTMLResponse(Path('static/app.html').read_text(encoding='utf-8'), headers={'Cache-Control': 'no-store'})
+
+
+@app.get('/household.html', response_class=HTMLResponse)
+async def serve_household():
+    return HTMLResponse(Path('static/household.html').read_text(encoding='utf-8'), headers={'Cache-Control': 'no-store'})
 
 
 @app.get('/app-sw.js')

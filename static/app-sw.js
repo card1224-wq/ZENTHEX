@@ -1,6 +1,6 @@
 // Cache only the public app shell. Account data, keys and API replies are never cached.
-const CACHE='zenthex-mobile-v1';
-const SHELL=['/app.html','/static/app.js','/static/app-icon-192.png','/static/app-icon-512.png'];
+const CACHE='zenthex-mobile-v2-household';
+const SHELL=['/app.html','/static/app.js','/household.html','/static/household.js','/static/household.css','/static/app-icon-192.png','/static/app-icon-512.png'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL))));
 self.addEventListener('activate',event=>event.waitUntil((async()=>{
   for(const key of await caches.keys()) if(key.startsWith('zenthex-mobile-')&&key!==CACHE) await caches.delete(key);

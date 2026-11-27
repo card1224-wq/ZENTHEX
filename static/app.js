@@ -50,16 +50,20 @@
     $('account').textContent=auth?'계정':'로그인';
     $('account').href=auth?'/account.html':'/login.html?next=/app.html';
     $('share').disabled=$('download').disabled=!auth;
-    if(!auth){clearPerformance('로그인하면 본인 성적을 불러옵니다.');set('state','로그인 필요');set('decision','계정에 로그인해주세요.');set('session','로그인이 필요합니다.');return;}
+    if(!auth){clearPerformance('로그인하면 본인 성적을 불러옵니다.');set('household-preview','로그인하면 본인 가계부를 확인할 수 있습니다.');set('state','로그인 필요');set('decision','계정에 로그인해주세요.');set('session','로그인이 필요합니다.');return;}
     loading=true;$('refresh').disabled=true;
     set('session','서버에서 본인 현황을 확인하고 있습니다.');
     try{
-      const [performance,state]=await Promise.allSettled([
-        request('/api/finance/performance?mode=real',auth),request('/api/finance/status',auth)
+      const [performance,state,household]=await Promise.allSettled([
+        request('/api/finance/performance?mode=real',auth),request('/api/finance/status',auth),request('/api/household/summary',auth)
       ]);
-      if(auth!==token()){clearPerformance('로그인이 변경됐습니다. 다시 확인해주세요.');set('state','다시 확인');set('decision','로그인이 변경됐습니다.');return;}
-      const unauthorized=[performance,state].some(result=>result.status==='rejected'&&result.reason.status===401);
-      if(unauthorized){clearPerformance('로그인이 만료됐습니다. 다시 로그인해주세요.');set('state','로그인 필요');set('decision','새 로그인 후 확인할 수 있습니다.');set('session','계정 메뉴에서 다시 로그인하세요.');$('account').textContent='다시 로그인';$('account').href='/login.html?next=/app.html';$('share').disabled=$('download').disabled=true;return;}
+      if(auth!==token()){clearPerformance('로그인이 변경됐습니다. 다시 확인해주세요.');set('household-preview','로그인 후 다시 확인하세요.');set('state','다시 확인');set('decision','로그인이 변경됐습니다.');return;}
+      const unauthorized=[performance,state,household].some(result=>result.status==='rejected'&&result.reason.status===401);
+      if(unauthorized){clearPerformance('로그인이 만료됐습니다. 다시 로그인해주세요.');set('household-preview','로그인 후 다시 확인하세요.');set('state','로그인 필요');set('decision','새 로그인 후 확인할 수 있습니다.');set('session','계정 메뉴에서 다시 로그인하세요.');$('account').textContent='다시 로그인';$('account').href='/login.html?next=/app.html';$('share').disabled=$('download').disabled=true;return;}
+      if(household.status==='fulfilled'&&household.value.settings){
+        const data=household.value;
+        set('household-preview',`기준일 ${data.settings.as_of} · 가계 잔액 ${money(data.settings.cash_krw)} · 등록한 36일 계획의 최소 부족액 ${money(data.forecast.additional_needed_krw)}. 미등록 지출·미정 금액은 가계부에서 확인하세요.`);
+      }else set('household-preview',household.status==='fulfilled'?'현재 실제 잔액과 수입·지출을 입력하면 자금계획을 볼 수 있습니다.':'가계부를 불러오지 못했습니다. 가계부를 열어 연결을 확인하세요.');
       if(performance.status==='fulfilled')renderPerformance(performance.value);
       else clearPerformance('성적 조회 실패 · 연결을 확인하고 새로고침하세요.');
       if(state.status==='fulfilled'){

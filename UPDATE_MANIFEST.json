@@ -1,11 +1,11 @@
 {
-  "version": "2026-11-26-mobile-app-and-owned-report",
-  "baseCommit": "7ed9adf9473c7aeab882c9151da3fc54ef460c4d",
-  "instructions": "Patch prepared locally. Upload preserving paths. Do not restart or deploy while an engine holds assets or orders are unresolved. New patch is not on GitHub or AWS yet.",
+  "version": "2026-11-27-household-app",
+  "baseCommit": "333cb7ead70182ce8101cc7a73bcdb165cabfbf3",
+  "instructions": "Locally verified household patch. Upload preserving paths. Deploy only with live permission locked and engine/orders/Studio idle. Not uploaded or deployed by this session.",
   "validation": {
-    "offlineTests": 74,
-    "httpSmokeChecks": 8,
-    "javascriptSyntaxChecks": 2,
+    "offlineTests": 89,
+    "httpSmokeChecks": 10,
+    "javascriptSyntaxChecks": 3,
     "liveOrdersExecuted": false,
     "realAIImageGenerated": false,
     "awsUpdated": false,
@@ -22,7 +22,7 @@
     },
     {
       "path": "ZENTHEX_MASTER_PLAN.md",
-      "sha256": "08f9e52b991b7fd98401b35bdf1e8cae4bed8d873e950bc48be6cad5903eb10f"
+      "sha256": "500575663c9aece197ffaee3d1b82ecf8ad6930ad880f5a23cd5db9cc5274df3"
     },
     {
       "path": "deploy/configure_runtime.sh",
@@ -42,7 +42,7 @@
     },
     {
       "path": "main.py",
-      "sha256": "d3cb7c1b23fb70c50087e74718a723d4c37fde590d9f97dd211329b1ccfd199f"
+      "sha256": "cb85197761717300cc1af2be4e56b67304d999963b1062a8e6c1318c7e37ba17"
     },
     {
       "path": "render.yaml",
@@ -162,7 +162,7 @@
     },
     {
       "path": "PRODUCT_REQUIREMENTS_20261121.md",
-      "sha256": "b45bcd3876bcb11bdc37b2cfec09dad507d248648e96d0001253aec489b5cab1"
+      "sha256": "0cd21f9f6b0e089207f4c7ec3a7f4abf36ae54ef74ae32ba9931d3212dca19e1"
     },
     {
       "path": "UPDATE_GUIDE_20261121.md",
@@ -194,19 +194,19 @@
     },
     {
       "path": "static/login.html",
-      "sha256": "5d514e23b61646380c172826711a1395694a5c680fa6917c8c1ed29f85b2cff8"
+      "sha256": "2b9631beb44ef70c4cb0d1f9f81e4566f90d61025acc18ff7578c2a06e9d1b73"
     },
     {
       "path": "static/app.html",
-      "sha256": "09effae55af2839a394cf8e75f2cb99d767ccc7d273e6c6088f885025aa6628f"
+      "sha256": "fa022b16b5cc96978a10a4e289ff465f252f37cbad4c1350fc286abd925507e4"
     },
     {
       "path": "static/app.js",
-      "sha256": "79ea7d566b13f798e3f0367251069dff4d0876d2f5cbeba9f12f9c91b93077f4"
+      "sha256": "090716d6db175260f1baa6baadd7894c9a971312e1f4a9c96a2c74d32d9ea893"
     },
     {
       "path": "static/app-sw.js",
-      "sha256": "3da2a2ebd023431e7257346e2bd428bf8256919f88fb665c8cbaa56679e90cea"
+      "sha256": "d93fdcdff538be3845eb86a5558050fd8a7a7c9896b021e1ed882e6d5774b4a0"
     },
     {
       "path": "static/app.webmanifest",
@@ -226,11 +226,66 @@
     },
     {
       "path": "tests/mobile_app_check.cjs",
-      "sha256": "f4a5701f785adfdaba7188da7483ab973009d6ccdbd023d0705467115227897d"
+      "sha256": "9abbd39f25530fd51e93b5a010f107abce1be2ca6c22c8fbd196ced17f010674"
     },
     {
       "path": "MOBILE_APP_20261126.md",
       "sha256": "07e8a29ce8c6d80a9303cb5b91c67f21972523b16cd91eb6537621bfb07e403d"
+    },
+    {
+      "path": "database/models.py",
+      "sha256": "79902143b1f4cc77234e7c9b8fe2a3aa47b67977e0658537118369da4e429807"
+    },
+    {
+      "path": "household/__init__.py",
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "household/router.py",
+      "sha256": "a264f2bcdad432db377322de2940f49141b9a191212d74e3a0359c125a22a773"
+    },
+    {
+      "path": "static/household.html",
+      "sha256": "2d545c8f04a355bee6f467174275447e62b16119a1abe66c7630ea88981a2094"
+    },
+    {
+      "path": "static/household.css",
+      "sha256": "3e95d84b866a5672930d2787fac2b81ccc5ab06f7a25b688c01b755593910bfd"
+    },
+    {
+      "path": "static/household.js",
+      "sha256": "02beeb877f3b5d1975b5dd40b6e4238c1120b9c546a20093f4135a58b86cb0ce"
+    },
+    {
+      "path": "tests/test_household.py",
+      "sha256": "9ddc87fd010a3cc19940b38035552acbf12848099e76e7444145802b05c29613"
+    },
+    {
+      "path": "tests/household_app_check.cjs",
+      "sha256": "b40918cbad5198ddfc009ac1849137463ee219a6f3b62db328639dba2872a32a"
+    },
+    {
+      "path": "HOUSEHOLD_APP_20261127.md",
+      "sha256": "a15b76ccad1f41c8999cf33a542c1f4073a77d82573d75288c6772f583666ba0"
     }
+  ],
+  "patchFiles": [
+    "database/models.py",
+    "household/__init__.py",
+    "household/router.py",
+    "main.py",
+    "static/household.html",
+    "static/household.css",
+    "static/household.js",
+    "static/app.html",
+    "static/app.js",
+    "static/app-sw.js",
+    "static/login.html",
+    "tests/test_household.py",
+    "tests/household_app_check.cjs",
+    "tests/mobile_app_check.cjs",
+    "PRODUCT_REQUIREMENTS_20261121.md",
+    "ZENTHEX_MASTER_PLAN.md",
+    "HOUSEHOLD_APP_20261127.md"
   ]
 }

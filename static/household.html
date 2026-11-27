@@ -1,0 +1,35 @@
+<!doctype html><html lang="ko"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#080d12"><link rel="manifest" href="/static/app.webmanifest">
+<link rel="apple-touch-icon" href="/static/app-icon-192.png"><link rel="stylesheet" href="/static/household.css">
+<title>ZENTHEX · 가계부</title></head><body><main>
+<header><a class="brand" href="/app.html">◇ ZENTHEX</a><a id="login" href="/login.html?next=/household.html">로그인</a></header>
+<p class="eyebrow">MY HOUSEHOLD</p><h1>우리 집 돈, 한눈에.</h1>
+<p class="muted">수입·지출과 앞으로 필요한 돈을 함께 확인하세요. 입력한 내역 기준이며, 은행 계좌가 자동으로 연결되지는 않습니다.</p>
+<div id="notice" class="notice" role="status" aria-live="polite">로그인 후 본인 가계부를 불러옵니다.</div>
+<div class="toolbar"><label>조회 월 <input id="month" type="month" required></label><button id="refresh" type="button">새로고침</button></div>
+<section class="card"><div class="row"><h2>월 수입·지출</h2><span class="muted">완료 내역 기준</span></div>
+<div class="metrics"><div><span>입금된 수입</span><strong id="income">—</strong></div><div><span>출금된 돈</span><strong id="expense">—</strong></div><div><span>현금 수지</span><strong id="net">—</strong></div><div><span>새 카드 사용액</span><strong id="card-spend">—</strong></div></div>
+<p class="muted small">출금에는 지출·카드대금만 포함합니다. 새 카드 사용액과 내부 계좌이체는 출금 합계에 다시 더하지 않습니다.</p><div id="categories"></div></section>
+<section class="card"><h2>앞으로 부족한 돈</h2><div id="gap" class="amount">—</div><p id="forecast-note" class="muted">기준일과 실제 잔액을 먼저 입력하세요.</p>
+<details id="settings-panel"><summary>기준 잔액·생활비 예비금 설정</summary><form id="settings-form"><div class="fields">
+<label>잔액 기준일<input id="as-of" type="date" required></label><label>가계 계좌·현금 합계(원)<input id="cash" type="number" inputmode="numeric" min="0" step="1" max="1000000000000" required></label>
+<label>남겨둘 생활비 예비금(원)<input id="reserve" type="number" inputmode="numeric" min="0" step="1" max="1000000000000" placeholder="모르면 비워두세요"></label></div>
+<p class="muted small">매일 실제 잔액과 기준일을 갱신하고, 이미 입출금된 내역은 완료로 바꾸세요. 기준일 이전의 미납 지출은 첫날 필요한 돈에 포함합니다.</p><button class="primary" type="submit">기준 잔액 저장</button></form></details>
+<details><summary>36일 자금계획 보기</summary><div id="forecast-days"></div></details></section>
+<section class="card"><h2>별도 활동의 실제 손익</h2><div id="side-results"></div><p class="muted small">매매는 거래소 수수료 차감 후 확정 손익입니다. 사업은 매출 입금−운영비, 베트맨은 수령 환급금−구매금입니다. 예상 수익·당첨금은 납부 재원에 넣지 않습니다. 실제 가계 계좌로 들어온 돈만 가계 수입으로 별도 기록하세요.</p></section>
+<section class="card"><div class="row"><h2 id="entry-title">내역 입력</h2><button id="cancel-edit" type="button" hidden>수정 취소</button></div>
+<form id="entry-form"><div class="fields">
+<label>날짜<input id="entry-date" type="date" required></label>
+<label>자금 구분<select id="activity"><option value="household">가계</option><option value="zenthex_business">젠텍스 사업</option><option value="betman">베트맨 실제 결과</option><option value="other">기타 별도 활동</option></select></label>
+<label>유형<select id="kind"><option value="expense">지출</option><option value="income">수입</option><option value="card_purchase">카드 사용</option><option value="card_payment">카드대금 결제</option><option value="transfer">내부 계좌이체</option></select></label>
+<label>분류<input id="category" list="category-list" maxlength="40" required placeholder="식비, 대출 원리금 등"><datalist id="category-list"><option value="급여"><option value="대출 원리금"><option value="카드대금"><option value="식비"><option value="교통"><option value="공과금"><option value="교육·육아"><option value="운영비"><option value="구매금"><option value="환급금"><option value="기타"></datalist></label>
+<label class="wide">내용<input id="description" maxlength="160" required placeholder="예: 기업은행 주담대 납입"></label>
+<label>금액(원)<input id="entry-amount" type="number" inputmode="numeric" min="0" step="1" max="1000000000000" placeholder="예정 금액이 미정이면 공란"></label>
+<label>결제 수단<input id="method" maxlength="40" value="계좌" required placeholder="계좌, 현금, 카드 이름"></label>
+<label>상태<select id="entry-status"><option value="done">입출금 완료</option><option value="planned">예정</option></select></label>
+<label>금액·일정 확인<select id="confirmed"><option value="true">확인한 내역</option><option value="false">예상·미확정 내역</option></select></label>
+</div><p class="muted small">예정 금액이 공란이면 그 날짜 이후 잔액은 미확정으로 표시됩니다. 완료 내역에는 실제 금액이 필요합니다. 별도 활동은 수입·지출만 사용하세요.</p><button id="save-entry" class="primary" type="submit">내역 저장</button></form></section>
+<section class="card"><div class="row"><h2>등록한 내역</h2><span id="entry-count" class="muted"></span></div><div id="entries">로그인 후 표시됩니다.</div><button id="more" type="button" hidden>이전 내역 더 보기</button></section>
+<section class="card"><h2>내 가계부 내려받기</h2><p class="muted small">본인 입력 내역을 JSON 파일로 저장합니다. 필요한 경우 이 대화에 파일을 첨부할 수 있습니다. 외부로 자동 전송되지는 않습니다.</p><button id="export" type="button">가계부 파일 저장</button><p id="export-note" class="muted small" role="status"></p></section>
+</main><nav aria-label="주 메뉴"><a href="/app.html">내 현황</a><a href="/household.html" aria-current="page">가계부</a><a href="/finance.html">트레이딩</a><a href="/studio.html">스튜디오</a><a href="/stock.html">스톡</a></nav><script src="/static/household.js" defer></script></body></html>
