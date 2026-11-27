@@ -1,15 +1,17 @@
 {
-  "version": "2026-11-27-household-app",
-  "baseCommit": "333cb7ead70182ce8101cc7a73bcdb165cabfbf3",
-  "instructions": "Locally verified household patch. Upload preserving paths. Deploy only with live permission locked and engine/orders/Studio idle. Not uploaded or deployed by this session.",
+  "version": "2026-11-27-fixed-strategy-comparison",
+  "baseCommit": "ce6efdb22b622e1e30444c5c34b6c53dbd958231",
+  "instructions": "Locally tested research-only patch. Upload preserving paths. Keep live engine/orders/Studio idle and live permission locked for deployment. No live strategy promotion.",
   "validation": {
-    "offlineTests": 89,
+    "offlineTests": 105,
     "httpSmokeChecks": 10,
-    "javascriptSyntaxChecks": 3,
+    "javascriptSyntaxChecks": 4,
     "liveOrdersExecuted": false,
     "realAIImageGenerated": false,
     "awsUpdated": false,
-    "githubUpdated": false
+    "githubUpdated": false,
+    "comparisonHttpSmokeChecks": 6,
+    "packagedBaseTests": 105
   },
   "files": [
     {
@@ -22,7 +24,7 @@
     },
     {
       "path": "ZENTHEX_MASTER_PLAN.md",
-      "sha256": "500575663c9aece197ffaee3d1b82ecf8ad6930ad880f5a23cd5db9cc5274df3"
+      "sha256": "e66cb942e427ffc825f3f7b5701fa021c0582b2f608f0d75029661b73f7e1794"
     },
     {
       "path": "deploy/configure_runtime.sh",
@@ -58,7 +60,7 @@
     },
     {
       "path": "research/router.py",
-      "sha256": "9a0fa829cfdd4074f50f0a48a19573ab24e887c3639752e8a8b037729843ee33"
+      "sha256": "d29ffdf3521e177b3bbbefa252869ccf2ad2803f9e795fc0127c24b3bfd5b19b"
     },
     {
       "path": "static/finance.html",
@@ -70,7 +72,7 @@
     },
     {
       "path": "static/research.html",
-      "sha256": "873603d5eedb60c9fb492784c246b222b94fa088898a672828146d0f3a2003a3"
+      "sha256": "82f3afd2972f848b025330c2724b95ef232aa837d137f567cba2ba1eec1e6714"
     },
     {
       "path": "static/stock.html",
@@ -162,7 +164,7 @@
     },
     {
       "path": "PRODUCT_REQUIREMENTS_20261121.md",
-      "sha256": "0cd21f9f6b0e089207f4c7ec3a7f4abf36ae54ef74ae32ba9931d3212dca19e1"
+      "sha256": "ba493b3db349fe185983f34d4c450d4de460178c3e29b498c49fb8cf3b67cfea"
     },
     {
       "path": "UPDATE_GUIDE_20261121.md",
@@ -267,25 +269,42 @@
     {
       "path": "HOUSEHOLD_APP_20261127.md",
       "sha256": "a15b76ccad1f41c8999cf33a542c1f4073a77d82573d75288c6772f583666ba0"
+    },
+    {
+      "path": "research/comparison.py",
+      "sha256": "cc31690f747d22598b5e389fa01a8254df1e5957cbe0ff5cbdd17d2ed3be5ce5"
+    },
+    {
+      "path": "research/market_data.py",
+      "sha256": "1e0e8f39a3b9ac6cd09bcb7a8f007306a69dad77318ce266421e63b5374a8d8b"
+    },
+    {
+      "path": "static/strategy-comparison.js",
+      "sha256": "0ca07a1772206155663b08c4d6f49d8a5e227e3ce340d68d3d2f5ac468b2375d"
+    },
+    {
+      "path": "tests/test_strategy_comparison.py",
+      "sha256": "b0a001b14b9cd33fa0116a928a77c52b2fdf75057e23431c662a45574ff82d6b"
+    },
+    {
+      "path": "tests/strategy_comparison_check.cjs",
+      "sha256": "a0312dbd7abc19fd5c472a837e4f60c0007250687c8c879b9842eb28e6cabe7b"
+    },
+    {
+      "path": "STRATEGY_COMPARISON_20261127.md",
+      "sha256": "e1f09efba0cddcf708439f54b39fe7eb55d1271ee6664767e496b915b56fedcd"
     }
   ],
   "patchFiles": [
-    "database/models.py",
-    "household/__init__.py",
-    "household/router.py",
-    "main.py",
-    "static/household.html",
-    "static/household.css",
-    "static/household.js",
-    "static/app.html",
-    "static/app.js",
-    "static/app-sw.js",
-    "static/login.html",
-    "tests/test_household.py",
-    "tests/household_app_check.cjs",
-    "tests/mobile_app_check.cjs",
+    "research/comparison.py",
+    "research/market_data.py",
+    "research/router.py",
+    "static/research.html",
+    "static/strategy-comparison.js",
+    "tests/test_strategy_comparison.py",
+    "tests/strategy_comparison_check.cjs",
+    "STRATEGY_COMPARISON_20261127.md",
     "PRODUCT_REQUIREMENTS_20261121.md",
-    "ZENTHEX_MASTER_PLAN.md",
-    "HOUSEHOLD_APP_20261127.md"
+    "ZENTHEX_MASTER_PLAN.md"
   ]
 }
