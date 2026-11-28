@@ -1,9 +1,9 @@
 {
-  "version": "2026-11-27-comparison-result-display",
-  "baseCommit": "59095866c5f804be4c233d807bfa68ba59a8ee1f",
-  "instructions": "Local display fix only. Preserve paths. Deploy only with live trading locked and engine/positions/orders/Studio idle. No live strategy change.",
+  "version": "2026-11-28-live-entry-cost-closed-candles",
+  "baseCommit": "40a9237243e3cb360af10fa950f63867d496188a",
+  "instructions": "Actual entry policy change; locally tested only. Upload preserving paths. Deploy only while live permission is locked and engine/positions/orders/Studio idle. Does not unlock or start trading.",
   "validation": {
-    "offlineTests": 105,
+    "offlineTests": 120,
     "httpSmokeChecks": 10,
     "javascriptSyntaxChecks": 4,
     "liveOrdersExecuted": false,
@@ -24,7 +24,7 @@
     },
     {
       "path": "ZENTHEX_MASTER_PLAN.md",
-      "sha256": "e66cb942e427ffc825f3f7b5701fa021c0582b2f608f0d75029661b73f7e1794"
+      "sha256": "a771904f7e90c850bbaa13144b8feda0f4c78469a84cef0ace8d896012aad491"
     },
     {
       "path": "deploy/configure_runtime.sh",
@@ -92,11 +92,11 @@
     },
     {
       "path": "tests/test_trading_safety.py",
-      "sha256": "04144607b1b1429b9c81aab175a4ec19ae7513a019bd83425928eb0fefb16cb7"
+      "sha256": "6d5016466e11ac1c5f98a423f24ab452914f6742938e35349c49e7f803b5e348"
     },
     {
       "path": "trading/engine.py",
-      "sha256": "8e92efafdb0661c7d53d7c3d8400e9d51a5fbec97d095a7bbe2f50a1a6aa893e"
+      "sha256": "53739193f12c859f10e0dd4cff8cd45b146f8f1106a1eebef26f6dee61b5ccae"
     },
     {
       "path": "trading/network.py",
@@ -108,7 +108,7 @@
     },
     {
       "path": "trading/router.py",
-      "sha256": "915487bce51a8bc7f03991ac22f5bc581d9e87bc33c1e7cd128d23362eaddbca"
+      "sha256": "d627c7badac91fe6354917ae1e9de53023be73de073adb976554ec4cfa3482fe"
     },
     {
       "path": "auth/hash.py",
@@ -164,7 +164,7 @@
     },
     {
       "path": "PRODUCT_REQUIREMENTS_20261121.md",
-      "sha256": "e3d0f459015a2bd195b57a26c4b8e1f9ade0acdf020006d9baa4229937cc9d72"
+      "sha256": "d59ed5f9ea801adc7a8aef5cec8a0922a6f1cc2e6e168a34f5e02f4b17f9c63d"
     },
     {
       "path": "UPDATE_GUIDE_20261121.md",
@@ -180,7 +180,7 @@
     },
     {
       "path": "trading/diagnostics.py",
-      "sha256": "d7cba179668fabcaa56915cb6a79b29b4d5354d2b3446bce3b8410af8aad7544"
+      "sha256": "5f33176170caf4c1766d2c7ea06a0ca314499f6d08155e88acc626cce9a1bfc4"
     },
     {
       "path": "zenthex_trade_report.py",
@@ -297,13 +297,29 @@
     {
       "path": "RESEARCH_DISPLAY_FIX_20261127.md",
       "sha256": "88f90b4a7f7c00258a813e93ce8fc450582ecbc757c347b5dd4ed7b3ba6adc0a"
+    },
+    {
+      "path": "trading/entry_policy.py",
+      "sha256": "0497f6f21f13d54456217548d151feb833ae928e0cca6ae74b9251f6f0d7f8d0"
+    },
+    {
+      "path": "tests/test_entry_policy.py",
+      "sha256": "8d9d29d83cab83c9af8fe8c78e84f6a38d694614df1cadf9cb2d3a8a20dcf520"
+    },
+    {
+      "path": "LIVE_ENTRY_FIX_20261128.md",
+      "sha256": "ce2985ee2c35908e3d4b7089438be491f7a625437031bda0ef9613fde4418a78"
     }
   ],
   "patchFiles": [
-    "static/research.html",
-    "static/strategy-comparison.js",
-    "tests/strategy_comparison_check.cjs",
+    "trading/entry_policy.py",
+    "trading/engine.py",
+    "trading/router.py",
+    "trading/diagnostics.py",
+    "tests/test_entry_policy.py",
+    "tests/test_trading_safety.py",
+    "LIVE_ENTRY_FIX_20261128.md",
     "PRODUCT_REQUIREMENTS_20261121.md",
-    "RESEARCH_DISPLAY_FIX_20261127.md"
+    "ZENTHEX_MASTER_PLAN.md"
   ]
 }
