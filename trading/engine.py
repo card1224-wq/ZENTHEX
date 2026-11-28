@@ -12,6 +12,7 @@ from database.session import SessionLocal
 from database.models import TradeRecord
 from trading.orders import save_guard, clear_guard, wait_for_fill
 from trading.diagnostics import record_decision
+from trading.entry_policy import completed_frame, candle_start, entry_depth_cost, ENTRY_POLICY_VERSION
 
 # 거래소 수수료(한쪽 기준). 업비트 KRW 마켓 기본 0.05%. 빗썸은 계정/쿠폰에 따라 다르므로 실제 수수료를 확인해 환경변수로 맞추세요.
 DEFAULT_FEE_RATES = {"upbit": 0.0005, "bithumb": 0.0005}
@@ -82,12 +83,13 @@ class BotState:
         self.last_order_side = ""
         self.last_order_status = "대기"
         self.decision_note = "대기 중입니다. 시작하면 전체 KRW 마켓을 스캔합니다."
-        self.entry_rule = "매수: BTC/ETH 시장 방어, 1m/3m/5m 모두 상승, 최근 양봉 우세, 거래량+가격 동행, 호가 방어 통과"
-        self.exit_rule = "매도: 목표 수익률 도달 시 전량 매도, 추적 익절은 계속 오르면 보유하고 최고점 대비 되밀림 시 매도, 실수익 +0.3% 이상 발생 후에는 보호가를 수수료 포함 본전(+0.05%) 위로 올림, 익절 후 자동 재탐색 선택 가능"
+        self.entry_rule = "매수: 완료된 1m/3m/5m 상승·거래량 확인, BTC/ETH 방어, 스프레드 0.20% 이하, 주문금액별 왕복 호가비용+0.10% 여유가 손절폭 절반·최대0.30% 이내"
+        self.exit_rule = "힘 약화 판단은 체결 후 완료 봉으로 확인하며 손절·수익보호는 즉시 감시. 매도: 목표 수익률 도달 시 전량 매도, 추적 익절은 계속 오르면 보유하고 최고점 대비 되밀림 시 매도, 실수익 +0.3% 이상 발생 후에는 보호가를 수수료 포함 본전(+0.05%) 위로 올림, 익절 후 자동 재탐색 선택 가능"
         self.risk_rule = "리스크: 최소 주문 5,000원, 떨어지는 기존 보유 코인은 정리 가능, 하락 추가매수 금지, 일일 최대 손실 1.5%, 연속 손절 2회 제한"
         self.current_score = 0.0
         self.diagnostic_trade_id = None
         self.diagnostic_entry_time = None
+        self.entry_confirmed_at = None
         self.diagnostic_peak = None
         self.diagnostic_min = None
         self.logs = ["[System] Zenthex Signal Guard 대기 중: 업비트 전체 KRW 마켓을 스캔합니다. 로그 시간은 한국시간(KST)입니다."]
@@ -142,7 +144,7 @@ def market_regime_allows_entry():
     try:
         checks = []
         for ticker in ["KRW-BTC", "KRW-ETH"]:
-            frame = pyupbit.get_ohlcv(ticker, interval="minute1", count=6)
+            frame = completed_frame(pyupbit.get_ohlcv(ticker, interval="minute1", count=7), 1)
             if frame is None or len(frame) < 6:
                 bot_state.market_guard_note = "BTC/ETH 시장상태 확인 실패. 신규 진입 보류"
                 return False, bot_state.market_guard_note
@@ -166,7 +168,7 @@ def market_regime_allows_entry():
         bot_state.market_guard_note = f"시장상태 확인 오류로 신규 진입 보류: {e}"
         return False, bot_state.market_guard_note
 
-def orderbook_allows_entry(ticker: str):
+def orderbook_allows_entry(ticker: str, invest_krw: float | None = None):
     try:
         orderbook = pyupbit.get_orderbook(ticker)
         if isinstance(orderbook, list):
@@ -180,20 +182,13 @@ def orderbook_allows_entry(ticker: str):
         if best_ask <= 0 or best_bid <= 0:
             record_decision('entry_check', ticker=ticker, mode=bot_state.trading_mode, passed=False, code='book_price_invalid')
             return False, "최우선 호가를 확인하지 못했습니다."
-        spread = (best_ask - best_bid) / best_bid
-        bid_size = sum(float(row.get("bid_size") or 0) for row in units[:5])
-        ask_size = sum(float(row.get("ask_size") or 0) for row in units[:5])
-        bid_ask_ratio = bid_size / max(ask_size, 1e-9)
+        amount = invest_krw if invest_krw is not None else calculate_next_entry_krw()
+        result = entry_depth_cost(units, amount, bot_state.fee_rate, 1-bot_state.stop_loss_yield)
         record_decision('entry_check', ticker=ticker, mode=bot_state.trading_mode,
-                        exchange=bot_state.exchange, spread_pct=spread * 100,
-                        bid_ask_ratio=bid_ask_ratio,
-                        passed=spread <= 0.006 and bid_ask_ratio >= 0.75,
-                        code='spread' if spread > 0.006 else 'bid_depth' if bid_ask_ratio < 0.75 else 'passed')
-        if spread > 0.006:
-            return False, f"호가 간격이 넓습니다({spread * 100:.2f}%)."
-        if bid_ask_ratio < 0.75:
-            return False, f"매수호가 방어가 약합니다({bid_ask_ratio:.2f}배)."
-        return True, f"호가 통과: 스프레드 {spread * 100:.2f}%, 매수/매도 잔량 {bid_ask_ratio:.2f}배"
+                        exchange=bot_state.exchange, policy_version=ENTRY_POLICY_VERSION, **result)
+        if not result['passed']:
+            return False, f"진입 비용/잔량 검사 보류: {result['code']} (스프레드 {result.get('spread_pct', 0):.2f}%)"
+        return True, f"호가 비용 통과: 왕복 추정 {result['roundtrip_cost_pct']:.2f}% + 여유 0.10%, 한도 {result['entry_cost_budget_pct']:.2f}%"
     except Exception as e:
         record_decision('entry_check', ticker=ticker, mode=bot_state.trading_mode, passed=False, code='book_error')
         return False, f"호가 확인 실패: {e}"
@@ -207,6 +202,14 @@ async def confirm_entry_signal(ticker: str, signal_price: float):
         record_decision('entry_check', ticker=ticker, mode=bot_state.trading_mode, passed=False,
                         code='price_fell_after_signal', signal_price=signal_price, price=current_price)
         return False, f"선정 후 가격이 바로 밀렸습니다({signal_price:,.0f} -> {current_price:,.0f})."
+    try:
+        frame = await asyncio.to_thread(lambda: completed_frame(pyupbit.get_ohlcv(ticker, interval="minute1", count=7), 1))
+        if len(frame)<4 or frame['close'].iloc[-1]<=frame['close'].iloc[-2] or frame['close'].iloc[-1]<=frame['close'].iloc[-4]:
+            record_decision("entry_check", ticker=ticker, mode=bot_state.trading_mode, passed=False, code="closed_momentum", policy_version=ENTRY_POLICY_VERSION)
+            return False, "완료된 1분봉의 상승 흐름이 약해 신규 진입을 보류합니다."
+    except Exception:
+        record_decision("entry_check", ticker=ticker, mode=bot_state.trading_mode, passed=False, code="closed_candles_unavailable", policy_version=ENTRY_POLICY_VERSION)
+        return False, "완료된 진입 봉을 확인할 수 없어 신규 진입을 보류합니다."
     ok, note = await asyncio.to_thread(orderbook_allows_entry, ticker)
     if not ok:
         return False, note
@@ -285,7 +288,7 @@ def scan_upbit_candidates(limit: int = 5):
             try:
                 if is_ticker_in_cooldown(ticker):
                     continue
-                hourly = pyupbit.get_ohlcv(ticker, interval="minute60", count=25)
+                hourly = completed_frame(pyupbit.get_ohlcv(ticker, interval="minute60", count=26), 60)
                 if hourly is None:
                     continue
                 if len(hourly) < 12:
@@ -345,9 +348,9 @@ def scan_upbit_candidates(limit: int = 5):
         for base in pre_candidates[:12]:
             ticker = base["ticker"]
             try:
-                minute1 = pyupbit.get_ohlcv(ticker, interval="minute1", count=20)
-                minute3 = pyupbit.get_ohlcv(ticker, interval="minute3", count=20)
-                minute5 = pyupbit.get_ohlcv(ticker, interval="minute5", count=20)
+                minute1 = completed_frame(pyupbit.get_ohlcv(ticker, interval="minute1", count=21), 1)
+                minute3 = completed_frame(pyupbit.get_ohlcv(ticker, interval="minute3", count=21), 3)
+                minute5 = completed_frame(pyupbit.get_ohlcv(ticker, interval="minute5", count=21), 5)
                 if minute1 is None or minute3 is None or minute5 is None:
                     continue
                 if len(minute1) < 10 or len(minute3) < 10 or len(minute5) < 10:
@@ -464,6 +467,7 @@ def calculate_next_entry_krw() -> float:
 def reset_position_tracking():
     bot_state.diagnostic_trade_id = None
     bot_state.diagnostic_entry_time = None
+    bot_state.entry_confirmed_at = None
     bot_state.diagnostic_peak = None
     bot_state.diagnostic_min = None
     bot_state.held_btc = 0
@@ -599,9 +603,12 @@ def is_live_trading_mode() -> bool:
 
 def position_momentum_is_weak(ticker: str) -> tuple[bool, str]:
     try:
-        frame = pyupbit.get_ohlcv(ticker, interval="minute1", count=6)
+        frame = completed_frame(pyupbit.get_ohlcv(ticker, interval="minute1", count=7), 1)
         if frame is None or len(frame) < 6:
             return False, "단기 흐름 데이터 부족"
+        if (bot_state.entry_confirmed_at is None
+            or candle_start(frame.index[-4]) < bot_state.entry_confirmed_at):
+            return False, "매수 체결 이후 완료된 봉을 관찰 중입니다. 기존 손절·수익보호 감시는 유지합니다."
         closes = frame["close"]
         volumes = frame["volume"]
         last = float(closes.iloc[-1])
@@ -690,6 +697,14 @@ async def execute_entry_order(invest_krw: float, price: float, reason: str) -> b
         log_trade("[Risk Manager] 다음 진입 금액이 5,000원 미만이라 주문하지 않습니다.")
         return False
 
+    if is_live_trading_mode():
+        allowed, note = await asyncio.to_thread(orderbook_allows_entry, bot_state.active_ticker, invest_krw)
+        if not allowed:
+            bot_state.decision_note = note
+            log_trade(f"[Entry Guard] 주문 직전 보류: {note}")
+            return False
+        if admin_state.global_kill_switch or bot_state.state == TradingState.STOPPED:
+            return False
     previous_entry_krw = bot_state.entry_krw
     previous_qty = bot_state.held_btc
     if is_live_trading_mode():
@@ -718,10 +733,13 @@ async def execute_entry_order(invest_krw: float, price: float, reason: str) -> b
     else:
         bot_state.avg_buy_price = price
     bot_state.entry_count += 1
+    if bot_state.entry_confirmed_at is None:
+        bot_state.entry_confirmed_at = datetime.now(timezone.utc)
     if bot_state.diagnostic_trade_id is None:
         bot_state.diagnostic_trade_id = uuid.uuid4().hex
         bot_state.diagnostic_entry_time = time.monotonic()
     record_decision('entry_fill', ticker=bot_state.active_ticker, mode=bot_state.trading_mode,
+                    policy_version=ENTRY_POLICY_VERSION,
                     exchange=bot_state.exchange, trade_id=bot_state.diagnostic_trade_id,
                     entry_count=bot_state.entry_count, quantity=bot_state.held_btc,
                     price=bot_state.avg_buy_price, entry_cost_krw=bot_state.entry_cost_krw,
@@ -932,7 +950,7 @@ async def scalping_loop():
                             break
                         await asyncio.sleep(2)
                         continue
-                if not should_take_profit and not should_profit_protect and current_yield < 1.0:
+                if not should_take_profit and not should_profit_protect and bot_state.stop_loss_yield < current_yield < 1.0:
                     weak_exit, weak_note = await asyncio.to_thread(position_momentum_is_weak, bot_state.active_ticker)
                     if weak_exit:
                         bot_state.decision_note = f"{bot_state.active_ticker} 보유 코인 힘 약화 감지: {weak_note}. 더 큰 손실 전 시장가 매도 후 재탐색합니다."
@@ -947,7 +965,7 @@ async def scalping_loop():
                         bot_state.decision_note = "힘 약화 매도 후 다음 상승 후보를 다시 찾습니다." if bot_state.state == TradingState.IDLE else "연속 방어 매도가 많아 엔진을 정지했습니다."
                         await asyncio.sleep(3)
                         continue
-                if not should_take_profit and not should_profit_protect and bot_state.trading_mode == "practice" and current_yield < 1.002:
+                if not should_take_profit and not should_profit_protect and bot_state.trading_mode == "practice" and bot_state.stop_loss_yield < current_yield < 1.002:
                     replacement = await asyncio.to_thread(scan_upbit_candidates, 1)
                     if replacement and replacement[0]["ticker"] != bot_state.active_ticker and replacement[0]["score"] > 0.55:
                         old_ticker = bot_state.active_ticker

@@ -111,7 +111,8 @@ class SafetyTests(unittest.IsolatedAsyncioTestCase):
         bot.held_btc = 0.02
         bot.entry_krw = 2000
         bot.entry_cost_krw = 2001
-        await engine.execute_entry_order(10000, 100000, "test")
+        with patch.object(engine, "orderbook_allows_entry", return_value=(True, "test")):
+            await engine.execute_entry_order(10000, 100000, "test")
         self.assertAlmostEqual(bot.held_btc, 0.12)
         self.assertEqual(bot.entry_cost_krw, 12006)
         self.assertTrue(orders.recovery_required())

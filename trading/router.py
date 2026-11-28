@@ -1,3 +1,4 @@
+from trading.entry_policy import ENTRY_POLICY_VERSION
 from fastapi import APIRouter, Depends, Header
 from pydantic import BaseModel, ConfigDict, Field
 from fastapi import HTTPException
@@ -415,6 +416,8 @@ async def _start_bot(config: StartConfig, Authorization: str | None, db: Session
         restart_note = " 이후 자동 재탐색을 켜서 다음 상승 후보를 다시 찾습니다." if bot_state.auto_restart_after_profit else " 이후 엔진을 종료합니다."
         bot_state.exit_rule = f"매도: 수수료 차감 실수익 +{(bot_state.target_yield - 1.0) * 100:.2f}% 도달 시 전량 매도.{restart_note} 단, 실수익 +{(bot_state.profit_protect_start_yield - 1.0) * 100:.2f}% 이상을 찍으면 보호가를 수수료 포함 본전(+{(bot_state.breakeven_protect_yield - 1.0) * 100:.2f}%) 위로 올려 손실 전환을 방어"
 
+    bot_state.exit_rule += " 힘 약화 청산은 체결 후 완료된 1분봉 4개를 관찰한 뒤 판단하며, 기존 손절·수익보호는 계속 감시합니다."
+
     if bot_state.trading_mode in ["real", "bithumb_real"]:
         if not Authorization:
             return {"status": "error", "message": "실거래는 로그인 후 Trading Pro 또는 Ultimate 구독이 필요합니다."}
@@ -704,6 +707,7 @@ async def status(Authorization: str = Header(None), db: Session = Depends(get_db
         "marketGuardNote": bot_state.market_guard_note,
         "cooldownCount": len(bot_state.cooldowns),
         "entryRule": bot_state.entry_rule,
+        "entryPolicyVersion": ENTRY_POLICY_VERSION,
         "exitRule": bot_state.exit_rule,
         "riskRule": bot_state.risk_rule,
         "currentScore": bot_state.current_score,

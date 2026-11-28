@@ -15,7 +15,8 @@ FIELDS = {
     'minute5_pct', 'volume_ratio', 'score', 'quantity', 'funds_krw', 'fee_krw',
     'entry_cost_krw', 'exit_net_krw', 'pnl_krw', 'pnl_pct', 'hold_seconds',
     'observed_peak_pct', 'observed_min_pct', 'target_pct', 'stop_pct', 'exit_tag',
-    'entry_count', 'candle_time',
+    'entry_count', 'candle_time', 'policy_version', 'roundtrip_cost_pct',
+    'cost_reserve_pct', 'entry_cost_budget_pct',
 }
 
 
