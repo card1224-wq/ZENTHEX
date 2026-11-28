@@ -953,16 +953,18 @@ async def scalping_loop():
                 if not should_take_profit and not should_profit_protect and bot_state.stop_loss_yield < current_yield < 1.0:
                     weak_exit, weak_note = await asyncio.to_thread(position_momentum_is_weak, bot_state.active_ticker)
                     if weak_exit:
-                        bot_state.decision_note = f"{bot_state.active_ticker} 보유 코인 힘 약화 감지: {weak_note}. 더 큰 손실 전 시장가 매도 후 재탐색합니다."
-                        log_trade(f"[Weak Momentum Exit] {bot_state.active_ticker} {weak_note}. 재탐색을 위해 매도합니다.")
+                        bot_state.decision_note = f"{bot_state.active_ticker} 보유 코인 힘 약화 감지: {weak_note}. 시장가 청산 후 체결 결과를 확인합니다."
+                        log_trade(f"[Weak Momentum Exit] {bot_state.active_ticker} {weak_note}. 방어 청산합니다.")
                         ok, exit_pct = await sell_current_position("힘 약화 방어 매도", "WEAK EXIT", price)
                         if not ok:
                             break
                         if exit_pct < 0:
                             bot_state.consecutive_loss_count += 1
                             set_ticker_cooldown(bot_state.active_ticker, 60, "힘 약화 매도")
-                        bot_state.state = TradingState.IDLE if bot_state.consecutive_loss_count < bot_state.max_consecutive_loss else TradingState.STOPPED
-                        bot_state.decision_note = "힘 약화 매도 후 다음 상승 후보를 다시 찾습니다." if bot_state.state == TradingState.IDLE else "연속 방어 매도가 많아 엔진을 정지했습니다."
+                        restart = not is_live_trading_mode() and bot_state.consecutive_loss_count < bot_state.max_consecutive_loss
+                        bot_state.state = TradingState.IDLE if restart else TradingState.STOPPED
+                        bot_state.decision_note = ("힘 약화 매도 후 실거래 엔진을 정지했습니다. 재개는 사용자가 직접 선택합니다."
+                            if is_live_trading_mode() else "힘 약화 매도 후 다음 상승 후보를 다시 찾습니다." if restart else "연속 방어 매도가 많아 엔진을 정지했습니다.")
                         await asyncio.sleep(3)
                         continue
                 if not should_take_profit and not should_profit_protect and bot_state.trading_mode == "practice" and bot_state.stop_loss_yield < current_yield < 1.002:

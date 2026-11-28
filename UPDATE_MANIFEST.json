@@ -1,9 +1,9 @@
 {
-  "version": "2026-11-28-live-entry-cost-closed-candles",
-  "baseCommit": "40a9237243e3cb360af10fa950f63867d496188a",
-  "instructions": "Actual entry policy change; locally tested only. Upload preserving paths. Deploy only while live permission is locked and engine/positions/orders/Studio idle. Does not unlock or start trading.",
+  "version": "2026-11-28-web-household-live-weak-exit-stop",
+  "baseCommit": "31a92a0292a5191dbfd5ac04274bae97a696cb8e",
+  "instructions": "Web ledger links and live weakness-exit stop. Deploy with live trading locked and engine/orders/Studio idle. No unlock or order start.",
   "validation": {
-    "offlineTests": 120,
+    "offlineTests": 125,
     "httpSmokeChecks": 10,
     "javascriptSyntaxChecks": 4,
     "liveOrdersExecuted": false,
@@ -24,7 +24,7 @@
     },
     {
       "path": "ZENTHEX_MASTER_PLAN.md",
-      "sha256": "a771904f7e90c850bbaa13144b8feda0f4c78469a84cef0ace8d896012aad491"
+      "sha256": "cf9a44de76090f1074fc2ca048c98999adf9d30dcd31ceae4ef380bd3b078bc6"
     },
     {
       "path": "deploy/configure_runtime.sh",
@@ -96,7 +96,7 @@
     },
     {
       "path": "trading/engine.py",
-      "sha256": "53739193f12c859f10e0dd4cff8cd45b146f8f1106a1eebef26f6dee61b5ccae"
+      "sha256": "ca7599f5d680a1dc090423c931ed84e1b90ca581aeeb49d8fff432a243d72180"
     },
     {
       "path": "trading/network.py",
@@ -164,7 +164,7 @@
     },
     {
       "path": "PRODUCT_REQUIREMENTS_20261121.md",
-      "sha256": "d59ed5f9ea801adc7a8aef5cec8a0922a6f1cc2e6e168a34f5e02f4b17f9c63d"
+      "sha256": "abde756d5d64c643ac76c0108334ac081e19c9e04f4852bbd45125f118084255"
     },
     {
       "path": "UPDATE_GUIDE_20261121.md",
@@ -192,7 +192,7 @@
     },
     {
       "path": "static/index.html",
-      "sha256": "ebfdc22b068ac2d6f2ff76412bc448373cedc9c7ddc195ff5c2e55deb2c0f434"
+      "sha256": "4da1a18f3894acd578bf1e0900c9803172506ddc019dc65f0be93032728ec7bb"
     },
     {
       "path": "static/login.html",
@@ -309,16 +309,21 @@
     {
       "path": "LIVE_ENTRY_FIX_20261128.md",
       "sha256": "ce2985ee2c35908e3d4b7089438be491f7a625437031bda0ef9613fde4418a78"
+    },
+    {
+      "path": "static/account.html",
+      "sha256": "b511266502cef341062da0ff4a9b979661ec0d487421233de5be98b34204c9ba"
+    },
+    {
+      "path": "tests/test_web_household_exit.py",
+      "sha256": "9c066b6ebd0b97cc2b4fa829d0bd611f3ebdc1d2081e3cb4d98c6fb719a9d6d8"
     }
   ],
   "patchFiles": [
-    "trading/entry_policy.py",
+    "static/index.html",
+    "static/account.html",
     "trading/engine.py",
-    "trading/router.py",
-    "trading/diagnostics.py",
-    "tests/test_entry_policy.py",
-    "tests/test_trading_safety.py",
-    "LIVE_ENTRY_FIX_20261128.md",
+    "tests/test_web_household_exit.py",
     "PRODUCT_REQUIREMENTS_20261121.md",
     "ZENTHEX_MASTER_PLAN.md"
   ]
